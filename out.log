@@ -1,0 +1,32 @@
+verilator --cc --exe --build --trace memory_controller.sv  dram_tb.cpp dram_model.cpp --top-module memory_controller
+make[1]: Entering directory '/home/nixos/CodingWorkspace/hardware/mem-controller/basic/obj_dir'
+g++  -I.  -MMD -I/nix/store/ncwc3by264xfgqimkv34xrcv091j992z-verilator-5.028/share/verilator/include -I/nix/store/ncwc3by264xfgqimkv34xrcv091j992z-verilator-5.028/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable      -Os  -c -o dram_tb.o ../dram_tb.cpp
+g++    dram_model.o dram_tb.o verilated.o verilated_vcd_c.o verilated_threads.o Vmemory_controller__ALL.a    -pthread -lpthread -latomic   -o Vmemory_controller
+make[1]: Leaving directory '/home/nixos/CodingWorkspace/hardware/mem-controller/basic/obj_dir'
+- V e r i l a t i o n   R e p o r t: Verilator 5.028 2024-08-21 rev v5.028
+- Verilator: Built from 0.000 MB sources in 0 modules, into 0.000 MB in 0 C++ files needing 0.000 MB
+- Verilator: Walltime 1.236 s (elab=0.000, cvt=0.000, bld=1.236); cpu 0.001 s on 1 threads; alloced 8.223 MB
+./obj_dir/Vmemory_controller
+Reset complete.
+
+Starting WRITE transaction...
+Received confirmation that the WRITE response is complete.
+In Data -   69360420
+WRITE transaction reached DONE state.
+Waiting for a return to an IDLE state.
+In Data -          0
+DONE -          0
+Controller returned to IDLE after WRITE transaction.
+
+Starting READ transaction...
+[DRAM] Reading - 69360420
+Received confirmation that the READ response is complete.
+READ Data -   69360420
+In Data -   69360420
+READ transaction reached DONE state.
+READ transaction returned correct data: 69360420
+In Data -          0
+DONE -          0
+Controller returned to IDLE after READ transaction.
+
+Testbench completed successfully.

@@ -1,18 +1,18 @@
 # Makefile for SDRAM Controller Simulation using Icarus Verilog
 
 # List of Verilog source files
-VERILOG_SOURCES = sdram_controller.v sdram_model.v tb_sdram_controller.v
-
-# Output simulation executable name
-OUTPUT = sim
+VERILOG_SOURCES = memory_controller.sv 
+CPP_SOURCES = dram_tb.cpp dram_model.cpp
 
 # Default target: build and run simulation
-all: $(OUTPUT)
+all: build
 
-$(OUTPUT): $(VERILOG_SOURCES)
-	iverilog -o $(OUTPUT) $(VERILOG_SOURCES)
-	./$(OUTPUT)
+build:
+	verilator --cc --exe --build --trace $(VERILOG_SOURCES) $(CPP_SOURCES) --top-module memory_controller
+
+run: build
+	./obj_dir/Vmemory_controller
 
 # Clean generated files
 clean:
-	rm -f $(OUTPUT) waveform.vcd
+	rm -rf obj_dir waveform.vcd

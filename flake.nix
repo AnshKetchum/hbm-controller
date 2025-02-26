@@ -14,6 +14,7 @@
     softwareDeps = with pkgs; [
         pkgs.gtkwave
         pkgs.iverilog
+        pkgs.verilator
     ];
 
   in {
