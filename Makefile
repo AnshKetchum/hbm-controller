@@ -5,7 +5,7 @@ VERILOG_SOURCES = memory_controller.sv
 CPP_SOURCES = dram_tb.cpp dram_model.cpp
 
 # Default target: build and run simulation
-all: build
+all: run
 
 build:
 	verilator --cc --exe --build --trace $(VERILOG_SOURCES) $(CPP_SOURCES) --top-module memory_controller

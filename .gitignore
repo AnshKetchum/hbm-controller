@@ -1,3 +1,4 @@
 *.vcd
+*.log
 sim
 obj_dir

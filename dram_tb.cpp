@@ -4,28 +4,19 @@
 #include "verilated_vcd_c.h"
 #include <iostream>
 
-// These macros should match the values used in the Verilog module
-#define NO_COMMAND    0 
-#define READ_COMMAND  1 
-#define WRITE_COMMAND 2 
-
-// Note: The state definitions in the Verilog module are:
-//   IDLE = 0, READ_PENDING = 1, READ_ISSUE = 2, WRITE_ISSUE = 3, WRITE_PENDING = 4, DONE = 5
-// However, the testbench only uses the "done" output and waits for the controller to return to IDLE.
-
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
     Vmemory_controller* mem_ctrl = new Vmemory_controller;
 
-    // Enable waveforms
+    // Enable waveform tracing
     Verilated::traceEverOn(true);
     VerilatedVcdC* trace = new VerilatedVcdC;
-    mem_ctrl->trace(trace, 99);  // Depth of signal tracing
+    mem_ctrl->trace(trace, 99);  // Trace depth
     trace->open("waveform.vcd"); // Open VCD file for GTKWave
 
     DRAMModel dram;
 
-    // Simulation time (cycle counter)
+    // Simulation time counter
     vluint64_t main_time = 0;
 
     // --- Reset the controller ---
@@ -33,22 +24,19 @@ int main(int argc, char **argv) {
     mem_ctrl->wr_en = 0;
     mem_ctrl->rd_en = 0;
     mem_ctrl->clk = 0;
-    // Let the reset be asserted for 10 cycles
+    // Assert reset for 10 cycles
     for (int i = 0; i < 10; i++) {
-
-        // Toggle Clock and update waveforms
+        // Toggle clock and dump waveform
         mem_ctrl->clk = 1 - mem_ctrl->clk;
         trace->dump(main_time);
         mem_ctrl->eval();
-
         main_time++;
     }
     mem_ctrl->rst = 0;
     std::cout << "Reset complete." << std::endl;
 
     // --- WRITE Transaction ---
-    // This test will "write" a value into memory.
-    // We issue a write request to address 0xDEADBEEF with wdata = 69360420.
+    // Issue a write request to address 0xDEADBEEF with wdata = 69360420.
     std::cout << "\nStarting WRITE transaction..." << std::endl;
     mem_ctrl->wr_en = 1;
     mem_ctrl->request_valid = 1;
@@ -56,18 +44,17 @@ int main(int argc, char **argv) {
     mem_ctrl->addr = 0xDEADBEEF;
     mem_ctrl->wdata = 69360420;
 
-    // Run until the controller asserts done (i.e. transaction complete)
-    while (!((uint32_t)(mem_ctrl->done))) {
-        // Update the DRAM model:
-        // This call should update mem_ctrl->response_complete and mem_ctrl->response_data
-        dram.update(mem_ctrl->request_command, mem_ctrl->request_addr, mem_ctrl->request_data,
+    // Run until the controller asserts done (transaction complete)
+    while (!((uint32_t)mem_ctrl->done)) {
+        // Use the new DRAM interface (active-low signals are passed from mem_ctrl)
+        dram.update(mem_ctrl->cs, mem_ctrl->ras, mem_ctrl->cas, mem_ctrl->we,
+                    mem_ctrl->request_addr, mem_ctrl->request_data,
                     &mem_ctrl->response_complete, &mem_ctrl->response_data);
 
-        // Toggle Clock and update waveforms
+        // Toggle clock and update waveform
         mem_ctrl->clk = 1 - mem_ctrl->clk;
         trace->dump(main_time);
         mem_ctrl->eval();
-
         main_time++;
         if (main_time > 1000) {
             std::cerr << "Timeout during WRITE transaction." << std::endl;
@@ -75,20 +62,18 @@ int main(int argc, char **argv) {
         }
     }
     std::cout << "WRITE transaction reached DONE state." << std::endl;
-    // End the write transaction by de-asserting wr_en
-    mem_ctrl->wr_en = 0;
+    mem_ctrl->wr_en = 0; // End write transaction
 
-    // Wait for the controller to return to the IDLE state (check via ctrllerstate)
+    // Wait for the controller to return to IDLE (ctrllerstate == 0)
     std::cout << "Waiting for a return to an IDLE state." << std::endl;
-    while (mem_ctrl->ctrllerstate != 0) {  // assuming 0 is IDLE
-        dram.update(mem_ctrl->request_command, mem_ctrl->request_addr, mem_ctrl->request_data,
+    while (mem_ctrl->ctrllerstate != 0) {
+        dram.update(mem_ctrl->cs, mem_ctrl->ras, mem_ctrl->cas, mem_ctrl->we,
+                    mem_ctrl->request_addr, mem_ctrl->request_data,
                     &mem_ctrl->response_complete, &mem_ctrl->response_data);
-
-        // Toggle Clock and update waveforms
+                    
         mem_ctrl->clk = 1 - mem_ctrl->clk;
         trace->dump(main_time);
         mem_ctrl->eval();
-
         main_time++;
         if (main_time > 2000) {
             std::cerr << "Timeout waiting for IDLE after WRITE transaction." << std::endl;
@@ -98,10 +83,8 @@ int main(int argc, char **argv) {
     std::cout << "Controller returned to IDLE after WRITE transaction." << std::endl;
 
     // --- READ Transaction ---
-    // Now we perform a read to the same address. The DRAM model is updated to
-    // supply the previously written value (69360420) at address 0xDEADBEEF.
+    // Preload the DRAM memory so that the value 69360420 is available at 0xDEADBEEF.
     std::cout << "\nStarting READ transaction..." << std::endl;
-    // Set up the DRAM model memory (assumes DRAMModel provides a set_memory() function)
     dram.set_memory(0xDEADBEEF, 69360420);
 
     // Issue a read request
@@ -111,19 +94,16 @@ int main(int argc, char **argv) {
     mem_ctrl->request_valid = 1;
 
     // Run until the controller asserts done
-    while (!((uint32_t)(mem_ctrl->done))) {
-        dram.update(mem_ctrl->request_command, mem_ctrl->request_addr, mem_ctrl->request_data,
+    while (!((uint32_t)mem_ctrl->done)) {
+        dram.update(mem_ctrl->cs, mem_ctrl->ras, mem_ctrl->cas, mem_ctrl->we,
+                    mem_ctrl->request_addr, mem_ctrl->request_data,
                     &mem_ctrl->response_complete, &mem_ctrl->response_data);
 
-        // Toggle Clock and update waveforms
         mem_ctrl->clk = 1 - mem_ctrl->clk;
         trace->dump(main_time);
         mem_ctrl->eval();
-
         mem_ctrl->request_valid = 0;
         main_time++;
-
-
         if (main_time > 3000) {
             std::cerr << "Timeout during READ transaction." << std::endl;
             break;
@@ -131,25 +111,23 @@ int main(int argc, char **argv) {
     }
     std::cout << "READ transaction reached DONE state." << std::endl;
 
-    // Check that the output data matches the value written earlier
+    // Verify that the controller output data matches the expected value.
     if (mem_ctrl->data == 69360420) {
         std::cout << "READ transaction returned correct data: " << mem_ctrl->data << std::endl;
     } else {
         std::cout << "ERROR: READ transaction returned incorrect data: " << mem_ctrl->data << std::endl;
     }
-    // End the read transaction by de-asserting rd_en
-    mem_ctrl->rd_en = 0;
+    mem_ctrl->rd_en = 0; // End read transaction
 
     // Wait for the controller to return to IDLE
-    while (mem_ctrl->ctrllerstate != 0) {  // 0 corresponds to IDLE
-        dram.update(mem_ctrl->request_command, mem_ctrl->request_addr, mem_ctrl->request_data,
+    while (mem_ctrl->ctrllerstate != 0) {
+        dram.update(mem_ctrl->cs, mem_ctrl->ras, mem_ctrl->cas, mem_ctrl->we,
+                    mem_ctrl->request_addr, mem_ctrl->request_data,
                     &mem_ctrl->response_complete, &mem_ctrl->response_data);
-
-        // Toggle Clock and update waveforms
+                    
         mem_ctrl->clk = 1 - mem_ctrl->clk;
         trace->dump(main_time);
         mem_ctrl->eval();
-
         main_time++;
         if (main_time > 4000) {
             std::cerr << "Timeout waiting for IDLE after READ transaction." << std::endl;
@@ -158,7 +136,6 @@ int main(int argc, char **argv) {
     }
     std::cout << "Controller returned to IDLE after READ transaction." << std::endl;
     std::cout << "\nTestbench completed successfully." << std::endl;
-
 
     // Final cleanup
     mem_ctrl->final();

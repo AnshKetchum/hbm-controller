@@ -15,6 +15,7 @@
         pkgs.gtkwave
         pkgs.iverilog
         pkgs.verilator
+        pkgs.zulu8
     ];
 
   in {
