@@ -1,23 +1,29 @@
 {
-  description = "A Flake to manage multiple modules, and configure all of the OS tools accordingly.";
+  description = "A Flake to manage multiple modules and configure OS tools (Chisel, CIRCT, firtool, etc.)";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
   };
 
-  outputs = { self, nixpkgs }: 
-  let 
+  outputs = { self, nixpkgs }:
+  let
     system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system};
+    overlays = [ (import ./nix/overlay.nix) ];
+    pkgs = import nixpkgs {
+      inherit system;
+      overlays = overlays;
+    };
 
-    # Backend dependencies (Python + FastAPI + OpenAI SDK)
+    # Define your combined development dependencies.
     softwareDeps = with pkgs; [
-        pkgs.gtkwave
-        pkgs.iverilog
-        pkgs.verilator
-        pkgs.zulu8
+      gtkwave
+      verilator
+      zulu8
+      scala
+      sbt
+      coursier
+      circt-full
     ];
-
   in {
     devShells = {
       "${system}" = {
@@ -26,5 +32,6 @@
         };
       };
     };
+
   };
 }
