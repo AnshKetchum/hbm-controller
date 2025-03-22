@@ -17,7 +17,16 @@ class DRAMModelIO extends Bundle {
   val response_data = Output(UInt(32.W))
 }
 
-class DRAMModel extends Module {
+case class DRAMModelParams(
+  addressSpaceSize: Int = 1024,
+  tRCD_DELAY: Int = 5, 
+  tCL_DELAY: Int = 5,
+  tPRE_DELAY: Int = 10,
+  tREFRESH: Int = 10,
+  tREFRESH_CYCLES: Int = 200
+)
+
+class DRAMModel(params: DRAMModelParams = DRAMModelParams()) extends Module {
   val io = IO(new DRAMModelIO())
   
   // DRAM states (not used extensively in this example)
@@ -26,16 +35,16 @@ class DRAMModel extends Module {
   }
   
   // Timing parameters (delays in cycles)
-  val tRCD_DELAY = 5.U  // Row to column delay
-  val tCL_DELAY  = 5.U  // CAS latency delay
-  val tPRE_DELAY = 10.U // Precharge delay
-  val tREFRESH   = 10.U // Refresh delay
+  val tRCD_DELAY = params.tRCD_DELAY.U  // Row to column delay
+  val tCL_DELAY  = params.tCL_DELAY.U  // CAS latency delay
+  val tPRE_DELAY = params.tPRE_DELAY.U // Precharge delay
+  val tREFRESH   = params.tREFRESH.U // Refresh delay
   
   // Refresh cycles (for simulation of periodic refresh)
-  val REFRESH_CYCLES = 200.U
+  val REFRESH_CYCLES = params.tREFRESH_CYCLES.U
   
   // Memory storage using a Memory element
-  val memory = Mem(1024, UInt(32.W))
+  val memory = Mem(params.addressSpaceSize, UInt(32.W))
   
   // Registers
   val delay_counter        = RegInit(0.U(32.W))
@@ -102,9 +111,9 @@ class DRAMModel extends Module {
       when(delay_counter === 1.U) {
         memory_activated := 1.U
         io.response_complete := true.B
-        printf("Completed activation.")
+        printf("Completed activation.\n")
       } .otherwise {
-        printf("Not completed activation.")
+        printf("Not completed activation.\n")
         io.response_complete := false.B
       }
     }
@@ -121,7 +130,7 @@ class DRAMModel extends Module {
         when(io.we === 1.U) {
           // Read operation
           io.response_data := memory.read(io.addr)
-          printf("Reading data %d from address 0x%x\n", memory.read(io.addr), io.addr)
+          printf("[DRAM] Reading data %d from address 0x%x\n", memory.read(io.addr), io.addr)
         } .otherwise {
           // Write operation
           memory.write(io.addr, io.wdata)
@@ -157,6 +166,3 @@ class DRAMModel extends Module {
   delay_counter := next_delay
 }
 
-object DRAMModelMain extends App {
-  chisel3.emitVerilog(new DRAMModel(), Array("--target-dir", "generated"))
-}
