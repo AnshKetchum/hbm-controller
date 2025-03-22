@@ -18,22 +18,33 @@ class BankGroupIO extends Bundle {
 }
 
 class BankGroup(numberOfBanks: Int = 8) extends Module {
-    val io = IO(new BankGroupIO())
+  val io = IO(new BankGroupIO())
 
-    // Create a fix number of banks
-    val banks = Seq.fill(numberOfBanks)(Module(new DRAMBank()))
+  // Calculate bit width for bank indexing
+  val bankBits = log2Ceil(numberOfBanks)
 
-    for (bank <- banks) {
-        bank.io.cs := io.cs
-        bank.io.ras := io.ras
-        bank.io.cas := io.cas 
-        bank.io.we := io.we
-        bank.io.addr := io.addr
-        bank.io.wdata:= io.wdata
-    }
+  // Extract bank index from the address (lowest bits)
+  val bankIndex = io.addr(bankBits - 1, 0)
 
-    // Tie the output to the zeroeth value
-    io.response_complete := banks(0).io.response_complete
-    io.response_data := banks(0).io.response_data
+  // Instantiate banks
+  val banks = Seq.fill(numberOfBanks)(Module(new DRAMBank()))
 
+  // Wire banks conditionally based on bank index
+  for ((bank, i) <- banks.zipWithIndex) {
+    val isActiveBank = ~(bankIndex === i.U)
+
+    bank.io.cs := isActiveBank
+    bank.io.ras := io.ras
+    bank.io.cas := io.cas
+    bank.io.we := io.we
+    bank.io.addr := io.addr
+    bank.io.wdata := io.wdata
+  }
+
+  // Select outputs from the active bank
+  val responseCompleteVec = VecInit(banks.map(_.io.response_complete))
+  val responseDataVec = VecInit(banks.map(_.io.response_data))
+
+  io.response_complete := responseCompleteVec(bankIndex)
+  io.response_data := responseDataVec(bankIndex)
 }
