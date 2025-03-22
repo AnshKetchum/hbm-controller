@@ -3,7 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class DRAMModelIO extends Bundle {
+class DRAMBankIO extends Bundle {
   // Inputs
   val cs = Input(Bool())
   val ras = Input(Bool())
@@ -17,7 +17,7 @@ class DRAMModelIO extends Bundle {
   val response_data = Output(UInt(32.W))
 }
 
-case class DRAMModelParams(
+case class DRAMBankParams(
   addressSpaceSize: Int = 1024,
   tRCD_DELAY: Int = 5, 
   tCL_DELAY: Int = 5,
@@ -26,8 +26,8 @@ case class DRAMModelParams(
   tREFRESH_CYCLES: Int = 200
 )
 
-class DRAMModel(params: DRAMModelParams = DRAMModelParams()) extends Module {
-  val io = IO(new DRAMModelIO())
+class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
+  val io = IO(new DRAMBankIO())
   
   // DRAM states (not used extensively in this example)
   object DRAMState extends ChiselEnum {

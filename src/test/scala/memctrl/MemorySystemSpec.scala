@@ -5,51 +5,10 @@ import chisel3.simulator.EphemeralSimulator._
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
-// A top-level module that wires together the MemoryController and DRAMModel.
-class MemorySystem extends Module {
-  val io = IO(new Bundle {
-    // User interface signals
-    val wr_en         = Input(Bool())
-    val rd_en         = Input(Bool())
-    val addr          = Input(UInt(32.W))
-    val wdata         = Input(UInt(32.W))
-    val request_valid = Input(Bool())
-    // User outputs
-    val data          = Output(UInt(32.W))
-    val done          = Output(Bool())
-  })
-
-  // Instantiate the memory controller and the DRAM model.
-  val memctrl = Module(new MemoryController())
-  val dram    = Module(new DRAMModel())
-
-  // Connect the controller to the DRAM.
-  dram.io.cs   := memctrl.io.cs
-  dram.io.ras  := memctrl.io.ras
-  dram.io.cas  := memctrl.io.cas
-  dram.io.we   := memctrl.io.we
-  dram.io.addr := memctrl.io.request_addr  // address comes from the controller
-  dram.io.wdata:= memctrl.io.request_data   // write data from the controller
-
-  // Connect the DRAM responses back to the controller.
-  memctrl.io.response_complete := dram.io.response_complete
-  memctrl.io.response_data     := dram.io.response_data
-
-  // Connect the user interface.
-  memctrl.io.wr_en         := io.wr_en
-  memctrl.io.rd_en         := io.rd_en
-  memctrl.io.addr          := io.addr
-  memctrl.io.wdata         := io.wdata
-  memctrl.io.request_valid := io.request_valid
-
-  io.data := memctrl.io.data
-  io.done := memctrl.io.done
-}
-
-// Verification spec for the MemorySystem
-class MemorySystemSpec extends AnyFreeSpec with Matchers {
-  "MemorySystem should correctly handle write, read, and refresh transactions" in {
-    simulate(new MemorySystem()) { c =>
+// Verification spec for a SingleChannelSystem
+class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
+  "SingleChannelSystem should correctly handle write, read, and refresh transactions" in {
+    simulate(new SingleChannelSystem()) { c =>
       // Helper function: wait until the MemoryController signals done.
       def waitForDone(maxCycles: Int = 500): Boolean = {
         var cycles = 0
