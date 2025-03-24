@@ -40,6 +40,7 @@ class Rank(numberofBankGroups: Int = 8, numberOfBanks: Int = 8) extends Module {
         bank_group.io.we := io.we
         bank_group.io.addr := io.addr
         bank_group.io.wdata:= io.wdata
+        // printf("[Rank] sending: %d\n", io.addr)
     }
 
     // Default outputs

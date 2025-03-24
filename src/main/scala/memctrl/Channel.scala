@@ -17,7 +17,7 @@ class ChannelIO extends Bundle {
   val response_data = Output(UInt(32.W))
 }
 
-class Channel(numberOfRanks: Int = 8, numberofBankGroups: Int = 8, numberOfBanks: Int = 8) extends Module {
+class Channel(numberOfRanks: Int = 2, numberofBankGroups: Int = 2, numberOfBanks: Int = 2) extends Module {
   val io = IO(new ChannelIO())
 
   // Calculate bit widths for indexing

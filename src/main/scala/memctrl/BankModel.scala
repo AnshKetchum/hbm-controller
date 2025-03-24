@@ -92,8 +92,11 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
     row * params.numCols.U + col
   }
 
+
   // Default: maintain current delay.
   val next_delay = WireDefault(delay_counter)
+
+  // printf("%d %d %d %d\n", io.cs, io.ras, io.cas, io.we);
 
   // DRAM Command Processing:
   // We now assume that:
@@ -130,7 +133,7 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
       // Start wordline activation.
       next_delay := tWL_DELAY
       io.response_complete := false.B
-      printf("Activating: Opening row %d with tWL_DELAY (%d cycles)\n", reqRow, tWL_DELAY)
+      // printf("Activating: Opening row %d with tWL_DELAY (%d cycles)\n", reqRow, tWL_DELAY)
     } .otherwise {
       next_delay := delay_counter - 1.U
       when(delay_counter === 1.U) {
@@ -138,7 +141,7 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
         rowActive := true.B
         activeRow := reqRow
         io.response_complete := true.B
-        printf("Completed activation. Active row set to %d\n", reqRow)
+        // printf("Completed activation. Active row set to %d\n", reqRow)
       } .otherwise {
         io.response_complete := false.B
       }
@@ -150,18 +153,18 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
       // No active row – cannot complete read/write.
       next_delay := 0.U
       io.response_complete := false.B
-      printf("Error: Attempt to read/write with no active row!\n")
+      // printf("Error: Attempt to read/write with no active row!\n")
     } .elsewhen(activeRow =/= reqRow) {
       // Row miss: the requested row is not open.
       next_delay := 0.U
       io.response_complete := false.B
-      printf("Error: Requested row %d does not match active row %d\n", reqRow, activeRow)
+      // printf("Error: Requested row %d does not match active row %d\n", reqRow, activeRow)
     } .otherwise {
       // If a row hit, wait for CAS latency and then perform the operation.
       when(delay_counter === 0.U) {
         next_delay := tCL_DELAY
         io.response_complete := false.B
-        printf("Read/Write: Using active row %d; Loaded tCL_DELAY (%d cycles)\n", activeRow, tCL_DELAY)
+        // printf("Read/Write: Using active row %d; Loaded tCL_DELAY (%d cycles)\n", activeRow, tCL_DELAY)
       } .otherwise {
         next_delay := delay_counter - 1.U
         when(delay_counter === 1.U) {
@@ -170,12 +173,12 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
           when(io.we === 1.U) {
             // Read operation.
             io.response_data := memory.read(memIndex)
-            printf("[DRAM] Reading data %d from row %d, col %d (index %d)\n", memory.read(memIndex), activeRow, reqCol, memIndex)
+            // printf("[DRAM] Reading data %d from row %d, col %d (index %d)\n", memory.read(memIndex), activeRow, reqCol, memIndex)
           } .otherwise {
             // Write operation.
             memory.write(memIndex, io.wdata)
             io.response_data := io.wdata
-            printf("[DRAM] Writing %d to row %d, col %d (index %d)\n", io.wdata, activeRow, reqCol, memIndex)
+            printf("[DRAM] Writing %d to row %d, col %d (index %d), addr - %d \n", io.wdata, activeRow, reqCol, memIndex, io.addr)
           }
           io.response_complete := true.B
         } .otherwise {
@@ -189,13 +192,13 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
     when(delay_counter === 0.U) {
       next_delay := tPRE_DELAY
       io.response_complete := false.B
-      printf("Precharge: Closing active row with tPRE_DELAY (%d cycles)\n", tPRE_DELAY)
+      // printf("Precharge: Closing active row with tPRE_DELAY (%d cycles)\n", tPRE_DELAY)
     } .otherwise {
       next_delay := delay_counter - 1.U
       when(delay_counter === 1.U) {
         rowActive := false.B
         io.response_complete := true.B
-        printf("Precharge complete. Row closed.\n")
+        // printf("Precharge complete. Row closed.\n")
       } .otherwise {
         io.response_complete := false.B
       }

@@ -5,78 +5,69 @@ import chisel3.simulator.EphemeralSimulator._
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
-// Verification spec for a SingleChannelSystem
+/**
+  * Verification spec for a SingleChannelSystem with decoupled user interfaces.
+  *
+  * The test enqueues a write request followed by a read request on the 'in' interface.
+  * The response from the 'out' interface is used to verify that the written data can be read back.
+  */
 class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
-  "SingleChannelSystem should correctly handle write, read, and refresh transactions" in {
-    simulate(new SingleChannelSystem()) { c =>
-      // Helper function: wait until the MemoryController signals done.
-      def waitForDone(maxCycles: Int = 500): Boolean = {
-        var cycles = 0
-        while (!c.io.done.peek().litToBoolean && cycles < maxCycles) {
-          c.clock.step()
-          cycles += 1
-        }
-        if (cycles >= maxCycles) {
-          println(s"Timeout after $maxCycles cycles")
-          return false
-        }
-        println("Transaction completed.")
-        true
+
+  "SingleChannelSystem should correctly handle a write followed by a read transaction" in {
+    simulate(new SingleChannelSystem()) { dut =>
+      
+      // Apply reset
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      dut.clock.step()
+
+      // Enqueue a read transaction
+      dut.io.in.valid.poke(true.B)
+      dut.io.in.bits.wr_en.poke(true.B)
+      dut.io.in.bits.rd_en.poke(false.B)
+      dut.io.in.bits.addr.poke("h2000".U)      // Example address
+      dut.io.in.bits.wdata.poke("hCAFEBABE".U) // Example write data
+      dut.clock.step()
+      dut.io.in.valid.poke(false.B)
+
+      var cycles = 0
+      // Set out.ready to true so that the response queue can dequeue the response.
+      dut.io.out.ready.poke(true.B)
+      // Loop until the response appears on the out interface or timeout (1000 cycles)
+      while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
+        dut.clock.step()
+        cycles += 1
       }
+      assert(cycles < 1000, "Timeout reached during write transaction")
+      dut.io.out.valid.expect(true.B)
+      // Check that the returned data matches the expected write data.
+      dut.io.out.bits.data.expect("hCAFEBABE".U) 
 
-      // Reset initial state.
-      println("Resetting MemorySystem...")
-      c.io.wr_en.poke(false.B)
-      c.io.rd_en.poke(false.B)
-      c.io.request_valid.poke(false.B)
-      c.io.addr.poke(0.U)
-      c.io.wdata.poke(0.U)
-      c.clock.step(10)
+      // Enqueue a read transaction.
+      println("\n\nStarting READ transaction.")
+      dut.io.in.valid.poke(true.B)
+      dut.io.in.bits.rd_en.poke(true.B)
+      dut.io.in.bits.wr_en.poke(false.B)
+      dut.io.in.bits.addr.poke("h2000".U)  // Example address
+      // For a read, wdata is don't care (set to 0)
+      // dut.io.in.bits.wdata.poke(0.U)
+      // Allow the request to be enqueued.
+      dut.clock.step()
+      dut.io.in.valid.poke(false.B)
 
-      // --- Test Case 1: Write Transaction ---
-      println("\nStarting WRITE transaction...")
-      val testAddr = "hEF".U      // example address
-      val testData = 420.U        // example data value
-
-      // Issue a write request.
-      c.io.addr.poke(testAddr)
-      c.io.wdata.poke(testData)
-      c.io.wr_en.poke(true.B)
-      c.io.request_valid.poke(true.B)
-      c.clock.step(1)
-
-      // Wait for the write transaction to complete.
-      assert(waitForDone(), "Write transaction did not complete")
-      c.io.wr_en.poke(false.B)
-      c.io.request_valid.poke(false.B)
-      c.clock.step(5)
-
-      // --- Test Case 2: Read Transaction ---
-      println("\nStarting READ transaction...")
-      // Issue a read request.
-      c.io.addr.poke(testAddr)
-      c.io.rd_en.poke(true.B)
-      c.io.request_valid.poke(true.B)
-      c.clock.step(1)
-
-      // Wait for the read transaction to complete.
-      assert(waitForDone(), "Read transaction did not complete")
-      // Check that the data read matches the previously written data.
-      c.io.data.expect(testData, "Read data should match written data")
-      c.io.rd_en.poke(false.B)
-      c.io.request_valid.poke(false.B)
-      c.clock.step(5)
-
-      // --- Test Case 3: Refresh Operation ---
-      println("\nStarting REFRESH operation...")
-      // The MemoryController will trigger a refresh when its internal refresh delay counter reaches the threshold.
-      // In this test, we simply wait enough cycles to allow the refresh to occur.
-      // (For default parameters, REFRESH_CYCLE_COUNT is 200 cycles.)
-      c.clock.step(210)
-      // Optionally, issue a dummy transaction or check internal signals to ensure refresh behavior.
-      // Here, we simply print that we waited for the refresh to occur.
-
-      println("Testbench completed successfully")
+      cycles = 0
+      // Set out.ready to true so that the response queue can dequeue the response.
+      dut.io.out.ready.poke(true.B)
+      // Loop until the response appears on the out interface or timeout (1000 cycles)
+      while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
+        dut.clock.step()
+        cycles += 1
+      }
+      assert(cycles < 1000, "Timeout reached during read transaction")
+      dut.io.out.valid.expect(true.B)
+      // Check that the returned data matches the expected read data.
+      dut.io.out.bits.data.expect("hCAFEBABE".U)
     }
   }
 }

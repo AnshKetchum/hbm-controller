@@ -17,7 +17,7 @@ class BankGroupIO extends Bundle {
   val response_data = Output(UInt(32.W))
 }
 
-class BankGroup(numberOfBanks: Int = 8) extends Module {
+class BankGroup(numberOfBanks: Int = 1) extends Module {
   val io = IO(new BankGroupIO())
 
   // Calculate bit width for bank indexing
@@ -39,6 +39,7 @@ class BankGroup(numberOfBanks: Int = 8) extends Module {
     bank.io.we := io.we
     bank.io.addr := io.addr
     bank.io.wdata := io.wdata
+    // printf("[Bank Group] sending: %d\n", io.addr)
   }
 
   // Select outputs from the active bank

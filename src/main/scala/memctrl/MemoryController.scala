@@ -3,186 +3,244 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
+/** User Request interface **/
+class MemRequest extends Bundle {
+  val rd_en = Bool()
+  val wr_en = Bool()
+  val addr  = UInt(32.W)
+  val wdata = UInt(32.W)
+}
+
+/** User Response interface **/
+class MemResponse extends Bundle {
+  val data         = UInt(32.W)
+  val done         = Bool()
+  val ctrllerstate = UInt(5.W)
+}
+
+/** Memory Command interface (to external memory) **/
+class MemCmd extends Bundle {
+  val addr = UInt(32.W)
+  val data = UInt(32.W)
+  val cs   = Bool()
+  val ras  = Bool()
+  val cas  = Bool()
+  val we   = Bool()
+}
+
 class MemoryController(
-  val tRCD:            Int = 5,
-  val tCL:             Int = 5,
-  val tPRE:            Int = 10,
-  val tREFRESH:        Int = 10,
-  val REFRESH_CYCLE_COUNT: Int = 200,
-  val COUNTER_SIZE:    Int = 32,
-  val IDLE_DELAY:      Int = 0,
-  val READ_ISSUE_DELAY:Int = 5,
-  val WRITE_ISSUE_DELAY:Int = 5,
+  val tRCD:              Int = 5,
+  val tCL:               Int = 5,
+  val tPRE:              Int = 10,
+  val tREFRESH:          Int = 10,
+  val REFRESH_CYCLE_COUNT:Int = 200,
+  val COUNTER_SIZE:      Int = 32,
+  val IDLE_DELAY:        Int = 0,
+  val READ_ISSUE_DELAY:  Int = 5,
+  val WRITE_ISSUE_DELAY: Int = 5,
   val READ_PENDING_DELAY:Int = 5,
   val WRITE_PENDING_DELAY:Int = 5,
-  val PRECHARGE_DELAY:      Int = 10,
-  val REFRESH_DELAY:   Int = 10
+  val PRECHARGE_DELAY:   Int = 10,
+  val REFRESH_DELAY:     Int = 10
 ) extends Module {
   val io = IO(new Bundle {
-    val wr_en        = Input(Bool())
-    val rd_en        = Input(Bool())
-    val addr         = Input(UInt(32.W))
-    val wdata        = Input(UInt(32.W))
-    val request_valid= Input(Bool())
-    val request_rdy  = Output(Bool())
+    // User-facing request and response interfaces using Decoupled
+    val in  = Flipped(Decoupled(new MemRequest))
+    val out = Decoupled(new MemResponse)
 
-    val request_addr = Output(UInt(32.W))
-    val request_data = Output(UInt(32.W))
-    val cs           = Output(Bool())
-    val ras          = Output(Bool())
-    val cas          = Output(Bool())
-    val we           = Output(Bool())
+    // Memory command interface (to external DRAM) as a Decoupled output
+    val memCmd = Output(new MemCmd)
 
-    val response_complete = Input(Bool())
-    val response_data     = Input(UInt(32.W))
-
-    val data         = Output(UInt(32.W))
-    val done         = Output(Bool())
-    val ctrllerstate = Output(UInt(5.W))
+    // Memory response interface (from external DRAM)
+    val memResp_valid = Input(Bool())
+    val memResp_data  = Input(UInt(32.W))
   })
 
-  val sIdle :: sReadPending :: sReadIssue :: sWriteIssue :: sWritePending :: sPrecharge :: sDone :: sRefresh :: Nil = Enum(8)
+  //----------------------------------------------------------------------------
+  // Internal Queues for Request and Response
+  //----------------------------------------------------------------------------
+  // Request Queue: user can always enqueue memory requests.
+  val reqQueue = Module(new Queue(new MemRequest, entries = 8))
+  reqQueue.io.enq <> io.in
+
+  // Response Queue: enqueues response data when the operation is done.
+  val respQueue = Module(new Queue(new MemResponse, entries = 8))
+  io.out <> respQueue.io.deq
+
+  //----------------------------------------------------------------------------
+  // State Machine Setup
+  //----------------------------------------------------------------------------
+  val sIdle :: sReadIssue :: sReadPending :: sWriteIssue :: sWritePending :: sPrecharge :: sDone :: sRefresh :: Nil = Enum(8)
 
   val state = RegInit(sIdle)
-
   val counter = RegInit(0.U(COUNTER_SIZE.W))
   val refreshDelayCounter = RegInit(0.U(COUNTER_SIZE.W))
-
-  // New register to store latest response data
   val responseDataReg = RegInit(0.U(32.W))
 
-  val csWire  = WireDefault(false.B)
-  val rasWire = WireDefault(false.B)
-  val casWire = WireDefault(false.B)
-  val weWire  = WireDefault(false.B)
+  // Register to hold the current request (dequeued from reqQueue)
+  val reqReg = Reg(new MemRequest)
+  // Indicates whether a request is active (latched) for processing.
+  val requestActive = RegInit(false.B)
 
-  io.cs  := csWire
-  io.ras := rasWire
-  io.cas := casWire
-  io.we  := weWire
+  //----------------------------------------------------------------------------
+  // Memory Command Signals
+  //----------------------------------------------------------------------------
+  // Default memory command signals.
+  val memCmdReg = Wire(new MemCmd)
+  memCmdReg.addr := reqReg.addr
 
-  val requestRdy = (state === sDone || state === sIdle)
-  val requestFire = requestRdy && io.request_valid
-
-  io.request_rdy  := requestRdy
-  io.request_addr := io.addr
-  io.request_data := io.wdata
-  io.data         := responseDataReg // Output the stored response data
-  io.done         := (state === sDone)
-  io.ctrllerstate := state.asUInt
-
-  switch(state) {
-    is(sIdle) {
-      csWire := true.B
-    }
-    is(sReadIssue) {
-      casWire := true.B
-      weWire  := true.B
-    }
-    is(sWriteIssue) {
-      casWire := true.B
-      weWire  := true.B
-    }
-    is(sReadPending) {
-      rasWire := true.B
-      weWire  := true.B
-    }
-    is(sWritePending) {
-      rasWire := true.B
-    }
-    is(sPrecharge) {
-      casWire := true.B
-    }
-    is(sDone) {
-      csWire := true.B
-    }
-    is(sRefresh) {
-      weWire := true.B
-    }
+  when (reqReg.wr_en) {
+    memCmdReg.data := reqReg.wdata
+  }.otherwise {
+    memCmdReg.data := 0.U
   }
+  
+  memCmdReg.cs   := false.B
+  memCmdReg.ras  := false.B
+  memCmdReg.cas  := false.B
+  memCmdReg.we   := false.B
 
+  // Connect to output. In this example, memCmd.valid is high when not idle.
+  io.memCmd := memCmdReg
+
+  //----------------------------------------------------------------------------
+  // Response Generation
+  //----------------------------------------------------------------------------
+  // Build the response package
+  val responseReg = Wire(new MemResponse)
+  responseReg.data         := responseDataReg
+  responseReg.done         := (state === sDone)
+  responseReg.ctrllerstate := state.asUInt
+
+  // Enqueue response when in DONE state.
+  // (It will be accepted by the response queue when io.out.ready is true.)
+  respQueue.io.enq.bits  := responseReg
+  respQueue.io.enq.valid := (state === sDone)
+
+  //----------------------------------------------------------------------------
+  // Request Handling: Dequeue a new request in IDLE
+  //----------------------------------------------------------------------------
+  // When idle and no active request is held, try to dequeue one.
+  when (state === sIdle && !requestActive && reqQueue.io.deq.valid) {
+    reqReg := reqQueue.io.deq.bits
+    requestActive := true.B
+  }
+  // Indicate ready to dequeue when idle.
+  reqQueue.io.deq.ready := (state === sIdle) && !requestActive
+
+  //----------------------------------------------------------------------------
+  // Default next state and counter signals
+  //----------------------------------------------------------------------------
   val nextStateWire   = WireDefault(state)
   val nextCounterWire = WireDefault(0.U(COUNTER_SIZE.W))
 
+  //----------------------------------------------------------------------------
+  // Main State Machine
+  //----------------------------------------------------------------------------
   switch(state) {
     is(sIdle) {
-      printf("[CTRLLR] CTRLLR is IDLING \n")
+      printf("[CTRLLR] IDLE-ing\n")
+
+      // Default: assert chip select
+      memCmdReg.cs := true.B
+      // Check for refresh condition first.
       when(refreshDelayCounter + tREFRESH.U >= REFRESH_CYCLE_COUNT.U) {
-        nextStateWire := sRefresh
+        nextStateWire   := sRefresh
         nextCounterWire := REFRESH_DELAY.U
-      }.elsewhen(io.rd_en && requestFire) {
-        nextStateWire := sReadIssue
-        nextCounterWire := READ_ISSUE_DELAY.U
-      }.elsewhen(io.wr_en && requestFire) {
-        nextStateWire := sWriteIssue
-        nextCounterWire := WRITE_ISSUE_DELAY.U
+      } .elsewhen(requestActive) {
+        // A request is available. Choose based on type.
+        when(reqReg.rd_en) {
+          nextStateWire   := sReadIssue
+          nextCounterWire := READ_ISSUE_DELAY.U
+          memCmdReg.addr  := reqReg.addr
+        } .elsewhen(reqReg.wr_en) {
+          nextStateWire   := sWriteIssue
+          nextCounterWire := WRITE_ISSUE_DELAY.U
+          memCmdReg.addr  := reqReg.addr
+          memCmdReg.data  := reqReg.wdata
+        }
       }
     }
     is(sReadIssue) {
-      printf("[CTRLLR] CTRLLR is READ ISSUE-ing\n")
+      printf("[CTRLLR] READ ISSUE-ing\n")
+      memCmdReg.cas := true.B
+      memCmdReg.we  := true.B
       nextCounterWire := READ_PENDING_DELAY.U
-      when(io.response_complete || counter === 0.U) {
+      when(io.memResp_valid || counter === 0.U) {
         nextStateWire := sReadPending
       }
     }
     is(sReadPending) {
-      printf("[CTRLLR] CTRLLR is READ PENDING-ing\n")
+      printf("[CTRLLR] READ PENDING-ing\n")
+      memCmdReg.ras := true.B
+      memCmdReg.we  := true.B
       nextCounterWire := PRECHARGE_DELAY.U
-      when(io.response_complete || counter === 0.U) {
-        nextStateWire := sPrecharge
-        responseDataReg := io.response_data
-        printf("[CTRLLR] READING 0x%x \n", io.response_data)
+      when(io.memResp_valid || counter === 0.U) {
+        nextStateWire   := sPrecharge
+        responseDataReg := io.memResp_data
+        printf("[CTRLLR] Reading 0x%x\n", io.memResp_data)
       }
     }
     is(sWriteIssue) {
-      printf("[CTRLLR] CTRLLR is WRITE ISSUE-ing\n")
+      printf("[CTRLLR] WRITE ISSUE-ing\n")
+      memCmdReg.cas := true.B
+      memCmdReg.we  := true.B
       nextCounterWire := WRITE_PENDING_DELAY.U
-      when(io.response_complete || counter === 0.U) {
+      when(io.memResp_valid || counter === 0.U) {
         nextStateWire := sWritePending
       }
     }
     is(sWritePending) {
-      printf("[CTRLLR] CTRLLR is WRITE PENDING-ing\n")
+      printf("[CTRLLR] WRITE PENDING-ing\n")
+      memCmdReg.ras := true.B
       nextCounterWire := PRECHARGE_DELAY.U
-      when(io.response_complete || counter === 0.U) {
-        nextStateWire := sPrecharge
-        responseDataReg := io.wdata
-        printf("[CTRLLR] WRITING 0x%x \n", io.wdata)
+      when(io.memResp_valid || counter === 0.U) {
+        nextStateWire   := sPrecharge
+        responseDataReg := reqReg.wdata
+        printf("[CTRLLR] Writing 0x%x\n", reqReg.wdata)
       }
     }
     is(sPrecharge) {
-      printf("[CTRLLR] CTRLLR is PRECHARGE-ing\n")
+      printf("[CTRLLR] PRECHARGE-ing\n")
+      memCmdReg.cas := true.B
       nextCounterWire := IDLE_DELAY.U
-      when(io.response_complete || counter === 0.U) {
-        // Store response data only if response is complete
+      when(io.memResp_valid || counter === 0.U) {
         nextStateWire := sDone
       }
     }
     is(sDone) {
       nextCounterWire := IDLE_DELAY.U
-      nextStateWire := sIdle
-      printf("[CTRLLR] Response complete - %d %d.\n", io.response_complete, counter)
-      printf("[CTRLLR] Stored response data - %d.\n", responseDataReg)
+      // Stay in DONE until the response is successfully enqueued
+      when (respQueue.io.enq.fire) {
+        nextStateWire := sIdle
+        requestActive := false.B // Clear active request so that a new one can be loaded.
+        printf("[CTRLLR] Operation complete. State: %d\n", state)
+      }
     }
     is(sRefresh) {
+      memCmdReg.we := true.B
       nextCounterWire := IDLE_DELAY.U
-      when(io.response_complete || counter === 0.U) {
+      when(io.memResp_valid || counter === 0.U) {
         nextStateWire := sIdle
       }
     }
   }
 
+  //----------------------------------------------------------------------------
+  // State and Counter Update Logic
+  //----------------------------------------------------------------------------
   when(reset.asBool) {
-    state := sIdle
-    counter := 0.U
+    state               := sIdle
+    counter             := 0.U
     refreshDelayCounter := 0.U
-    responseDataReg := 0.U
-  }.otherwise {
+    responseDataReg     := 0.U
+    requestActive       := false.B
+  } .otherwise {
     when(state =/= nextStateWire) {
-      counter := nextCounterWire
+      counter             := nextCounterWire
       refreshDelayCounter := Mux(state === sRefresh, 0.U, refreshDelayCounter + 1.U)
-    }.otherwise {
-      counter := counter - 1.U
+    } .otherwise {
+      counter             := counter - 1.U
       refreshDelayCounter := refreshDelayCounter + 1.U
     }
     state := nextStateWire
