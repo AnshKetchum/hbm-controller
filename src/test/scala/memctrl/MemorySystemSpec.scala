@@ -31,6 +31,9 @@ class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
       dut.clock.step()
       dut.io.in.valid.poke(false.B)
 
+      // Ensure the output side can dequeue the response
+      dut.io.out.ready.poke(true.B)
+      
       // Wait for write transaction to complete
       var cycles = 0
       while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
@@ -47,6 +50,9 @@ class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
       dut.io.in.bits.addr.poke("h2000".U)  // Example address
       dut.clock.step()
       dut.io.in.valid.poke(false.B)
+
+      // Ensure the output side is still ready
+      dut.io.out.ready.poke(true.B)
 
       // Wait for read transaction to complete
       cycles = 0

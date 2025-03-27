@@ -5,8 +5,6 @@ import chisel3.util._
 
 /** Updated top-level memory system I/O using the new names. */
 class MemorySystemIO extends Bundle {
-  // User-facing request and response interfaces are decoupled,
-  // now using ControllerRequest and ControllerResponse.
   val in  = Flipped(Decoupled(new ControllerRequest))
   val out = Decoupled(new ControllerResponse)
 }
@@ -14,7 +12,8 @@ class MemorySystemIO extends Bundle {
 class SingleChannelSystem(
   numberOfRanks: Int = 8,
   numberofBankGroups: Int = 8,
-  numberOfBanks: Int = 8
+  numberOfBanks: Int = 8,
+  trackPerformance: Boolean = true // Default: Enable performance tracking
 ) extends Module {
   val io = IO(new MemorySystemIO())
 
@@ -34,4 +33,18 @@ class SingleChannelSystem(
   // Connect the user interface to the memory controller.
   memory_controller.io.in  <> io.in
   io.out                  <> memory_controller.io.out
+
+  // Assume io.in and io.out are Decoupled interfaces.
+  val inputFire  = io.in.valid  && io.in.ready
+  val outputFire = io.out.valid && io.out.ready
+
+  // If performance tracking is enabled:
+  if (trackPerformance) {
+    val perfStats = Module(new PerformanceStatistics)
+    // Connect the performance monitor to the tap signals.
+    perfStats.io.in_fire  := inputFire
+    perfStats.io.in_bits  := io.in.bits
+    perfStats.io.out_fire := outputFire
+    perfStats.io.out_bits := io.out.bits
+  }
 }

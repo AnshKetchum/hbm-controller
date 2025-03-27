@@ -17,9 +17,11 @@ class ControllerRequest extends Bundle {
 
 /** Controller Response interface **/
 class ControllerResponse extends Bundle {
-  val data         = UInt(32.W)
-  val done         = Bool()
-  val ctrllerstate = UInt(5.W)
+  val rd_en = Bool()
+  val wr_en = Bool()
+  val addr  = UInt(32.W)
+  val wdata = UInt(32.W)
+  val data  = UInt(32.W) // Keep data since responses might need to return data
 }
 
 /** Memory Command interface (to external memory) **/

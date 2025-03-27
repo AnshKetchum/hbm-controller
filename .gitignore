@@ -345,3 +345,5 @@ hs_err_pid*
 *.log
 sim
 obj_dir
+
+*.csv
