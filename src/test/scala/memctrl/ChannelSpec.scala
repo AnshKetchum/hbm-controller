@@ -8,96 +8,94 @@ import org.scalatest.matchers.must.Matchers
 class ChannelSpec extends AnyFreeSpec with Matchers {
   "Channel should handle basic DRAM operations" in {
     simulate(new Channel()) { c =>
-      // Helper function to set control signals
-      def setControl(cs: Boolean, ras: Boolean, cas: Boolean, we: Boolean): Unit = {
-        c.io.cs.poke(cs.B)
-        c.io.ras.poke(ras.B)
-        c.io.cas.poke(cas.B)
-        c.io.we.poke(we.B)
-        c.clock.step(1) // Advance the clock so the new signals are latched
+      // Helper function to enqueue a memory command
+      def sendMemCmd(cs: Boolean, ras: Boolean, cas: Boolean, we: Boolean, addr: UInt, data: UInt = 0.U): Unit = {
+        while (!c.io.memCmd.ready.peek().litToBoolean) { 
+          c.clock.step(1) // Wait until the channel is ready to accept a command
+        }
+        c.io.memCmd.bits.cs.poke(cs.B)
+        c.io.memCmd.bits.ras.poke(ras.B)
+        c.io.memCmd.bits.cas.poke(cas.B)
+        c.io.memCmd.bits.we.poke(we.B)
+        c.io.memCmd.bits.addr.poke(addr)
+        c.io.memCmd.bits.data.poke(data)
+        c.io.memCmd.valid.poke(true.B)
+        c.clock.step(1)
+        c.io.memCmd.valid.poke(false.B) // Deassert valid after sending
       }
 
-      
-      // Helper function to wait for response_complete
-      def waitForComplete(maxCycles: Int = 500): Boolean = {
+      // Helper function to wait for a valid response
+      def waitForResponse(expectedData: Option[UInt] = None, maxCycles: Int = 500): Boolean = {
         var cycles = 0
-        while (!c.io.response_complete.peek().litToBoolean && cycles < maxCycles) {
-          c.clock.step()
+        while (!c.io.phyResp.valid.peek().litToBoolean && cycles < maxCycles) {
+          c.clock.step(1)
           cycles += 1
         }
         if (cycles >= maxCycles) {
           println(s"Timeout after $maxCycles cycles")
           return false
         }
-        println("Received a completion signal.")
+        println("Received a response.")
+        
+        // Check data if expected
+        expectedData.foreach { expected =>
+          c.io.phyResp.bits.data.expect(expected, "Response data mismatch!")
+        }
+        
+        c.io.phyResp.ready.poke(true.B) // Accept the response
+        c.clock.step(1)
+        c.io.phyResp.ready.poke(false.B)
         return true
       }
-      
+
       // Reset initial state
       println("Resetting...")
-      setControl(true, true, true, true)  // All signals inactive
-      c.io.addr.poke(0.U)
-      c.io.wdata.poke(0.U)
       c.clock.step(10)
-      
+
       // Test case 1: Write operation
       println("\nStarting WRITE transaction...")
       val testAddr = "hEF".U
       val testData = 420.U
-      
+
       // 1. Activate row
       println("Issued activate command")
-      setControl(false, false, true, true)
-      c.io.addr.poke(testAddr)
-      assert(waitForComplete(), "Activate command should complete")
-      c.clock.step(1)
-      
+      sendMemCmd(cs = false, ras = false, cas = true, we = true, addr = testAddr)
+      assert(waitForResponse(), "Activate command should complete")
+
       // 2. Write data
       println("Issued write command")
-      setControl(false, true, false, false)  // Write command
-      c.io.addr.poke(testAddr)
-      c.io.wdata.poke(testData)
-      assert(waitForComplete(), "Write command should complete")
-      c.io.response_data.expect(testData)
-      c.clock.step(1)
-      
+      sendMemCmd(cs = false, ras = true, cas = false, we = false, addr = testAddr, data = testData)
+      assert(waitForResponse(), "Write command should complete")
+
       // 3. Precharge
       println("Issued precharge command")
-      setControl(false, false, true, false)  // Precharge command
-      assert(waitForComplete(), "Precharge command should complete")
-      c.clock.step(1)
-      
+      sendMemCmd(cs = false, ras = false, cas = true, we = false, addr = testAddr)
+      assert(waitForResponse(), "Precharge command should complete")
+
       // Test case 2: Read operation
       println("\nStarting READ transaction...")
-      
+
       // 1. Activate row again
-      setControl(false, false, true, true)  // Activate command
-      c.io.addr.poke(testAddr)
       println("Issued activate command")
-      assert(waitForComplete(), "Activate command should complete")
-      c.clock.step(1)
-      
+      sendMemCmd(cs = false, ras = false, cas = true, we = true, addr = testAddr)
+      assert(waitForResponse(), "Activate command should complete")
+
       // 2. Read data
-      setControl(false, true, false, true)  // Read command
-      c.io.addr.poke(testAddr)
       println("Issued read command")
-      assert(waitForComplete(), "Read command should complete")
-      c.io.response_data.expect(testData, "Read data should match previously written data")
-      c.clock.step(1)
-      
+      sendMemCmd(cs = false, ras = true, cas = false, we = true, addr = testAddr)
+      assert(waitForResponse(Some(testData)), "Read data should match previously written data")
+
       // 3. Precharge
-      setControl(false, false, true, false)  // Precharge command
       println("Issued precharge command")
-      assert(waitForComplete(), "Precharge command should complete")
-      c.clock.step(1)
-      
+      sendMemCmd(cs = false, ras = false, cas = true, we = false, addr = testAddr)
+      assert(waitForResponse(), "Precharge command should complete")
+
       // Test case 3: Refresh operation
       println("\nStarting REFRESH operation...")
-      setControl(false, false, false, true)  // Refresh command
+      sendMemCmd(cs = false, ras = false, cas = false, we = true, addr = 0.U)
       println("Issued refresh command")
-      assert(waitForComplete(), "Refresh command should complete")
-      c.clock.step(1)
-      
+      assert(waitForResponse(), "Refresh command should complete")
+
       println("Testbench completed successfully")
     }
   }

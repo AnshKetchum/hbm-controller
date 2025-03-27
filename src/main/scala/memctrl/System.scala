@@ -1,41 +1,37 @@
-package memctrl 
+package memctrl
 
 import chisel3._
 import chisel3.util._
 
+/** Updated top-level memory system I/O using the new names. */
 class MemorySystemIO extends Bundle {
-  // User-facing request and response interfaces are decoupled.
-  val in  = Flipped(Decoupled(new MemRequest))
-  val out = Decoupled(new MemResponse)
+  // User-facing request and response interfaces are decoupled,
+  // now using ControllerRequest and ControllerResponse.
+  val in  = Flipped(Decoupled(new ControllerRequest))
+  val out = Decoupled(new ControllerResponse)
 }
 
-class SingleChannelSystem(numberOfRanks: Int = 8, numberOfBankGroups: Int = 8, numberOfBanks: Int = 8) extends Module {
+class SingleChannelSystem(
+  numberOfRanks: Int = 8,
+  numberofBankGroups: Int = 8,
+  numberOfBanks: Int = 8
+) extends Module {
   val io = IO(new MemorySystemIO())
 
-  // Instantiate a single channel
-  val channel = Module(new Channel(numberOfRanks, numberOfBankGroups, numberOfBanks))
-  
-  // Instantiate a memory controller 
-  val memory_controller = Module(new MemoryController())
+  val channel = Module(new Channel(numberOfRanks, numberofBankGroups, numberOfBanks))
+  val memory_controller = Module(new MultiRankMemoryController(
+    numberOfRanks = numberOfRanks,
+    numberofBankGroups = numberofBankGroups,
+    numberOfBanks = numberOfBanks
+  ))
 
-  // Connect the controller's command interface to the memory channel.
-  // Because memCmd is a Decoupled interface, we use its bits.
-  channel.io.cs    := memory_controller.io.memCmd.cs
-  channel.io.ras   := memory_controller.io.memCmd.ras
-  channel.io.cas   := memory_controller.io.memCmd.cas
-  channel.io.we    := memory_controller.io.memCmd.we
-  channel.io.addr  := memory_controller.io.memCmd.addr  // address from the controller
-  channel.io.wdata := memory_controller.io.memCmd.data   // write data from the controller
+  // Connect the controller's memory command output to the channel's command input.
+  channel.io.memCmd <> memory_controller.io.memCmd
 
-  // Connect the channel responses back to the controller.
-  memory_controller.io.memResp_valid := channel.io.response_complete
-  memory_controller.io.memResp_data  := channel.io.response_data
+  // Connect the channel's physical memory response back to the controller.
+  memory_controller.io.phyResp <> channel.io.phyResp
 
   // Connect the user interface to the memory controller.
-  memory_controller.io.in <> io.in
-  io.out <> memory_controller.io.out
-
-  // printf("[System receiving] 0x%x - %x\n", io.in.bits.addr, io.in.bits.wdata)
-  // printf("[Mem Controller Sending] %d %d %d %d 0x%x - %x\n", memory_controller.io.memCmd.cs, memory_controller.io.memCmd.ras, memory_controller.io.memCmd.cas, memory_controller.io.memCmd.we, memory_controller.io.memCmd.addr, memory_controller.io.memCmd.data)
-
+  memory_controller.io.in  <> io.in
+  io.out                  <> memory_controller.io.out
 }

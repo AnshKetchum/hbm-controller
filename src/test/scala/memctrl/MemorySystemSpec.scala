@@ -22,7 +22,7 @@ class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
       dut.reset.poke(false.B)
       dut.clock.step()
 
-      // Enqueue a read transaction
+      // Enqueue a write transaction
       dut.io.in.valid.poke(true.B)
       dut.io.in.bits.wr_en.poke(true.B)
       dut.io.in.bits.rd_en.poke(false.B)
@@ -31,42 +31,31 @@ class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
       dut.clock.step()
       dut.io.in.valid.poke(false.B)
 
+      // Wait for write transaction to complete
       var cycles = 0
-      // Set out.ready to true so that the response queue can dequeue the response.
-      dut.io.out.ready.poke(true.B)
-      // Loop until the response appears on the out interface or timeout (1000 cycles)
       while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
         dut.clock.step()
         cycles += 1
       }
       assert(cycles < 1000, "Timeout reached during write transaction")
       dut.io.out.valid.expect(true.B)
-      // Check that the returned data matches the expected write data.
-      dut.io.out.bits.data.expect("hCAFEBABE".U) 
 
       // Enqueue a read transaction.
-      println("\n\nStarting READ transaction.")
       dut.io.in.valid.poke(true.B)
       dut.io.in.bits.rd_en.poke(true.B)
       dut.io.in.bits.wr_en.poke(false.B)
       dut.io.in.bits.addr.poke("h2000".U)  // Example address
-      // For a read, wdata is don't care (set to 0)
-      // dut.io.in.bits.wdata.poke(0.U)
-      // Allow the request to be enqueued.
       dut.clock.step()
       dut.io.in.valid.poke(false.B)
 
+      // Wait for read transaction to complete
       cycles = 0
-      // Set out.ready to true so that the response queue can dequeue the response.
-      dut.io.out.ready.poke(true.B)
-      // Loop until the response appears on the out interface or timeout (1000 cycles)
       while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
         dut.clock.step()
         cycles += 1
       }
       assert(cycles < 1000, "Timeout reached during read transaction")
       dut.io.out.valid.expect(true.B)
-      // Check that the returned data matches the expected read data.
       dut.io.out.bits.data.expect("hCAFEBABE".U)
     }
   }

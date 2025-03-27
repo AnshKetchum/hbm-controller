@@ -9,22 +9,26 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 /**
-  * Test suite for the MemoryController with decoupled request and response interfaces.
+  * Test suite for the MultiRankMemoryController with decoupled interfaces.
   *
-  * For a read transaction, the test:
+  * For a read transaction:
   *   - Enqueues a read request on the 'in' interface.
-  *   - Drives memResp_valid and memResp_data (e.g. "hDEADBEEF") to mimic the memory.
+  *   - Drives the physical memory response (phyResp) with a matching address and data (e.g. "hDEADBEEF").
   *   - Waits until a response appears on the 'out' interface, then checks that the response data matches.
   *
-  * For a write transaction, the test:
+  * For a write transaction:
   *   - Enqueues a write request on the 'in' interface.
-  *   - Drives memResp_valid and memResp_data (e.g. "hCAFEBABE") to mimic the memory.
+  *   - Drives the physical memory response (phyResp) with a matching address and data (e.g. "hCAFEBABE").
   *   - Waits until a response appears on the 'out' interface, then checks that the response data matches.
   */
-class MemoryControllerSpec extends AnyFreeSpec with Matchers {
+class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
 
-  "MemoryController should complete a read transaction correctly" in {
-    simulate(new MemoryController(/* use default or specify parameters if needed */)) { dut =>
+  "MultiRankMemoryController should complete a read transaction correctly" in {
+    simulate(new MultiRankMemoryController(
+      numberOfRanks = 2,
+      numberofBankGroups = 2,
+      numberOfBanks = 2
+    )) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
       dut.clock.step()
@@ -38,20 +42,21 @@ class MemoryControllerSpec extends AnyFreeSpec with Matchers {
       dut.io.in.bits.addr.poke("h1000".U)  // Example address
       // For a read, wdata is don't care (set to 0)
       dut.io.in.bits.wdata.poke(0.U)
-      // Allow the request to be enqueued.
       dut.clock.step()
       dut.io.in.valid.poke(false.B)
 
-      // Drive memory response: for a read, assume we get the data 0xDEADBEEF.
-      dut.io.memResp_data.poke("hDEADBEEF".U)
+      // Set out.ready so that responses can be dequeued.
+      dut.io.out.ready.poke(true.B)
+
+      // Mimic the memory sending a response on the phyResp channel.
+      // Note: The MultiRankMemoryController expects the phyResp.bits.addr to match the issued request.
+      dut.io.phyResp.bits.addr.poke("h1000".U)
+      dut.io.phyResp.bits.data.poke("hDEADBEEF".U)
 
       var cycles = 0
-      // Set out.ready to true so that the response queue can dequeue the response.
-      dut.io.out.ready.poke(true.B)
-      // Loop until the response appears on the out interface or timeout (1000 cycles)
+      // Keep driving phyResp.valid true until a response is available or timeout.
       while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
-        // Mimic the memory sending a response.
-        dut.io.memResp_valid.poke(true.B)
+        dut.io.phyResp.valid.poke(true.B)
         dut.clock.step()
         cycles += 1
       }
@@ -62,8 +67,12 @@ class MemoryControllerSpec extends AnyFreeSpec with Matchers {
     }
   }
 
-  "MemoryController should complete a write transaction correctly" in {
-    simulate(new MemoryController(/* use default or specify parameters if needed */)) { dut =>
+  "MultiRankMemoryController should complete a write transaction correctly" in {
+    simulate(new MultiRankMemoryController(
+      numberOfRanks = 2,
+      numberofBankGroups = 2,
+      numberOfBanks = 2
+    )) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
       dut.clock.step()
@@ -79,15 +88,17 @@ class MemoryControllerSpec extends AnyFreeSpec with Matchers {
       dut.clock.step()
       dut.io.in.valid.poke(false.B)
 
-      // For a write, assume the memory echoes back the written data.
-      dut.io.memResp_data.poke("hCAFEBABE".U)
+      // Set out.ready so that responses can be dequeued.
+      dut.io.out.ready.poke(true.B)
+
+      // Mimic the memory echoing back the write data via the phyResp channel.
+      dut.io.phyResp.bits.addr.poke("h2000".U)
+      dut.io.phyResp.bits.data.poke("hCAFEBABE".U)
 
       var cycles = 0
-      // Set out.ready to true so that the response queue can dequeue the response.
-      dut.io.out.ready.poke(true.B)
-      // Loop until the response appears on the out interface or timeout (1000 cycles)
+      // Keep driving phyResp.valid true until the response appears.
       while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
-        dut.io.memResp_valid.poke(true.B)
+        dut.io.phyResp.valid.poke(true.B)
         dut.clock.step()
         cycles += 1
       }
