@@ -1,18 +1,43 @@
-# Makefile for SDRAM Controller Simulation using Icarus Verilog
+.PHONY: all clean verilog verilator-run
 
-# List of Verilog source files
-VERILOG_SOURCES = memory_controller.sv 
-CPP_SOURCES = dram_tb.cpp dram_model.cpp
+# Directories and files
+SRC_DIR      := src
+VERILOG_DIR  := $(SRC_DIR)/main/resources/vsrc
+SIM_MAIN     := sim_main.cpp
+TOP_MODULE   := SingleChannelSystem
 
-# Default target: build and run simulation
-all: run
+# SBT command to run the Chisel elaboration using the legacy driver
+SBT_CMD      := sbt "runMain memctrl.Elaborate --target-dir $(VERILOG_DIR)"
 
-build:
-	verilator --cc --exe --build --trace $(VERILOG_SOURCES) $(CPP_SOURCES) --top-module memory_controller
+# Verilator command and flags
+VERILATOR    := verilator
+VERILATOR_OPTS := --cc --exe --build
 
-run: build
-	./obj_dir/Vmemory_controller
+# Gather all Verilog source files from the Verilog directory
+VERILOG_FILES := $(wildcard $(VERILOG_DIR)/*.sv)
 
-# Clean generated files
+# Output binary target (Verilator generates C++ simulation in obj_dir/)
+TARGET       := obj_dir/V$(TOP_MODULE)
+
+# Rule to generate Verilog from Chisel
+verilog:
+	@echo "Generating Verilog from Chisel..."
+	$(SBT_CMD)
+	sed -i '/PerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/PerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+
+verilator: 
+	verilator --cc --exe --build -Mdir obj_dir -o VSingleChannelSystem src/main/resources/vsrc/SingleChannelSystem.sv sim_main.cpp
+	./$(TARGET)
+
+all: verilog verilator
+
+# Clean up generated files
 clean:
-	rm -rf obj_dir waveform.vcd
+	@echo "Cleaning up simulation files..."
+	rm -rf obj_dir
+	rm -f V$(TOP_MODULE)
+	rm -f *.csv
+	rm -f *.log
+	rm -f *.png
+	rm -f *.txt

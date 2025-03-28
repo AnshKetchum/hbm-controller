@@ -20,16 +20,24 @@ class DRAMBankIO extends Bundle {
 
 // Extended parameters including row/column organization and additional delays.
 case class DRAMBankParams(
-  numRows: Int = 16,           // Number of rows
-  numCols: Int = 64,           // Number of columns per row
-  tWL_DELAY: Int = 3,          // Delay for wordline (row activation)
-  tRCD_DELAY: Int = 5,         // Row-to-column delay (kept for compatibility)
-  tCL_DELAY: Int = 5,          // CAS latency delay (read)
-  tPRE_DELAY: Int = 10,        // Precharge delay (closing row)
-  tREFRESH: Int = 10,          // Refresh delay (as before)
-  tREFRESH_CYCLES: Int = 200   // Refresh cycle period
+  numRows:            Int = 16,   // Number of rows per bank
+  numCols:            Int = 64,   // Number of columns per row
+  tWL:                Int = 3,    // Wordline activation delay
+  tRCD:               Int = 5,    // Row-to-column delay
+  tCL:                Int = 5,    // CAS latency delay (read)
+  tPRE:               Int = 10,   // Precharge delay (closing row)
+  tREFRESH:           Int = 10,   // Refresh delay
+  refreshCycleCount:  Int = 200,  // Refresh cycle period
+  counterSize:        Int = 32,   // Counter size for timing purposes
+  idleDelay:          Int = 0,    // Idle delay for FSM
+  readIssueDelay:     Int = 5,    // Delay for issuing a read command
+  writeIssueDelay:    Int = 5,    // Delay for issuing a write command
+  readPendingDelay:   Int = 5,    // Delay for pending read operations
+  writePendingDelay:  Int = 5,    // Delay for pending write operations
+  prechargeDelay:     Int = 10,   // Precharge delay specific to FSM
+  refreshDelay:       Int = 10    // Additional refresh delay specific to FSM
 ) {
-  // Compute total addressable words.
+  // Total addressable words per bank.
   val addressSpaceSize: Int = numRows * numCols
 }
 
@@ -43,12 +51,12 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
   val state = RegInit(DRAMState.IDLE)
 
   // Timing parameters (delays in cycles)
-  val tWL_DELAY   = params.tWL_DELAY.U  // Wordline activation delay
-  val tRCD_DELAY  = params.tRCD_DELAY.U // Row-to-column delay (if needed)
-  val tCL_DELAY   = params.tCL_DELAY.U  // CAS latency delay
-  val tPRE_DELAY  = params.tPRE_DELAY.U // Precharge delay
+  val tWL   = params.tWL.U  // Wordline activation delay
+  val tRCD  = params.tRCD.U // Row-to-column delay (if needed)
+  val tCL   = params.tCL.U  // CAS latency delay
+  val tPRE  = params.tPRE.U // Precharge delay
   val tREFRESH    = params.tREFRESH.U   // Refresh delay
-  val REFRESH_CYCLES = params.tREFRESH_CYCLES.U
+  val REFRESH_CYCLES = params.refreshCycleCount.U
 
   // Compute bit widths for row and column from parameters.
   val rowWidth = log2Ceil(params.numRows)
@@ -131,9 +139,9 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
     state := DRAMState.ACTIVATE
     when(delay_counter === 0.U) {
       // Start wordline activation.
-      next_delay := tWL_DELAY
+      next_delay := tWL
       io.response_complete := false.B
-      // printf("Activating: Opening row %d with tWL_DELAY (%d cycles)\n", reqRow, tWL_DELAY)
+      // printf("Activating: Opening row %d with tWL (%d cycles)\n", reqRow, tWL)
     } .otherwise {
       next_delay := delay_counter - 1.U
       when(delay_counter === 1.U) {
@@ -162,9 +170,9 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
     } .otherwise {
       // If a row hit, wait for CAS latency and then perform the operation.
       when(delay_counter === 0.U) {
-        next_delay := tCL_DELAY
+        next_delay := tCL
         io.response_complete := false.B
-        // printf("Read/Write: Using active row %d; Loaded tCL_DELAY (%d cycles)\n", activeRow, tCL_DELAY)
+        // printf("Read/Write: Using active row %d; Loaded tCL (%d cycles)\n", activeRow, tCL)
       } .otherwise {
         next_delay := delay_counter - 1.U
         when(delay_counter === 1.U) {
@@ -190,9 +198,9 @@ class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
     // Precharge operation: close the active row.
     state := DRAMState.PRECHARGE
     when(delay_counter === 0.U) {
-      next_delay := tPRE_DELAY
+      next_delay := tPRE
       io.response_complete := false.B
-      // printf("Precharge: Closing active row with tPRE_DELAY (%d cycles)\n", tPRE_DELAY)
+      // printf("Precharge: Closing active row with tPRE (%d cycles)\n", tPRE)
     } .otherwise {
       next_delay := delay_counter - 1.U
       when(delay_counter === 1.U) {

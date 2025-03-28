@@ -9,20 +9,25 @@ class MemorySystemIO extends Bundle {
   val out = Decoupled(new ControllerResponse)
 }
 
+case class MemoryConfigurationParams(
+  numberOfRanks:      Int = 8,
+  numberOfBankGroups: Int = 8,
+  numberOfBanks:      Int = 8
+)
+
+case class SingleChannelMemoryConfigurationParams(
+  memConfiguration: MemoryConfigurationParams = MemoryConfigurationParams(),
+  bankConfiguration: DRAMBankParams = DRAMBankParams(),
+  trackPerformance: Boolean = true
+)
+
 class SingleChannelSystem(
-  numberOfRanks: Int = 8,
-  numberofBankGroups: Int = 8,
-  numberOfBanks: Int = 8,
-  trackPerformance: Boolean = true // Default: Enable performance tracking
+  params: SingleChannelMemoryConfigurationParams = SingleChannelMemoryConfigurationParams()
 ) extends Module {
   val io = IO(new MemorySystemIO())
 
-  val channel = Module(new Channel(numberOfRanks, numberofBankGroups, numberOfBanks))
-  val memory_controller = Module(new MultiRankMemoryController(
-    numberOfRanks = numberOfRanks,
-    numberofBankGroups = numberofBankGroups,
-    numberOfBanks = numberOfBanks
-  ))
+  val channel = Module(new Channel(params.memConfiguration, params.bankConfiguration))
+  val memory_controller = Module(new MultiRankMemoryController(params.memConfiguration, params.bankConfiguration))
 
   // Connect the controller's memory command output to the channel's command input.
   channel.io.memCmd <> memory_controller.io.memCmd
@@ -39,7 +44,7 @@ class SingleChannelSystem(
   val outputFire = io.out.valid && io.out.ready
 
   // If performance tracking is enabled:
-  if (trackPerformance) {
+  if (params.trackPerformance) {
     val perfStats = Module(new PerformanceStatistics)
     // Connect the performance monitor to the tap signals.
     perfStats.io.in_fire  := inputFire

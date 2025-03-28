@@ -44,11 +44,7 @@ class PhysicalMemResponse extends Bundle {
 // Top-Level MultiRank Memory Controller Module
 //----------------------------------------------------------------------
 
-class MultiRankMemoryController(
-  numberOfRanks: Int = 2,
-  numberofBankGroups: Int = 2,
-  numberOfBanks: Int = 2
-) extends Module {
+class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfigurationParams(), bankParams: DRAMBankParams = DRAMBankParams()) extends Module {
   val io = IO(new Bundle {
     // Unified user interface.
     val in  = Flipped(Decoupled(new ControllerRequest))
@@ -73,24 +69,24 @@ class MultiRankMemoryController(
   io.memCmd <> cmdQueue.io.deq
 
   // Instantiate FSMs for each rank.
-  val fsmVec = VecInit(Seq.fill(numberOfRanks) {
-    Module(new MemoryControllerFSM()).io
+  val fsmVec = VecInit(Seq.fill(params.numberOfRanks) {
+    Module(new MemoryControllerFSM(bankParams)).io
   })
 
   //-------------------------------------------------------------------------
   // Address Decoding: Extract Rank Index
   //-------------------------------------------------------------------------
-  val rankBits      = log2Ceil(numberOfRanks)
-  val bankGroupBits = log2Ceil(numberofBankGroups)
-  val bankBits      = log2Ceil(numberOfBanks)
+  val rankBits      = log2Ceil(params.numberOfRanks)
+  val bankGroupBits = log2Ceil(params.numberOfBankGroups)
+  val bankBits      = log2Ceil(params.numberOfBanks)
   val rankShift     = bankBits + bankGroupBits
   def extractRank(addr: UInt): UInt = addr(rankShift + rankBits - 1, rankShift)
 
   //-------------------------------------------------------------------------
   // Connect each FSM's command output to an arbiter.
   //-------------------------------------------------------------------------
-  val cmdArb = Module(new RRArbiter(new MemCmd, numberOfRanks))
-  for (i <- 0 until numberOfRanks) {
+  val cmdArb = Module(new RRArbiter(new MemCmd, params.numberOfRanks))
+  for (i <- 0 until params.numberOfRanks) {
     cmdArb.io.in(i) <> fsmVec(i).cmdOut
   }
   cmdQueue.io.enq <> cmdArb.io.out
@@ -106,21 +102,21 @@ class MultiRankMemoryController(
 
   //-------------------------------------------------------------------------
   // Provide default assignments for each FSM's req.bits to avoid uninitialized sinks.
-  for (i <- 0 until numberOfRanks) {
+  for (i <- 0 until params.numberOfRanks) {
     fsmVec(i).req.bits := 0.U.asTypeOf(new ControllerRequest)
   }
 
   //-------------------------------------------------------------------------
   // Demux incoming requests to the correct FSM based on rank.
-  val reqDeqValid = Wire(Vec(numberOfRanks, Bool()))
-  for (i <- 0 until numberOfRanks) {
+  val reqDeqValid = Wire(Vec(params.numberOfRanks, Bool()))
+  for (i <- 0 until params.numberOfRanks) {
     // By default, the request interface is not valid.
     fsmVec(i).req.valid := false.B
     reqDeqValid(i) := false.B
   }
   when(reqQueue.io.deq.valid) {
     val targetRank = extractRank(reqQueue.io.deq.bits.addr)
-    for (i <- 0 until numberOfRanks) {
+    for (i <- 0 until params.numberOfRanks) {
       when(targetRank === i.U) {
         when(fsmVec(i).req.ready) {
           fsmVec(i).req.valid := true.B
@@ -134,8 +130,8 @@ class MultiRankMemoryController(
 
   //-------------------------------------------------------------------------
   // Merge responses from FSMs using an arbiter.
-  val arbResp = Module(new RRArbiter(new ControllerResponse, numberOfRanks))
-  for (i <- 0 until numberOfRanks) {
+  val arbResp = Module(new RRArbiter(new ControllerResponse, params.numberOfRanks))
+  for (i <- 0 until params.numberOfRanks) {
     arbResp.io.in(i) <> fsmVec(i).resp
   }
   respQueue.io.enq <> arbResp.io.out

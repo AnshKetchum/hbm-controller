@@ -24,11 +24,7 @@ import org.scalatest.matchers.must.Matchers
 class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
 
   "MultiRankMemoryController should complete a read transaction correctly" in {
-    simulate(new MultiRankMemoryController(
-      numberOfRanks = 2,
-      numberofBankGroups = 2,
-      numberOfBanks = 2
-    )) { dut =>
+    simulate(new MultiRankMemoryController()) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
       dut.clock.step()
@@ -68,11 +64,7 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
   }
 
   "MultiRankMemoryController should complete a write transaction correctly" in {
-    simulate(new MultiRankMemoryController(
-      numberOfRanks = 2,
-      numberofBankGroups = 2,
-      numberOfBanks = 2
-    )) { dut =>
+    simulate(new MultiRankMemoryController()) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
       dut.clock.step()

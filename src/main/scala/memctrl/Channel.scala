@@ -12,18 +12,35 @@ class ChannelIO extends Bundle {
   val phyResp = Decoupled(new PhysicalMemResponse)
 }
 
-class Channel(numberOfRanks: Int = 2, numberofBankGroups: Int = 2, numberOfBanks: Int = 2) extends Module {
-  val io = IO(new ChannelIO())
+/** Channel Module
+  * Now instantiates an AddressDecoder to obtain the rank index.
+  */
+class Channel(params: MemoryConfigurationParams = MemoryConfigurationParams(), bankParams: DRAMBankParams = DRAMBankParams()) extends Module {
+  val io = IO(new Bundle {
+    // Define your Channel I/O (example below)
+    val memCmd = Flipped(Decoupled(new Bundle {
+      val cs   = Bool()
+      val ras  = Bool()
+      val cas  = Bool()
+      val we   = Bool()
+      val addr = UInt(32.W)
+      val data = UInt(32.W)
+    }))
+    val phyResp = Decoupled(new Bundle {
+      val addr = UInt(32.W)
+      val data = UInt(32.W)
+    })
+  })
 
-  val rankBits      = log2Ceil(numberOfRanks)
-  val bankGroupBits = log2Ceil(numberofBankGroups)
-  val bankBits      = log2Ceil(numberOfBanks)
+  // Instantiate the address decoder
+  val addrDecoder = Module(new AddressDecoder(params))
+  addrDecoder.io.addr := io.memCmd.bits.addr
 
-  val rankShift = bankBits + bankGroupBits
-  val rankIndex = io.memCmd.bits.addr(rankShift + rankBits - 1, rankShift)
+  // Get rank index from the decoder
+  val rankIndex = addrDecoder.io.rankIndex
 
-  val ranks = Seq.fill(numberOfRanks)(Module(new Rank(numberofBankGroups, numberOfBanks)))
-
+  // Instantiate rank modules
+  val ranks = Seq.fill(params.numberOfRanks)(Module(new Rank(params, bankParams)))
   for ((rank, i) <- ranks.zipWithIndex) {
     val isActiveRank = (rankIndex === i.U)
     rank.io.cs    := Mux(isActiveRank, io.memCmd.bits.cs, false.B)
@@ -34,13 +51,14 @@ class Channel(numberOfRanks: Int = 2, numberofBankGroups: Int = 2, numberOfBanks
     rank.io.wdata := io.memCmd.bits.data
   }
 
+  // Collect responses from all ranks and forward the selected one.
   val responseCompleteVec = VecInit(ranks.map(_.io.response_complete))
   val responseDataVec     = VecInit(ranks.map(_.io.response_data))
 
-  io.phyResp.valid := responseCompleteVec(rankIndex)
+  io.phyResp.valid     := responseCompleteVec(rankIndex)
   io.phyResp.bits.addr := io.memCmd.bits.addr
   io.phyResp.bits.data := responseDataVec(rankIndex)
 
-  // Decoupled logic for handling memory commands
-  io.memCmd.ready := true.B  // Accept all commands (modify if needed)
+  // Decoupled interface ready signal
+  io.memCmd.ready := true.B
 }

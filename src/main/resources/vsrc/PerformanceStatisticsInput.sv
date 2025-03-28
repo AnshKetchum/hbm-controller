@@ -4,12 +4,13 @@ module PerformanceStatisticsInput(
     input wire req_fire,
     input wire rd_en,
     input wire wr_en,
+    input wire [31:0] addr,
     input wire [63:0] globalCycle
 );
     integer file;
     initial begin
         file = $fopen("input_request_stats.csv", "w");
-        $fwrite(file, "RequestID,Read,Write,Cycle\n");
+        $fwrite(file, "RequestID,Address,Read,Write,Cycle\n");
         $display("IN VERILOG INPUT");
     end
 
@@ -19,7 +20,7 @@ module PerformanceStatisticsInput(
         if (reset) begin
             reqId <= 0;
         end else if (req_fire) begin
-            $fwrite(file, "%d,%d,%d,%d\n", reqId, rd_en, wr_en, globalCycle);
+            $fwrite(file, "%d,%d,%d,%d,%d\n", reqId, addr, rd_en, wr_en, globalCycle);
             reqId <= reqId + 1;
         end
     end

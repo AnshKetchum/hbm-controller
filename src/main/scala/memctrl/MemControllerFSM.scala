@@ -7,21 +7,7 @@ import chisel3.util._
 // Memory Controller FSM Module
 //----------------------------------------------------------------------
 
-class MemoryControllerFSM(
-  val tRCD:              Int = 5,
-  val tCL:               Int = 5,
-  val tPRE:              Int = 10,
-  val tREFRESH:          Int = 10,
-  val REFRESH_CYCLE_COUNT:Int = 200,
-  val COUNTER_SIZE:      Int = 32,
-  val IDLE_DELAY:        Int = 0,
-  val READ_ISSUE_DELAY:  Int = 5,
-  val WRITE_ISSUE_DELAY: Int = 5,
-  val READ_PENDING_DELAY:Int = 5,
-  val WRITE_PENDING_DELAY:Int = 5,
-  val PRECHARGE_DELAY:   Int = 10,
-  val REFRESH_DELAY:     Int = 10
-) extends Module {
+class MemoryControllerFSM(params: DRAMBankParams) extends Module {
   val io = IO(new Bundle {
     val req  = Flipped(Decoupled(new ControllerRequest))  // Input request
     val resp = Decoupled(new ControllerResponse)         // Response output
@@ -38,8 +24,8 @@ class MemoryControllerFSM(
   // FSM states
   val sIdle :: sReadIssue :: sReadPending :: sWriteIssue :: sWritePending :: sPrecharge :: sDone :: sRefresh :: Nil = Enum(8)
   val state = RegInit(sIdle)
-  val counter = RegInit(0.U(COUNTER_SIZE.W))
-  val refreshDelayCounter = RegInit(0.U(COUNTER_SIZE.W))
+  val counter = RegInit(0.U(params.counterSize.W))
+  val refreshDelayCounter = RegInit(0.U(params.counterSize.W))
 
   // Default memory command
   val cmdReg = Wire(new MemCmd)
@@ -65,6 +51,7 @@ class MemoryControllerFSM(
   io.resp.valid := (state === sDone)
 
   // Latch new request
+  printf("Is the request valid? %d\n", io.req.valid)
   when(state === sIdle && !requestActive && io.req.valid) {
     reqReg := io.req.bits
     requestActive := true.B
@@ -73,76 +60,84 @@ class MemoryControllerFSM(
 
   // FSM Logic
   val nextStateWire   = WireDefault(state)
-  val nextCounterWire = WireDefault(0.U(COUNTER_SIZE.W))
+  val nextCounterWire = WireDefault(0.U(params.counterSize.W))
 
   switch(state) {
     is(sIdle) {
+      printf("IDLING\n")
       cmdReg.cs := true.B
-      when(refreshDelayCounter + tREFRESH.U >= REFRESH_CYCLE_COUNT.U) {
+      when(refreshDelayCounter + params.tREFRESH.U >= params.refreshCycleCount.U) {
         nextStateWire   := sRefresh
-        nextCounterWire := REFRESH_DELAY.U
+        nextCounterWire := params.refreshDelay.U
       } .elsewhen(requestActive) {
         when(reqReg.rd_en) {
           nextStateWire   := sReadIssue
-          nextCounterWire := READ_ISSUE_DELAY.U
+          nextCounterWire := params.readIssueDelay.U
         } .elsewhen(reqReg.wr_en) {
           nextStateWire   := sWriteIssue
-          nextCounterWire := WRITE_ISSUE_DELAY.U
+          nextCounterWire := params.writeIssueDelay.U
         }
       }
     }
     is(sReadIssue) {
+      printf("READ-ISSUE-ing\n")
       cmdReg.cas := true.B
       cmdReg.we  := true.B
       issuedAddrReg := reqReg.addr
-      nextCounterWire := READ_PENDING_DELAY.U
+      nextCounterWire := params.readPendingDelay.U
       when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
         nextStateWire := sReadPending
       }
     }
     is(sReadPending) {
+      printf("READ-PEND-ing\n")
       cmdReg.ras := true.B
       cmdReg.we  := true.B
-      nextCounterWire := PRECHARGE_DELAY.U
+      nextCounterWire := params.prechargeDelay.U
       when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
         nextStateWire   := sPrecharge
         responseDataReg := io.phyResp.bits.data
       }
     }
     is(sWriteIssue) {
+      printf("WRITE-ISSUE-ing\n")
       cmdReg.cas := true.B
       cmdReg.we  := true.B
       issuedAddrReg := reqReg.addr
-      nextCounterWire := WRITE_PENDING_DELAY.U
+      nextCounterWire := params.writePendingDelay.U
       when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
         nextStateWire := sWritePending
       }
     }
     is(sWritePending) {
+      printf("WRITE-PEND-ing\n")
       cmdReg.ras := true.B
-      nextCounterWire := PRECHARGE_DELAY.U
+      nextCounterWire := params.prechargeDelay.U
       when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
         nextStateWire   := sPrecharge
         responseDataReg := reqReg.wdata
       }
     }
     is(sPrecharge) {
+      printf("PRECHARGE-ing\n")
       cmdReg.cas := true.B
-      nextCounterWire := IDLE_DELAY.U
+      nextCounterWire := params.idleDelay.U
       when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
         nextStateWire := sDone
       }
     }
     is(sDone) {
-      nextCounterWire := IDLE_DELAY.U
+      printf("DONE-ing\n")
+      nextCounterWire := params.idleDelay.U
       when(io.resp.fire) {  
         nextStateWire := sIdle
         requestActive := false.B
       }
     }
     is(sRefresh) {
+      printf("REFRESH-ing\n")
       cmdReg.we := true.B
-      nextCounterWire := IDLE_DELAY.U
+      nextCounterWire := params.idleDelay.U
       when(io.phyResp.valid) {
         nextStateWire := sIdle
       }

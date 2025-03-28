@@ -18,10 +18,12 @@ class PerformanceStatisticsInput extends BlackBox with HasBlackBoxResource {
     val req_fire     = Input(Bool())
     val rd_en        = Input(Bool())
     val wr_en        = Input(Bool())
+    val addr         = Input(UInt(32.W))
     val globalCycle  = Input(UInt(64.W))
   })
 
-  addResource("/memctrl/vsrc/PerformanceStatisticsInput.v")
+  println("Hi IN")
+  addResource("/vsrc/PerformanceStatisticsInput.sv")
 }
 
 /** Monitors output responses.
@@ -38,10 +40,12 @@ class PerformanceStatisticsOutput extends BlackBox with HasBlackBoxResource {
     val resp_fire    = Input(Bool())
     val rd_en        = Input(Bool())
     val wr_en        = Input(Bool())
+    val addr         = Input(UInt(32.W))
     val globalCycle  = Input(UInt(64.W))
   })
 
-  addResource("/memctrl/vsrc/PerformanceStatisticsOutput.v")
+  println("Hi OUT")
+  addResource("/vsrc/PerformanceStatisticsOutput.sv")
 }
 
 
@@ -78,11 +82,13 @@ class PerformanceStatistics extends Module {
   perfIn.io.req_fire := io.in_fire
   perfIn.io.rd_en := io.in_bits.rd_en
   perfIn.io.wr_en := io.in_bits.wr_en
+  perfIn.io.addr := io.in_bits.addr
   perfIn.io.globalCycle := cycleCounter
 
   // Connect output response logging
   perfOut.io.resp_fire := io.out_fire
   perfOut.io.rd_en := io.out_bits.rd_en
   perfOut.io.wr_en := io.out_bits.wr_en
+  perfOut.io.addr := io.out_bits.addr
   perfOut.io.globalCycle := cycleCounter
 }
