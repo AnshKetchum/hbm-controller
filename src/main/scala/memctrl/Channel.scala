@@ -42,11 +42,11 @@ class Channel(params: MemoryConfigurationParams = MemoryConfigurationParams(), b
   // Instantiate rank modules
   val ranks = Seq.fill(params.numberOfRanks)(Module(new Rank(params, bankParams)))
   for ((rank, i) <- ranks.zipWithIndex) {
-    val isActiveRank = (rankIndex === i.U)
-    rank.io.cs    := Mux(isActiveRank, io.memCmd.bits.cs, false.B)
-    rank.io.ras   := Mux(isActiveRank, io.memCmd.bits.ras, false.B)
-    rank.io.cas   := Mux(isActiveRank, io.memCmd.bits.cas, false.B)
-    rank.io.we    := Mux(isActiveRank, io.memCmd.bits.we, false.B)
+    val isActiveRank = ~(rankIndex === i.U)
+    rank.io.cs    := isActiveRank
+    rank.io.ras   := io.memCmd.bits.ras
+    rank.io.cas   := io.memCmd.bits.cas
+    rank.io.we    := io.memCmd.bits.we
     rank.io.addr  := io.memCmd.bits.addr
     rank.io.wdata := io.memCmd.bits.data
   }

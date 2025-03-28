@@ -3,22 +3,18 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-//----------------------------------------------------------------------
-// Memory Controller FSM Module
-//----------------------------------------------------------------------
-
 class MemoryControllerFSM(params: DRAMBankParams) extends Module {
   val io = IO(new Bundle {
-    val req  = Flipped(Decoupled(new ControllerRequest))  // Input request
-    val resp = Decoupled(new ControllerResponse)         // Response output
-    val cmdOut = Decoupled(new MemCmd)                   // Command output
-    val phyResp = Flipped(Decoupled(new PhysicalMemResponse)) // Memory response
+    val req     = Flipped(Decoupled(new ControllerRequest))  // Input request
+    val resp    = Decoupled(new ControllerResponse)            // Response output
+    val cmdOut  = Decoupled(new MemCmd)                        // Command output
+    val phyResp = Flipped(Decoupled(new PhysicalMemResponse))  // Memory response
   })
 
   // Internal registers
-  val reqReg        = Reg(new ControllerRequest)
-  val requestActive = RegInit(false.B)
-  val issuedAddrReg = RegInit(0.U(32.W))
+  val reqReg          = Reg(new ControllerRequest)
+  val requestActive   = RegInit(false.B)
+  val issuedAddrReg   = RegInit(0.U(32.W))
   val responseDataReg = RegInit(0.U(32.W))
 
   // FSM states
@@ -31,15 +27,22 @@ class MemoryControllerFSM(params: DRAMBankParams) extends Module {
   val cmdReg = Wire(new MemCmd)
   cmdReg.addr := reqReg.addr
   cmdReg.data := Mux(reqReg.wr_en, reqReg.wdata, 0.U)
+  // By default, assume an active command (cs low) unless overridden.
   cmdReg.cs   := false.B
   cmdReg.ras  := false.B
   cmdReg.cas  := false.B
   cmdReg.we   := false.B
 
-  io.cmdOut.bits  := cmdReg
-  io.cmdOut.valid := (state =/= sIdle) 
+  // In Idle, no command is issued: drive cs high.
+  when(state === sIdle) {
+    cmdReg.cs := true.B
+  }
 
-  // Updated response format
+  io.cmdOut.bits  := cmdReg
+  // Issue command whenever not idle.
+  io.cmdOut.valid := (state =/= sIdle)
+
+  // Updated response format.
   val respReg = Wire(new ControllerResponse)
   respReg.data  := responseDataReg
   respReg.rd_en := reqReg.rd_en
@@ -50,22 +53,21 @@ class MemoryControllerFSM(params: DRAMBankParams) extends Module {
   io.resp.bits  := respReg
   io.resp.valid := (state === sDone)
 
-  // Latch new request
-  printf("Is the request valid? %d\n", io.req.valid)
+  // Latch new request when idle.
   when(state === sIdle && !requestActive && io.req.valid) {
     reqReg := io.req.bits
     requestActive := true.B
   }
   io.req.ready := (state === sIdle) && !requestActive
 
-  // FSM Logic
+  // FSM transition signals.
   val nextStateWire   = WireDefault(state)
   val nextCounterWire = WireDefault(0.U(params.counterSize.W))
 
   switch(state) {
     is(sIdle) {
       printf("IDLING\n")
-      cmdReg.cs := true.B
+      // No active command.
       when(refreshDelayCounter + params.tREFRESH.U >= params.refreshCycleCount.U) {
         nextStateWire   := sRefresh
         nextCounterWire := params.refreshDelay.U
@@ -81,46 +83,67 @@ class MemoryControllerFSM(params: DRAMBankParams) extends Module {
     }
     is(sReadIssue) {
       printf("READ-ISSUE-ing\n")
-      cmdReg.cas := true.B
+      // For read, drive: cs = 0, ras = 1, cas = 0, we = 1.
+      cmdReg.cs  := false.B
+      cmdReg.ras := true.B
+      cmdReg.cas := false.B
       cmdReg.we  := true.B
       issuedAddrReg := reqReg.addr
-      nextCounterWire := params.readPendingDelay.U
-      when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
+      // Wait for the command to be issued.
+      when(io.cmdOut.fire) {
         nextStateWire := sReadPending
+        nextCounterWire := params.readPendingDelay.U
       }
     }
     is(sReadPending) {
       printf("READ-PEND-ing\n")
-      cmdReg.ras := true.B
-      cmdReg.we  := true.B
-      nextCounterWire := params.prechargeDelay.U
+      
+      // Ensure correct memory command signals
+      cmdReg.ras := false.B
+      cmdReg.cas := true.B
+      cmdReg.we  := false.B
+
+      // Decrement counter and check for timeout
+      nextCounterWire := counter - 1.U
+
       when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
         nextStateWire   := sPrecharge
         responseDataReg := io.phyResp.bits.data
+      }.elsewhen(counter === 0.U) {  // Timeout case
+        printf("TIMEOUT in READ-PEND-ing, moving to sPrecharge\n")
+        nextStateWire := sPrecharge
       }
     }
     is(sWriteIssue) {
       printf("WRITE-ISSUE-ing\n")
-      cmdReg.cas := true.B
-      cmdReg.we  := true.B
+      // For write, drive: cs = 0, ras = 1, cas = false, we = 0.
+      cmdReg.cs  := false.B
+      cmdReg.ras := true.B
+      cmdReg.cas := false.B
+      cmdReg.we  := false.B
       issuedAddrReg := reqReg.addr
-      nextCounterWire := params.writePendingDelay.U
-      when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
+      // Wait for command handshake rather than a physical response.
+      when(io.cmdOut.fire) {
         nextStateWire := sWritePending
+        nextCounterWire := params.writePendingDelay.U
       }
     }
     is(sWritePending) {
       printf("WRITE-PEND-ing\n")
-      cmdReg.ras := true.B
-      nextCounterWire := params.prechargeDelay.U
-      when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
+      // Instead of waiting on a physical response (which may not be generated for writes),
+      // wait until the counter expires.
+      when(counter === 0.U) {
         nextStateWire   := sPrecharge
-        responseDataReg := reqReg.wdata
+        nextCounterWire := params.prechargeDelay.U
+        responseDataReg := reqReg.wdata // Echo the written data.
       }
     }
     is(sPrecharge) {
-      printf("PRECHARGE-ing\n")
+      // For precharge, the expected pattern is: cs = 0, ras = 0, cas = 1, we = 0.
+      cmdReg.cs  := false.B
+      cmdReg.ras := false.B
       cmdReg.cas := true.B
+      cmdReg.we  := false.B
       nextCounterWire := params.idleDelay.U
       when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
         nextStateWire := sDone
@@ -135,8 +158,11 @@ class MemoryControllerFSM(params: DRAMBankParams) extends Module {
       }
     }
     is(sRefresh) {
-      printf("REFRESH-ing\n")
-      cmdReg.we := true.B
+      // For refresh, the expected pattern is: cs = 0, ras = 0, cas = 0, we = 1.
+      cmdReg.cs  := false.B
+      cmdReg.ras := false.B
+      cmdReg.cas := false.B
+      cmdReg.we  := true.B
       nextCounterWire := params.idleDelay.U
       when(io.phyResp.valid) {
         nextStateWire := sIdle
@@ -144,7 +170,7 @@ class MemoryControllerFSM(params: DRAMBankParams) extends Module {
     }
   }
 
-  // State update logic
+  // Update state and counters.
   when(reset.asBool) {
     state               := sIdle
     counter             := 0.U

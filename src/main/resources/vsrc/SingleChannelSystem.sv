@@ -69,7 +69,7 @@ endmodule
   `endif // RANDOMIZE
 `endif // not def INIT_RANDOM_PROLOG_
 // VCS coverage exclude_file
-module memory_1024x32(	// @[src/main/scala/memctrl/BankModel.scala:67:19]
+module memory_1024x32(	// @[src/main/scala/memctrl/BankModel.scala:73:19]
   input  [9:0]  R0_addr,
   input         R0_en,
                 R0_clk,
@@ -80,24 +80,24 @@ module memory_1024x32(	// @[src/main/scala/memctrl/BankModel.scala:67:19]
   input  [31:0] W0_data
 );
 
-  reg [31:0] Memory[0:1023];	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-  always @(posedge W0_clk) begin	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-    if (W0_en & 1'h1)	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-      Memory[W0_addr] <= W0_data;	// @[src/main/scala/memctrl/BankModel.scala:67:19]
+  reg [31:0] Memory[0:1023];	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+  always @(posedge W0_clk) begin	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+    if (W0_en & 1'h1)	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+      Memory[W0_addr] <= W0_data;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-    reg [31:0] _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-    initial begin	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-      `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/memctrl/BankModel.scala:67:19]
+  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+    reg [31:0] _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+    initial begin	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+      `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/memctrl/BankModel.scala:73:19]
         for (logic [10:0] i = 11'h0; i < 11'h400; i += 11'h1) begin
-          _RANDOM_MEM = `RANDOM;	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-          Memory[i[9:0]] = _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:67:19]
+          _RANDOM_MEM = `RANDOM;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+          Memory[i[9:0]] = _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
         end
       `endif // RANDOMIZE_MEM_INIT
     end // initial
   `endif // ENABLE_INITIAL_MEM_
-  assign R0_data = R0_en ? Memory[R0_addr] : 32'bx;	// @[src/main/scala/memctrl/BankModel.scala:67:19]
+  assign R0_data = R0_en ? Memory[R0_addr] : 32'bx;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
 endmodule
 
 
@@ -131,71 +131,68 @@ module DRAMBank(	// @[src/main/scala/memctrl/BankModel.scala:44:7]
   output [31:0] io_response_data	// @[src/main/scala/memctrl/BankModel.scala:45:14]
 );
 
-  wire [31:0] _memory_ext_R0_data;	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-  reg  [31:0] delay_counter;	// @[src/main/scala/memctrl/BankModel.scala:70:30]
-  reg  [31:0] refresh_cycle_counter;	// @[src/main/scala/memctrl/BankModel.scala:71:38]
-  reg         rowActive;	// @[src/main/scala/memctrl/BankModel.scala:74:26]
-  reg  [3:0]  activeRow;	// @[src/main/scala/memctrl/BankModel.scala:75:26]
-  wire        _GEN = ~io_cs & ~io_ras;	// @[src/main/scala/memctrl/BankModel.scala:115:23, :120:{29,39}]
-  wire        _GEN_0 = _GEN & ~io_cas & io_we;	// @[src/main/scala/memctrl/BankModel.scala:120:{29,47,57,65}]
-  wire        _GEN_1 = delay_counter == 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :129:26]
-  wire        _GEN_2 = (|delay_counter) & _GEN_1;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :123:{24,33}, :125:28, :129:{26,35}]
-  wire        _GEN_3 = _GEN & io_cas;	// @[src/main/scala/memctrl/BankModel.scala:120:29, :137:47]
-  wire        _GEN_4 = _GEN_3 & io_we;	// @[src/main/scala/memctrl/BankModel.scala:137:{47,65}]
-  wire        _GEN_5 = ~io_cs & io_ras & ~io_cas;	// @[src/main/scala/memctrl/BankModel.scala:115:23, :120:57, :157:{29,47}]
-  wire        _GEN_6 = activeRow == io_addr[31:28];	// @[src/main/scala/memctrl/BankModel.scala:75:26, :95:23, :165:{27,39}]
-  wire [10:0] _memIndex_T_1 = {1'h0, activeRow, 6'h0} + {5'h0, io_addr[5:0]};	// @[src/main/scala/memctrl/BankModel.scala:75:26, :96:23, :100:28]
-  wire        _GEN_7 = io_cs | _GEN_0 | _GEN_4;	// @[src/main/scala/memctrl/BankModel.scala:67:19, :115:23, :120:{47,65,83}, :137:{65,83}, :157:66]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/BankModel.scala:126:13]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/BankModel.scala:126:13]
-      if ((`PRINTF_COND_) & _GEN_0 & ~(|delay_counter) & ~reset)	// @[src/main/scala/memctrl/BankModel.scala:70:30, :120:{47,65}, :123:{24,33}, :126:13]
-        $fwrite(`PRINTF_FD_, "Refreshing: Loaded tREFRESH (%d cycles)\n", 4'hA);	// @[src/main/scala/memctrl/BankModel.scala:126:13]
-      if ((`PRINTF_COND_) & ~_GEN_0 & ~_GEN_4 & _GEN_5 & rowActive & _GEN_6
-          & (|delay_counter) & _GEN_1 & ~io_we & ~reset)	// @[src/main/scala/memctrl/BankModel.scala:70:30, :74:26, :120:{47,65,83}, :123:24, :126:13, :129:26, :137:{65,83}, :157:{29,47,66}, :160:33, :165:{27,39}, :172:35, :178:37, :181:31, :189:19]
+  wire [31:0] _memory_ext_R0_data;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+  reg  [31:0] delay_counter;	// @[src/main/scala/memctrl/BankModel.scala:76:30]
+  reg  [31:0] refresh_cycle_counter;	// @[src/main/scala/memctrl/BankModel.scala:77:38]
+  reg         rowActive;	// @[src/main/scala/memctrl/BankModel.scala:80:26]
+  reg  [3:0]  activeRow;	// @[src/main/scala/memctrl/BankModel.scala:81:26]
+  wire        _GEN = ~io_ras & ~io_cas & io_we;	// @[src/main/scala/memctrl/BankModel.scala:123:{17,25,35,43}]
+  wire        _GEN_0 = delay_counter == 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :130:28]
+  wire        _GEN_1 = (|delay_counter) & _GEN_0;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :114:24, :125:{26,35}, :130:{28,37}]
+  wire        _GEN_2 = ~io_ras & io_cas;	// @[src/main/scala/memctrl/BankModel.scala:123:17, :139:30]
+  wire        _GEN_3 = _GEN_2 & io_we;	// @[src/main/scala/memctrl/BankModel.scala:139:{30,48}]
+  wire        _GEN_4 = io_ras & ~io_cas;	// @[src/main/scala/memctrl/BankModel.scala:123:35, :154:30]
+  wire        _GEN_5 = activeRow == io_addr[31:28];	// @[src/main/scala/memctrl/BankModel.scala:81:26, :100:23, :159:{29,41}]
+  wire [10:0] _memIndex_T_1 = {1'h0, activeRow, 6'h0} + {5'h0, io_addr[5:0]};	// @[src/main/scala/memctrl/BankModel.scala:81:26, :101:23, :105:28]
+  wire        _GEN_6 = _GEN | _GEN_3;	// @[src/main/scala/memctrl/BankModel.scala:73:19, :123:{25,43,61}, :139:{48,66}, :154:49]
+  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/BankModel.scala:178:21]
+    always @(posedge clock) begin	// @[src/main/scala/memctrl/BankModel.scala:178:21]
+      if ((`PRINTF_COND_) & ~io_cs & ~_GEN & ~_GEN_3 & _GEN_4 & rowActive & _GEN_5
+          & (|delay_counter) & _GEN_0 & ~io_we & ~reset)	// @[src/main/scala/memctrl/BankModel.scala:76:30, :80:26, :117:23, :123:{25,43,61}, :125:26, :130:28, :139:{48,66}, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33, :178:21]
         $fwrite(`PRINTF_FD_,
-                "[DRAM] Writing %d to row %d, col %d (index %d), addr - %d \n", io_wdata,
-                activeRow, io_addr[5:0], _memIndex_T_1, io_addr);	// @[src/main/scala/memctrl/BankModel.scala:75:26, :96:23, :100:28, :189:19]
+                "[DRAM] Writing %d to row %d, col %d (index %d), addr - %d\n", io_wdata,
+                activeRow, io_addr[5:0], _memIndex_T_1, io_addr);	// @[src/main/scala/memctrl/BankModel.scala:81:26, :101:23, :105:28, :178:21]
     end // always @(posedge)
   `endif // not def SYNTHESIS
-  wire        _GEN_8 = _GEN_3 & ~io_we;	// @[src/main/scala/memctrl/BankModel.scala:137:47, :181:31, :197:65]
-  wire        _GEN_9 = refresh_cycle_counter == 32'hC8;	// @[src/main/scala/memctrl/BankModel.scala:71:38, :86:30]
-  wire        _GEN_10 = ~_GEN_9 & rowActive;	// @[src/main/scala/memctrl/BankModel.scala:74:26, :86:{30,50}, :89:15]
-  wire        _GEN_11 = ~(_GEN_1 | _GEN_9) & rowActive;	// @[src/main/scala/memctrl/BankModel.scala:74:26, :85:25, :86:{30,50}, :87:27, :89:15, :129:{26,35}, :130:31, :131:19]
+  wire        _GEN_7 = _GEN_2 & ~io_we;	// @[src/main/scala/memctrl/BankModel.scala:139:30, :171:33, :187:48]
+  wire        _GEN_8 = refresh_cycle_counter == 32'hC8;	// @[src/main/scala/memctrl/BankModel.scala:77:38, :92:30]
+  wire        _GEN_9 = ~_GEN_8 & rowActive;	// @[src/main/scala/memctrl/BankModel.scala:80:26, :92:{30,50}, :95:15]
+  wire        _GEN_10 = ~(_GEN_0 | _GEN_8) & rowActive;	// @[src/main/scala/memctrl/BankModel.scala:80:26, :91:25, :92:{30,50}, :93:27, :95:15, :130:{28,37}, :132:33, :133:21]
   always @(posedge clock) begin	// @[src/main/scala/memctrl/BankModel.scala:44:7]
     if (reset) begin	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-      delay_counter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:70:30]
-      refresh_cycle_counter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:71:38]
-      rowActive <= 1'h0;	// @[src/main/scala/memctrl/BankModel.scala:74:26]
-      activeRow <= 4'h0;	// @[src/main/scala/memctrl/BankModel.scala:75:26]
+      delay_counter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:76:30]
+      refresh_cycle_counter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:77:38]
+      rowActive <= 1'h0;	// @[src/main/scala/memctrl/BankModel.scala:80:26]
+      activeRow <= 4'h0;	// @[src/main/scala/memctrl/BankModel.scala:81:26]
     end
     else begin	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-      if (io_cs)	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-        delay_counter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:70:30]
-      else if (_GEN_0)	// @[src/main/scala/memctrl/BankModel.scala:120:{47,65}]
-        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'hA;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :123:{24,33}, :124:18, :128:{18,35}]
-      else if (_GEN_4)	// @[src/main/scala/memctrl/BankModel.scala:137:65]
-        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'h3;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :123:24, :140:33, :142:18, :146:{18,35}]
-      else if (_GEN_5)	// @[src/main/scala/memctrl/BankModel.scala:157:{29,47}]
+      if (io_cs) begin	// @[src/main/scala/memctrl/BankModel.scala:45:14]
+      end
+      else if (_GEN)	// @[src/main/scala/memctrl/BankModel.scala:123:{25,43}]
+        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'hA;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :125:{26,35}, :127:20, :129:{20,37}]
+      else if (_GEN_3)	// @[src/main/scala/memctrl/BankModel.scala:139:48]
+        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'h3;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :125:26, :141:35, :142:20, :144:{20,37}]
+      else if (_GEN_4)	// @[src/main/scala/memctrl/BankModel.scala:154:30]
         delay_counter <=
-          rowActive & _GEN_6 ? ((|delay_counter) ? delay_counter - 32'h1 : 32'h5) : 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :74:26, :123:24, :160:33, :162:18, :165:{27,39}, :172:35, :173:20, :177:{20,37}]
-      else if (_GEN_8)	// @[src/main/scala/memctrl/BankModel.scala:197:65]
-        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'hA;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :123:24, :200:33, :201:18, :205:{18,35}]
+          rowActive & _GEN_5 ? ((|delay_counter) ? delay_counter - 32'h1 : 32'h5) : 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :80:26, :125:26, :157:24, :158:20, :159:{29,41}, :163:37, :165:22, :167:{22,39}]
+      else if (_GEN_7)	// @[src/main/scala/memctrl/BankModel.scala:187:48]
+        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'hA;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :125:26, :189:35, :190:20, :192:{20,37}]
       refresh_cycle_counter <=
-        ~io_cs & _GEN_0 & (|delay_counter) & _GEN_1 | _GEN_9
+        ~io_cs & ~io_cs & _GEN & (|delay_counter) & _GEN_0 | _GEN_8
           ? 32'h0
-          : refresh_cycle_counter + 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :71:38, :85:{25,50}, :86:{30,50}, :87:27, :115:23, :120:{47,65,83}, :123:{24,33}, :129:{26,35}, :130:31]
+          : refresh_cycle_counter + 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :77:38, :91:{25,50}, :92:{30,50}, :93:27, :117:23, :121:30, :123:{25,43,61}, :125:{26,35}, :130:{28,37}, :132:33]
       rowActive <=
         io_cs
-          ? _GEN_10
-          : _GEN_0
-              ? ((|delay_counter) ? _GEN_11 : _GEN_10)
-              : _GEN_4
-                  ? _GEN_2 | _GEN_10
-                  : _GEN_5 | ~(_GEN_8 & (|delay_counter)) ? _GEN_10 : _GEN_11;	// @[src/main/scala/memctrl/BankModel.scala:70:30, :74:26, :86:50, :89:15, :115:23, :120:{47,65,83}, :123:{24,33}, :125:28, :129:35, :131:19, :137:{65,83}, :140:33, :147:35, :157:{29,47,66}, :197:{65,83}, :200:33]
-      if (io_cs | _GEN_0 | ~(_GEN_4 & (|delay_counter) & _GEN_1)) begin	// @[src/main/scala/memctrl/BankModel.scala:70:30, :75:26, :115:23, :120:{47,65,83}, :123:24, :129:26, :137:{65,83}, :140:33, :147:35]
+          ? _GEN_9
+          : _GEN
+              ? ((|delay_counter) ? _GEN_10 : _GEN_9)
+              : _GEN_3
+                  ? _GEN_1 | _GEN_9
+                  : _GEN_4 | ~(_GEN_7 & (|delay_counter)) ? _GEN_9 : _GEN_10;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :80:26, :92:50, :95:15, :114:24, :117:23, :121:30, :123:{25,43,61}, :125:{26,35}, :130:37, :133:21, :139:{48,66}, :141:35, :145:37, :154:{30,49}, :187:{48,66}, :189:35]
+      if (io_cs | _GEN | ~(_GEN_3 & (|delay_counter) & _GEN_0)) begin	// @[src/main/scala/memctrl/BankModel.scala:76:30, :81:26, :117:23, :121:30, :123:{25,43,61}, :125:26, :130:28, :139:{48,66}, :141:35, :145:37]
       end
-      else	// @[src/main/scala/memctrl/BankModel.scala:75:26, :115:23, :120:83, :137:83]
-        activeRow <= io_addr[31:28];	// @[src/main/scala/memctrl/BankModel.scala:75:26, :95:23]
+      else	// @[src/main/scala/memctrl/BankModel.scala:81:26, :117:23, :121:30, :123:61, :139:66]
+        activeRow <= io_addr[31:28];	// @[src/main/scala/memctrl/BankModel.scala:81:26, :100:23]
     end
   end // always @(posedge)
   `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/BankModel.scala:44:7]
@@ -211,37 +208,41 @@ module DRAMBank(	// @[src/main/scala/memctrl/BankModel.scala:44:7]
         for (logic [1:0] i = 2'h0; i < 2'h3; i += 2'h1) begin
           _RANDOM[i] = `RANDOM;	// @[src/main/scala/memctrl/BankModel.scala:44:7]
         end	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-        delay_counter = {_RANDOM[2'h0][31:3], _RANDOM[2'h1][2:0]};	// @[src/main/scala/memctrl/BankModel.scala:44:7, :70:30]
-        refresh_cycle_counter = {_RANDOM[2'h1][31:3], _RANDOM[2'h2][2:0]};	// @[src/main/scala/memctrl/BankModel.scala:44:7, :70:30, :71:38]
-        rowActive = _RANDOM[2'h2][3];	// @[src/main/scala/memctrl/BankModel.scala:44:7, :71:38, :74:26]
-        activeRow = _RANDOM[2'h2][7:4];	// @[src/main/scala/memctrl/BankModel.scala:44:7, :71:38, :75:26]
+        delay_counter = {_RANDOM[2'h0][31:3], _RANDOM[2'h1][2:0]};	// @[src/main/scala/memctrl/BankModel.scala:44:7, :76:30]
+        refresh_cycle_counter = {_RANDOM[2'h1][31:3], _RANDOM[2'h2][2:0]};	// @[src/main/scala/memctrl/BankModel.scala:44:7, :76:30, :77:38]
+        rowActive = _RANDOM[2'h2][3];	// @[src/main/scala/memctrl/BankModel.scala:44:7, :77:38, :80:26]
+        activeRow = _RANDOM[2'h2][7:4];	// @[src/main/scala/memctrl/BankModel.scala:44:7, :77:38, :81:26]
       `endif // RANDOMIZE_REG_INIT
     end // initial
     `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:44:7]
       `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:44:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  memory_1024x32 memory_ext (	// @[src/main/scala/memctrl/BankModel.scala:67:19]
-    .R0_addr (_memIndex_T_1[9:0]),	// @[src/main/scala/memctrl/BankModel.scala:100:28, :183:44]
-    .R0_en   (~_GEN_7 & _GEN_5 & rowActive & _GEN_6 & (|delay_counter) & _GEN_1 & io_we),	// @[src/main/scala/memctrl/BankModel.scala:67:19, :70:30, :74:26, :115:23, :120:83, :123:24, :129:26, :137:83, :157:{29,47,66}, :160:33, :165:{27,39}, :172:35, :178:37, :181:31]
+  memory_1024x32 memory_ext (	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+    .R0_addr (_memIndex_T_1[9:0]),	// @[src/main/scala/memctrl/BankModel.scala:105:28, :173:46]
+    .R0_en
+      (~io_cs & ~io_cs & ~_GEN_6 & _GEN_4 & rowActive & _GEN_5 & (|delay_counter) & _GEN_0
+       & io_we),	// @[src/main/scala/memctrl/BankModel.scala:73:19, :76:30, :80:26, :91:25, :92:50, :93:27, :117:23, :121:30, :123:61, :125:{26,35}, :130:28, :139:66, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33]
     .R0_clk  (clock),
     .R0_data (_memory_ext_R0_data),
-    .W0_addr (_memIndex_T_1[9:0]),	// @[src/main/scala/memctrl/BankModel.scala:100:28, :187:25]
-    .W0_en   (~_GEN_7 & _GEN_5 & rowActive & _GEN_6 & (|delay_counter) & _GEN_1 & ~io_we),	// @[src/main/scala/memctrl/BankModel.scala:67:19, :70:30, :74:26, :115:23, :120:83, :123:24, :129:26, :137:83, :157:{29,47,66}, :160:33, :165:{27,39}, :172:35, :178:37, :181:31]
+    .W0_addr (_memIndex_T_1[9:0]),	// @[src/main/scala/memctrl/BankModel.scala:105:28, :176:27]
+    .W0_en
+      (~io_cs & ~io_cs & ~_GEN_6 & _GEN_4 & rowActive & _GEN_5 & (|delay_counter) & _GEN_0
+       & ~io_we),	// @[src/main/scala/memctrl/BankModel.scala:73:19, :76:30, :80:26, :91:25, :92:50, :93:27, :117:23, :121:30, :123:61, :125:{26,35}, :130:28, :139:66, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33]
     .W0_clk  (clock),
     .W0_data (io_wdata)
-  );	// @[src/main/scala/memctrl/BankModel.scala:67:19]
+  );	// @[src/main/scala/memctrl/BankModel.scala:73:19]
   assign io_response_complete =
-    ~io_cs
-    & (_GEN_0 | _GEN_4
-         ? _GEN_2
-         : _GEN_5
-             ? ~(~rowActive | activeRow != io_addr[31:28] | ~(|delay_counter)) & _GEN_1
-             : _GEN_8 & _GEN_2);	// @[src/main/scala/memctrl/BankModel.scala:44:7, :70:30, :74:26, :75:26, :85:25, :86:50, :87:27, :95:23, :115:23, :118:26, :120:{47,65,83}, :123:{24,33}, :125:28, :129:{26,35}, :137:{65,83}, :157:{29,47,66}, :160:{20,33}, :163:28, :165:{27,39}, :168:28, :172:35, :174:30, :178:37, :197:{65,83}, :200:33, :216:26]
+    ~io_cs & ~io_cs
+    & (_GEN | _GEN_3
+         ? _GEN_1
+         : _GEN_4
+             ? ~(~rowActive | activeRow != io_addr[31:28] | ~(|delay_counter)) & _GEN_0
+             : _GEN_7 & _GEN_1);	// @[src/main/scala/memctrl/BankModel.scala:44:7, :76:30, :80:26, :81:26, :91:25, :92:50, :93:27, :100:23, :114:24, :117:23, :121:30, :123:{25,43,61}, :125:{26,35}, :130:{28,37}, :139:{48,66}, :154:{30,49}, :157:{12,24}, :159:{29,41}, :163:37, :168:39, :187:{48,66}, :189:35]
   assign io_response_data =
-    _GEN_7 | ~(_GEN_5 & rowActive & _GEN_6 & (|delay_counter) & _GEN_1)
+    io_cs | _GEN_6 | ~(_GEN_4 & rowActive & _GEN_5 & (|delay_counter) & _GEN_0)
       ? 32'h0
-      : io_we ? _memory_ext_R0_data : io_wdata;	// @[src/main/scala/memctrl/BankModel.scala:44:7, :67:19, :70:30, :74:26, :79:24, :115:23, :120:83, :123:24, :129:26, :137:83, :157:{29,47,66}, :160:33, :165:{27,39}, :172:35, :178:37, :181:31, :183:30, :188:30]
+      : io_we ? _memory_ext_R0_data : io_wdata;	// @[src/main/scala/memctrl/BankModel.scala:44:7, :73:19, :76:30, :80:26, :85:24, :117:23, :121:30, :123:61, :125:26, :130:28, :139:66, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33, :173:32, :177:32]
 endmodule
 
 module BankGroup(	// @[src/main/scala/memctrl/BankGroup.scala:22:7]
@@ -620,13 +621,6 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   wire        _ranks_0_io_response_complete;	// @[src/main/scala/memctrl/Channel.scala:43:52]
   wire [31:0] _ranks_0_io_response_data;	// @[src/main/scala/memctrl/Channel.scala:43:52]
   wire [2:0]  _addrDecoder_io_rankIndex;	// @[src/main/scala/memctrl/Channel.scala:36:27]
-  wire        isActiveRank = _addrDecoder_io_rankIndex == 3'h0;	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35]
-  wire        isActiveRank_1 = _addrDecoder_io_rankIndex == 3'h1;	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35]
-  wire        isActiveRank_2 = _addrDecoder_io_rankIndex == 3'h2;	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35]
-  wire        isActiveRank_3 = _addrDecoder_io_rankIndex == 3'h3;	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35]
-  wire        isActiveRank_4 = _addrDecoder_io_rankIndex == 3'h4;	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35]
-  wire        isActiveRank_5 = _addrDecoder_io_rankIndex == 3'h5;	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35]
-  wire        isActiveRank_6 = _addrDecoder_io_rankIndex == 3'h6;	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35]
   reg         casez_tmp;	// @[src/main/scala/memctrl/Channel.scala:58:24]
   always_comb begin	// @[src/main/scala/memctrl/Channel.scala:58:24]
     casez (_addrDecoder_io_rankIndex)	// @[src/main/scala/memctrl/Channel.scala:36:27, :58:24]
@@ -678,9 +672,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_0 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               (isActiveRank & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:45:35, :47:25]
-    .io_cas               (isActiveRank & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:45:35, :48:25]
-    .io_we                (isActiveRank & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_0_io_response_complete),
@@ -689,9 +683,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_1 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               (isActiveRank_1 & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:45:35, :47:25]
-    .io_cas               (isActiveRank_1 & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:45:35, :48:25]
-    .io_we                (isActiveRank_1 & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_1_io_response_complete),
@@ -700,9 +694,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_2 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               (isActiveRank_2 & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:45:35, :47:25]
-    .io_cas               (isActiveRank_2 & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:45:35, :48:25]
-    .io_we                (isActiveRank_2 & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_2_io_response_complete),
@@ -711,9 +705,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_3 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               (isActiveRank_3 & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:45:35, :47:25]
-    .io_cas               (isActiveRank_3 & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:45:35, :48:25]
-    .io_we                (isActiveRank_3 & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_3_io_response_complete),
@@ -722,9 +716,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_4 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               (isActiveRank_4 & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:45:35, :47:25]
-    .io_cas               (isActiveRank_4 & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:45:35, :48:25]
-    .io_we                (isActiveRank_4 & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_4_io_response_complete),
@@ -733,9 +727,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_5 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               (isActiveRank_5 & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:45:35, :47:25]
-    .io_cas               (isActiveRank_5 & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:45:35, :48:25]
-    .io_we                (isActiveRank_5 & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_5_io_response_complete),
@@ -744,9 +738,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_6 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               (isActiveRank_6 & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:45:35, :47:25]
-    .io_cas               (isActiveRank_6 & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:45:35, :48:25]
-    .io_we                (isActiveRank_6 & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_6_io_response_complete),
@@ -755,9 +749,9 @@ module Channel(	// @[src/main/scala/memctrl/Channel.scala:18:7]
   Rank ranks_7 (	// @[src/main/scala/memctrl/Channel.scala:43:52]
     .clock                (clock),
     .reset                (reset),
-    .io_ras               ((&_addrDecoder_io_rankIndex) & io_memCmd_bits_ras),	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35, :47:25]
-    .io_cas               ((&_addrDecoder_io_rankIndex) & io_memCmd_bits_cas),	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35, :48:25]
-    .io_we                ((&_addrDecoder_io_rankIndex) & io_memCmd_bits_we),	// @[src/main/scala/memctrl/Channel.scala:36:27, :45:35, :49:25]
+    .io_ras               (io_memCmd_bits_ras),
+    .io_cas               (io_memCmd_bits_cas),
+    .io_we                (io_memCmd_bits_we),
     .io_addr              (io_memCmd_bits_addr),
     .io_wdata             (io_memCmd_bits_data),
     .io_response_complete (_ranks_7_io_response_complete),
@@ -1120,262 +1114,405 @@ module Queue16_MemCmd(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
   assign io_deq_bits_we = _ram_ext_R0_data[0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
 endmodule
 
-module MemoryControllerFSM(	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-  input         clock,	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-                reset,	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-  output        io_req_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  input         io_req_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_req_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_req_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  input  [31:0] io_req_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_req_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  input         io_resp_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  output        io_resp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_resp_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_resp_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  output [31:0] io_resp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_resp_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_resp_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  output        io_cmdOut_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  output [31:0] io_cmdOut_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_cmdOut_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  output        io_cmdOut_bits_cs,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_cmdOut_bits_ras,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_cmdOut_bits_cas,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_cmdOut_bits_we,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  input         io_phyResp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-  input  [31:0] io_phyResp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
-                io_phyResp_bits_data	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+module MemoryControllerFSM(	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+  input         clock,	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+                reset,	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+  output        io_req_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  input         io_req_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_req_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_req_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  input  [31:0] io_req_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_req_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  input         io_resp_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  output        io_resp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_resp_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_resp_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  output [31:0] io_resp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_resp_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_resp_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  input         io_cmdOut_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  output        io_cmdOut_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  output [31:0] io_cmdOut_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_cmdOut_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  output        io_cmdOut_bits_cs,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_cmdOut_bits_ras,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_cmdOut_bits_cas,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_cmdOut_bits_we,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  input         io_phyResp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+  input  [31:0] io_phyResp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+                io_phyResp_bits_data	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
 );
 
-  reg         reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-  reg         reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-  reg  [31:0] reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-  reg  [31:0] reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-  reg         requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:30]
-  reg  [31:0] issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:21:30]
-  reg  [31:0] responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:32]
-  reg  [2:0]  state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22]
-  reg  [31:0] refreshDelayCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:28:36]
-  wire        io_resp_valid_0 = state == 3'h6;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :51:27]
-  wire        _GEN = state == 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-  wire        _GEN_0 = io_phyResp_valid & io_phyResp_bits_addr == issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:21:30, :88:{29,54}]
-  wire        _GEN_1 = state == 3'h2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-  wire        _GEN_2 = state == 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-  wire        _GEN_3 = state == 3'h4;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-  wire        _GEN_4 = ~(|state) | _GEN;	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22, :35:15, :55:14, :65:17]
-  wire        _GEN_5 = state == 3'h5;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-  wire        _GEN_6 = io_resp_ready & io_resp_valid_0;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:51:27]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9]
-    wire _GEN_7 = (|state) & state != 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :55:14, :65:17]
-    wire _GEN_8 = _GEN_7 & state != 3'h2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-    wire _GEN_9 = _GEN_8 & state != 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-    wire _GEN_10 = _GEN_9 & state != 3'h4;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-    wire _GEN_11 = _GEN_10 & state != 3'h5;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :65:17]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9]
-      if ((`PRINTF_COND_) & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9]
-        $fwrite(`PRINTF_FD_, "Is the request valid? %d\n", io_req_valid);	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9]
-      if ((`PRINTF_COND_) & ~(|state) & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22, :54:9, :55:14, :67:13]
-        $fwrite(`PRINTF_FD_, "IDLING\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:13]
-      if ((`PRINTF_COND_) & (|state) & _GEN & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22, :54:9, :55:14, :65:17, :83:13]
-        $fwrite(`PRINTF_FD_, "READ-ISSUE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:83:13]
-      if ((`PRINTF_COND_) & _GEN_7 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9, :65:17, :93:13]
-        $fwrite(`PRINTF_FD_, "READ-PEND-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:93:13]
-      if ((`PRINTF_COND_) & _GEN_8 & _GEN_2 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9, :65:17, :103:13]
-        $fwrite(`PRINTF_FD_, "WRITE-ISSUE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:103:13]
-      if ((`PRINTF_COND_) & _GEN_9 & _GEN_3 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9, :65:17, :113:13]
-        $fwrite(`PRINTF_FD_, "WRITE-PEND-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:113:13]
-      if ((`PRINTF_COND_) & _GEN_10 & _GEN_5 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:54:9, :65:17, :122:13]
-        $fwrite(`PRINTF_FD_, "PRECHARGE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:122:13]
-      if ((`PRINTF_COND_) & _GEN_11 & io_resp_valid_0 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:51:27, :54:9, :65:17, :130:13]
-        $fwrite(`PRINTF_FD_, "DONE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:130:13]
-      if ((`PRINTF_COND_) & _GEN_11 & state != 3'h6 & (&state) & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :51:27, :54:9, :65:17, :138:13]
-        $fwrite(`PRINTF_FD_, "REFRESH-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:138:13]
+  reg         reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+  reg         reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+  reg  [31:0] reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+  reg  [31:0] reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+  reg         requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32]
+  reg  [31:0] issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32]
+  reg  [31:0] responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
+  reg  [2:0]  state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22]
+  reg  [31:0] counter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:23:24]
+  reg  [31:0] refreshDelayCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:36]
+  wire        io_resp_valid_0 = state == 3'h6;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :54:27]
+  wire        _GEN = state == 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
+  wire        _GEN_0 = io_cmdOut_ready & (|state);	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:22:22, :43:29]
+  wire        _GEN_1 = state == 3'h2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
+  wire        _GEN_2 = io_phyResp_valid & io_phyResp_bits_addr == issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32, :109:{29,54}]
+  wire        _GEN_3 = counter == 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:23:24, :112:26]
+  wire        _GEN_4 = state == 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
+  wire        _GEN_5 = state == 3'h4;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
+  wire        _GEN_6 = ~(|state) | _GEN;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :22:22, :37:14, :67:17]
+  wire        _GEN_7 = state == 3'h5;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
+  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/MemControllerFSM.scala:69:13]
+    wire _GEN_8 = (|state) & state != 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :37:14, :67:17]
+    wire _GEN_9 = _GEN_8 & _GEN_1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17]
+    wire _GEN_10 = _GEN_8 & state != 3'h2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
+    wire _GEN_11 = _GEN_10 & state != 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
+    always @(posedge clock) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:69:13]
+      if ((`PRINTF_COND_) & ~(|state) & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :37:14, :69:13]
+        $fwrite(`PRINTF_FD_, "IDLING\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:69:13]
+      if ((`PRINTF_COND_) & (|state) & _GEN & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :37:14, :67:17, :69:13, :85:13]
+        $fwrite(`PRINTF_FD_, "READ-ISSUE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:85:13]
+      if ((`PRINTF_COND_) & _GEN_9 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :99:13]
+        $fwrite(`PRINTF_FD_, "READ-PEND-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:99:13]
+      if ((`PRINTF_COND_) & _GEN_9 & ~_GEN_2 & _GEN_3 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :109:{29,74}, :112:{26,35}, :113:15]
+        $fwrite(`PRINTF_FD_, "TIMEOUT in READ-PEND-ing, moving to sPrecharge\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:113:15]
+      if ((`PRINTF_COND_) & _GEN_10 & _GEN_4 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :118:13]
+        $fwrite(`PRINTF_FD_, "WRITE-ISSUE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:118:13]
+      if ((`PRINTF_COND_) & _GEN_11 & _GEN_5 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :132:13]
+        $fwrite(`PRINTF_FD_, "WRITE-PEND-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:132:13]
+      if ((`PRINTF_COND_) & _GEN_11 & state != 3'h4 & state != 3'h5 & io_resp_valid_0
+          & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :54:27, :67:17, :69:13, :153:13]
+        $fwrite(`PRINTF_FD_, "DONE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:153:13]
     end // always @(posedge)
   `endif // not def SYNTHESIS
-  reg  [2:0]  casez_tmp;	// @[src/main/scala/memctrl/MemControllerFSM.scala:65:17, :88:74]
-  wire [2:0]  _GEN_12 = _GEN_0 ? 3'h5 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :62:36, :88:29, :97:74, :98:25]
+  wire        _GEN_12 = io_resp_ready & io_resp_valid_0;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:54:27]
+  reg  [2:0]  casez_tmp;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28]
   wire [2:0]  _GEN_13 =
-    (io_resp_valid_0 ? _GEN_6 : (&state) & io_phyResp_valid) ? 3'h0 : state;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :51:27, :62:36, :65:17, :132:26, :133:23, :141:30, :142:23]
-  always_comb begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:65:17, :88:74, :97:74, :108:74, :116:74, :125:74]
-    casez (state)	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22, :65:17, :88:74, :97:74, :108:74, :116:74, :125:74]
+    (io_resp_valid_0 ? _GEN_12 : (&state) & io_phyResp_valid) ? 3'h0 : state;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :54:27, :64:36, :67:17, :155:26, :156:23, :167:30, :168:23]
+  always_comb begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74]
+    casez (state)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :67:17, :93:28, :109:74, :126:28, :135:29, :148:74]
       3'b000:
-        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:65:17, :88:74, :97:74, :108:74, :116:74, :125:74, :132:26]
+        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74, :155:26]
       3'b001:
-        casez_tmp = _GEN_0 ? 3'h2 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :62:36, :65:17, :88:{29,74}, :89:23, :97:74, :108:74, :116:74, :125:74]
+        casez_tmp = _GEN_0 ? 3'h2 : state;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :94:23, :109:74, :126:28, :135:29, :148:74]
       3'b010:
-        casez_tmp = _GEN_12;	// @[src/main/scala/memctrl/MemControllerFSM.scala:62:36, :65:17, :88:74, :97:74, :98:25, :108:74, :116:74, :125:74]
+        casez_tmp = _GEN_2 | _GEN_3 ? 3'h5 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:{29,74}, :110:25, :112:{26,35}, :114:23, :126:28, :135:29, :148:74]
       3'b011:
-        casez_tmp = _GEN_0 ? 3'h4 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :62:36, :65:17, :88:{29,74}, :97:74, :108:74, :109:23, :116:74, :125:74]
+        casez_tmp = _GEN_0 ? 3'h4 : state;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:74, :126:28, :127:23, :135:29, :148:74]
       3'b100:
-        casez_tmp = _GEN_12;	// @[src/main/scala/memctrl/MemControllerFSM.scala:62:36, :65:17, :88:74, :97:74, :98:25, :108:74, :116:74, :125:74]
+        casez_tmp = _GEN_3 ? 3'h5 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:74, :112:26, :126:28, :135:29, :136:25, :148:74]
       3'b101:
-        casez_tmp = _GEN_0 ? 3'h6 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :62:36, :65:17, :88:{29,74}, :97:74, :108:74, :116:74, :125:74, :126:23]
+        casez_tmp = _GEN_2 ? 3'h6 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:{29,74}, :126:28, :135:29, :148:74, :149:23]
       3'b110:
-        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:65:17, :88:74, :97:74, :108:74, :116:74, :125:74, :132:26]
+        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74, :155:26]
       default:
-        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:65:17, :88:74, :97:74, :108:74, :116:74, :125:74, :132:26]
-    endcase	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22, :65:17, :88:74, :97:74, :108:74, :116:74, :125:74]
+        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74, :155:26]
+    endcase	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :67:17, :93:28, :109:74, :126:28, :135:29, :148:74]
   end // always_comb
-  wire        _GEN_14 = refreshDelayCounter + 32'hA > 32'hC7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:28:36, :69:{32,52}]
-  wire        _GEN_15 = ~(|state) & ~requestActive & io_req_valid;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:30, :26:22, :55:{14,24,27,42}]
-  always @(posedge clock) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-    if (_GEN_15) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:55:{24,42}]
-      reqReg_rd_en <= io_req_bits_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-      reqReg_wr_en <= io_req_bits_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-      reqReg_addr <= io_req_bits_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-      reqReg_wdata <= io_req_bits_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
+  wire        _GEN_14 = refreshDelayCounter + 32'hA > 32'hC7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:36, :71:{32,52}]
+  wire [31:0] _GEN_15 = _GEN_0 ? 32'h5 : 32'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:65:36, :93:28, :95:25]
+  wire        _GEN_16 = _GEN_5 & _GEN_3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :67:17, :112:26, :135:29, :138:25]
+  wire        _GEN_17 =
+    state == ((|state)
+                ? casez_tmp
+                : _GEN_14
+                    ? 3'h7
+                    : requestActive
+                        ? (reqReg_rd_en ? 3'h1 : reqReg_wr_en ? 3'h3 : state)
+                        : state);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :16:32, :22:22, :37:14, :64:36, :67:17, :71:{52,83}, :72:25, :74:34, :75:28, :76:27, :78:35, :79:27, :93:28, :181:{16,35}, :182:27, :185:27]
+  wire        _GEN_18 = ~(|state) & ~requestActive & io_req_valid;	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32, :22:22, :37:14, :57:{24,27,42}]
+  always @(posedge clock) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+    if (_GEN_18) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:57:{24,42}]
+      reqReg_rd_en <= io_req_bits_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+      reqReg_wr_en <= io_req_bits_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+      reqReg_addr <= io_req_bits_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+      reqReg_wdata <= io_req_bits_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
     end
-    if (reset) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-      requestActive <= 1'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:30]
-      issuedAddrReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:21:30]
-      responseDataReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:32]
-      state <= 3'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22]
-      refreshDelayCounter <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:28:36]
+    if (reset) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+      requestActive <= 1'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32]
+      issuedAddrReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32]
+      responseDataReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
+      state <= 3'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
+      counter <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:23:24]
+      refreshDelayCounter <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:36]
     end
-    else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+    else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
       requestActive <=
-        ~reset & (~(|state) | _GEN | _GEN_1 | _GEN_2 | _GEN_3 | _GEN_5 | ~_GEN_6)
-        & (_GEN_15 | requestActive);	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:20:30, :26:22, :55:{14,24,42,59}, :57:19, :65:17, :132:26, :134:23, :148:22, :153:25]
-      if ((|state) & (_GEN | ~(_GEN_1 | ~_GEN_2)))	// @[src/main/scala/memctrl/MemControllerFSM.scala:21:30, :26:22, :55:14, :65:17, :86:21]
-        issuedAddrReg <= reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26, :21:30]
-      if (reset) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-        responseDataReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:32]
-        state <= 3'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22]
+        ~reset & (~(|state) | _GEN | _GEN_1 | _GEN_4 | _GEN_5 | _GEN_7 | ~_GEN_12)
+        & (_GEN_18 | requestActive);	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:16:32, :22:22, :37:14, :57:{24,42,59}, :59:19, :67:17, :155:26, :157:23, :174:22, :179:25]
+      if ((|state) & (_GEN | ~(_GEN_1 | ~_GEN_4)))	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32, :22:22, :37:14, :67:17, :91:21]
+        issuedAddrReg <= reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28, :17:32]
+      if (reset) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+        responseDataReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
+        state <= 3'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
       end
-      else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-        if (~_GEN_4) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:15, :65:17]
-          if (_GEN_1) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:65:17]
-            if (_GEN_0)	// @[src/main/scala/memctrl/MemControllerFSM.scala:88:29]
-              responseDataReg <= io_phyResp_bits_data;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:32]
+      else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+        if (~_GEN_6) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :33:15, :67:17, :89:18]
+          if (_GEN_1) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17]
+            if (_GEN_2)	// @[src/main/scala/memctrl/MemControllerFSM.scala:109:29]
+              responseDataReg <= io_phyResp_bits_data;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
           end
-          else if (_GEN_2 | ~(_GEN_3 & _GEN_0)) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:32, :65:17, :88:29, :116:74, :118:25]
+          else if (_GEN_4 | ~_GEN_16) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :67:17, :135:29, :138:25]
           end
-          else	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:32, :65:17]
-            responseDataReg <= reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26, :22:32]
+          else	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :67:17]
+            responseDataReg <= reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28, :18:32]
         end
-        if (|state)	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22, :55:14]
-          state <= casez_tmp;	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:22, :65:17, :88:74]
-        else if (_GEN_14)	// @[src/main/scala/memctrl/MemControllerFSM.scala:69:52]
-          state <= 3'h7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22]
-        else if (requestActive) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:30]
-          if (reqReg_rd_en)	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-            state <= 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22]
-          else if (reqReg_wr_en)	// @[src/main/scala/memctrl/MemControllerFSM.scala:19:26]
-            state <= 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22]
+        if (|state)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :37:14]
+          state <= casez_tmp;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :67:17, :93:28]
+        else if (_GEN_14)	// @[src/main/scala/memctrl/MemControllerFSM.scala:71:52]
+          state <= 3'h7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
+        else if (requestActive) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32]
+          if (reqReg_rd_en)	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+            state <= 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
+          else if (reqReg_wr_en)	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+            state <= 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
         end
       end
+      counter <=
+        reset
+          ? 32'h0
+          : _GEN_17
+              ? counter - 32'h1
+              : (|state)
+                  ? (_GEN
+                       ? _GEN_15
+                       : _GEN_1
+                           ? counter - 32'h1
+                           : _GEN_4 ? _GEN_15 : _GEN_16 ? 32'hA : 32'h0)
+                  : _GEN_14
+                      ? 32'hA
+                      : requestActive & (reqReg_rd_en | reqReg_wr_en) ? 32'h5 : 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28, :16:32, :18:32, :22:22, :23:24, :37:14, :65:36, :67:17, :71:{52,83}, :73:25, :74:34, :75:28, :77:27, :78:35, :80:27, :93:28, :95:25, :107:{23,34}, :126:28, :135:29, :137:25, :138:25, :174:22, :176:25, :181:{16,35}, :182:27, :185:{27,38}]
       refreshDelayCounter <=
         reset
           ? 32'h0
-          : state == ((|state)
-                        ? casez_tmp
-                        : _GEN_14
-                            ? 3'h7
-                            : requestActive
-                                ? (reqReg_rd_en ? 3'h1 : reqReg_wr_en ? 3'h3 : state)
-                                : state)
+          : _GEN_17
               ? refreshDelayCounter + 32'h1
-              : (&state) ? 32'h0 : refreshDelayCounter + 32'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26, :20:30, :26:22, :28:36, :55:14, :62:36, :65:17, :69:{52,83}, :70:25, :72:34, :73:28, :74:27, :76:35, :77:27, :88:74, :148:22, :151:25, :155:{16,35}, :157:{27,33,40,79}, :160:{27,50}]
+              : (&state) ? 32'h0 : refreshDelayCounter + 32'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :24:36, :174:22, :177:25, :181:{16,35}, :182:27, :183:{27,33,40,79}, :185:27, :186:{27,50}]
     end
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:6];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-    initial begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+    logic [31:0] _RANDOM[0:6];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+    initial begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
       `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
         for (logic [2:0] i = 3'h0; i < 3'h7; i += 3'h1) begin
-          _RANDOM[i] = `RANDOM;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-        end	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-        reqReg_rd_en = _RANDOM[3'h0][0];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-        reqReg_wr_en = _RANDOM[3'h0][1];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-        reqReg_addr = {_RANDOM[3'h0][31:2], _RANDOM[3'h1][1:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-        reqReg_wdata = {_RANDOM[3'h1][31:2], _RANDOM[3'h2][1:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-        requestActive = _RANDOM[3'h2][2];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26, :20:30]
-        issuedAddrReg = {_RANDOM[3'h2][31:3], _RANDOM[3'h3][2:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26, :21:30]
-        responseDataReg = {_RANDOM[3'h3][31:3], _RANDOM[3'h4][2:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :21:30, :22:32]
-        state = _RANDOM[3'h4][5:3];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :22:32, :26:22]
-        refreshDelayCounter = {_RANDOM[3'h5][31:6], _RANDOM[3'h6][5:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :28:36]
+          _RANDOM[i] = `RANDOM;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+        end	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+        reqReg_rd_en = _RANDOM[3'h0][0];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+        reqReg_wr_en = _RANDOM[3'h0][1];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+        reqReg_addr = {_RANDOM[3'h0][31:2], _RANDOM[3'h1][1:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+        reqReg_wdata = {_RANDOM[3'h1][31:2], _RANDOM[3'h2][1:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+        requestActive = _RANDOM[3'h2][2];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :16:32]
+        issuedAddrReg = {_RANDOM[3'h2][31:3], _RANDOM[3'h3][2:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :17:32]
+        responseDataReg = {_RANDOM[3'h3][31:3], _RANDOM[3'h4][2:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :17:32, :18:32]
+        state = _RANDOM[3'h4][5:3];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32, :22:22]
+        counter = {_RANDOM[3'h4][31:6], _RANDOM[3'h5][5:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32, :23:24]
+        refreshDelayCounter = {_RANDOM[3'h5][31:6], _RANDOM[3'h6][5:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :23:24, :24:36]
       `endif // RANDOMIZE_REG_INIT
     end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  assign io_req_ready = ~(|state) & ~requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :20:30, :26:22, :55:{14,27}, :59:37]
-  assign io_resp_valid = io_resp_valid_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :51:27]
-  assign io_resp_bits_rd_en = reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-  assign io_resp_bits_wr_en = reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-  assign io_resp_bits_addr = reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-  assign io_resp_bits_wdata = reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-  assign io_resp_bits_data = responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :22:32]
-  assign io_cmdOut_valid = |state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :40:29]
-  assign io_cmdOut_bits_addr = reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26]
-  assign io_cmdOut_bits_data = reqReg_wr_en ? reqReg_wdata : 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :19:26, :33:21]
-  assign io_cmdOut_bits_cs = ~(|state);	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :55:14]
-  assign io_cmdOut_bits_ras = ~_GEN_4 & (_GEN_1 | ~_GEN_2 & _GEN_3);	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :21:30, :35:15, :65:17, :94:18]
-  assign io_cmdOut_bits_cas = (|state) & (_GEN | ~_GEN_1 & (_GEN_2 | ~_GEN_3 & _GEN_5));	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :36:15, :55:14, :65:17, :84:18, :104:18]
+  assign io_req_ready = ~(|state) & ~requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :16:32, :22:22, :37:14, :57:27, :61:37]
+  assign io_resp_valid = io_resp_valid_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :54:27]
+  assign io_resp_bits_rd_en = reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+  assign io_resp_bits_wr_en = reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+  assign io_resp_bits_addr = reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+  assign io_resp_bits_wdata = reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+  assign io_resp_bits_data = responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32]
+  assign io_cmdOut_valid = |state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :43:29]
+  assign io_cmdOut_bits_addr = reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
+  assign io_cmdOut_bits_data = reqReg_wr_en ? reqReg_wdata : 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :29:21]
+  assign io_cmdOut_bits_cs =
+    (~(|state) | ~_GEN
+     & (_GEN_1 | ~_GEN_4 & (_GEN_5 | ~_GEN_7 & (io_resp_valid_0 | ~(&state)))))
+    & ~(|state);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :17:32, :22:22, :37:{14,25}, :54:27, :67:17, :87:18, :120:18, :143:18, :162:18]
+  assign io_cmdOut_bits_ras = (|state) & (_GEN | ~_GEN_1 & _GEN_4);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :32:15, :37:14, :67:17, :88:18, :102:18]
+  assign io_cmdOut_bits_cas = ~_GEN_6 & (_GEN_1 | ~(_GEN_4 | _GEN_5) & _GEN_7);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32, :33:15, :67:17, :89:18, :103:18, :122:18]
   assign io_cmdOut_bits_we =
-    (|state) & (_GEN | _GEN_1 | _GEN_2 | ~(_GEN_3 | _GEN_5 | io_resp_valid_0) & (&state));	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:22, :37:15, :51:27, :55:14, :65:17, :85:18, :95:18, :105:18]
+    (|state) & (_GEN | ~(_GEN_1 | _GEN_4 | _GEN_5 | _GEN_7 | io_resp_valid_0) & (&state));	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :34:15, :37:14, :54:27, :67:17, :90:18, :104:18, :123:18, :146:18]
+endmodule
+
+// VCS coverage exclude_file
+module ram_4x66(	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  input  [1:0]  R0_addr,
+  input         R0_en,
+                R0_clk,
+  output [65:0] R0_data,
+  input  [1:0]  W0_addr,
+  input         W0_en,
+                W0_clk,
+  input  [65:0] W0_data
+);
+
+  reg [65:0] Memory[0:3];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  always @(posedge W0_clk) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    if (W0_en & 1'h1)	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      Memory[W0_addr] <= W0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  end // always @(posedge)
+  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    reg [95:0] _RANDOM_MEM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        for (logic [2:0] i = 3'h0; i < 3'h4; i += 3'h1) begin
+          for (logic [6:0] j = 7'h0; j < 7'h60; j += 7'h20) begin
+            _RANDOM_MEM[j +: 32] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+          end
+          Memory[i[1:0]] = _RANDOM_MEM[65:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        end
+      `endif // RANDOMIZE_MEM_INIT
+    end // initial
+  `endif // ENABLE_INITIAL_MEM_
+  assign R0_data = R0_en ? Memory[R0_addr] : 66'bx;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+endmodule
+
+module Queue4_ControllerRequest(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+  input         clock,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+                reset,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+  output        io_enq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input         io_enq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_enq_bits_rd_en,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_enq_bits_wr_en,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_enq_bits_wdata,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input         io_deq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output        io_deq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_deq_bits_rd_en,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_deq_bits_wr_en,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output [31:0] io_deq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_deq_bits_wdata	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+);
+
+  wire [65:0] _ram_ext_R0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  reg  [1:0]  enq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg  [1:0]  deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg         maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
+  wire        ptr_match = enq_ptr_value == deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:260:33]
+  wire        empty = ptr_match & ~maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :261:{25,28}]
+  wire        full = ptr_match & maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :262:24]
+  wire        do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :262:24, :286:19]
+  wire        do_deq = io_deq_ready & ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :261:25, :285:19]
+  always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    if (reset) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      enq_ptr_value <= 2'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      deq_ptr_value <= 2'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      maybe_full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
+    end
+    else begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        enq_ptr_value <= enq_ptr_value + 2'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (do_deq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        deq_ptr_value <= deq_ptr_value + 2'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (~(do_enq == do_deq))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
+        maybe_full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
+    end
+  end // always @(posedge)
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    `endif // FIRRTL_BEFORE_INITIAL
+    logic [31:0] _RANDOM[0:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `endif // INIT_RANDOM_PROLOG_
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        _RANDOM[/*Zero width*/ 1'b0] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        enq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][1:0];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        deq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][3:2];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        maybe_full = _RANDOM[/*Zero width*/ 1'b0][4];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
+      `endif // RANDOMIZE_REG_INIT
+    end // initial
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    `endif // FIRRTL_AFTER_INITIAL
+  `endif // ENABLE_INITIAL_REG_
+  ram_4x66 ram_ext (	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    .R0_addr (deq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .R0_en   (1'h1),
+    .R0_clk  (clock),
+    .R0_data (_ram_ext_R0_data),
+    .W0_addr (enq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .W0_en   (do_enq),	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+    .W0_clk  (clock),
+    .W0_data ({io_enq_bits_rd_en, io_enq_bits_wr_en, io_enq_bits_addr, io_enq_bits_wdata})	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  );	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :286:19]
+  assign io_deq_valid = ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :261:25, :285:19]
+  assign io_deq_bits_rd_en = _ram_ext_R0_data[65];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_wr_en = _ram_ext_R0_data[64];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_addr = _ram_ext_R0_data[63:32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_wdata = _ram_ext_R0_data[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
 endmodule
 
 module RRArbiter(	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
   input         clock,	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
-                io_in_0_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_0_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_0_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_0_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_0_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_0_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_0_bits_ras,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_0_bits_cas,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_0_bits_we,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
-                io_in_1_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_1_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_1_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_1_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_1_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_1_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_1_bits_ras,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_1_bits_cas,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_1_bits_we,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
-                io_in_2_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_2_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_2_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_2_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_2_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_2_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_2_bits_ras,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_2_bits_cas,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_2_bits_we,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
-                io_in_3_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_3_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_3_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_3_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_3_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_3_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_3_bits_ras,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_3_bits_cas,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_3_bits_we,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
-                io_in_4_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_4_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_4_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_4_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_4_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_4_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_4_bits_ras,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_4_bits_cas,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_4_bits_we,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
-                io_in_5_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_5_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_5_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_5_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_5_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_5_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_5_bits_ras,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_5_bits_cas,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_5_bits_we,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
-                io_in_6_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_6_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_6_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_6_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_6_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_6_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_6_bits_ras,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_6_bits_cas,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_6_bits_we,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
-                io_in_7_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  output        io_in_7_ready,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
+  input         io_in_7_valid,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input  [31:0] io_in_7_bits_addr,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
                 io_in_7_bits_data,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
   input         io_in_7_bits_cs,	// @[src/main/scala/chisel3/util/Arbiter.scala:52:14]
@@ -1541,20 +1678,46 @@ module RRArbiter(	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
     endcase	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, :94:{24,33}]
   end // always_comb
   reg  [2:0]  ctrl_validMask_grantMask_lastGrant;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33]
+  wire        ctrl_validMask_grantMask_1 = ctrl_validMask_grantMask_lastGrant == 3'h0;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49]
+  wire        ctrl_validMask_grantMask_2 = ctrl_validMask_grantMask_lastGrant < 3'h2;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49]
+  wire        ctrl_validMask_grantMask_3 = ctrl_validMask_grantMask_lastGrant < 3'h3;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49]
+  wire        ctrl_validMask_grantMask_5 = ctrl_validMask_grantMask_lastGrant < 3'h5;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49]
+  wire        ctrl_validMask_grantMask_6 =
+    ctrl_validMask_grantMask_lastGrant[2:1] != 2'h3;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49]
+  wire        ctrl_validMask_grantMask_7 = ctrl_validMask_grantMask_lastGrant != 3'h7;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49]
+  wire        ctrl_validMask_1 = io_in_1_valid & ctrl_validMask_grantMask_1;	// @[src/main/scala/chisel3/util/Arbiter.scala:82:49, :83:76]
+  wire        ctrl_validMask_2 = io_in_2_valid & ctrl_validMask_grantMask_2;	// @[src/main/scala/chisel3/util/Arbiter.scala:82:49, :83:76]
+  wire        ctrl_validMask_3 = io_in_3_valid & ctrl_validMask_grantMask_3;	// @[src/main/scala/chisel3/util/Arbiter.scala:82:49, :83:76]
+  wire        ctrl_validMask_4 = io_in_4_valid & ~(ctrl_validMask_grantMask_lastGrant[2]);	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49, :83:76]
+  wire        ctrl_validMask_5 = io_in_5_valid & ctrl_validMask_grantMask_5;	// @[src/main/scala/chisel3/util/Arbiter.scala:82:49, :83:76]
+  wire        ctrl_validMask_6 = io_in_6_valid & ctrl_validMask_grantMask_6;	// @[src/main/scala/chisel3/util/Arbiter.scala:82:49, :83:76]
+  wire        ctrl_validMask_7 = io_in_7_valid & ctrl_validMask_grantMask_7;	// @[src/main/scala/chisel3/util/Arbiter.scala:82:49, :83:76]
+  wire        _ctrl_T_1 = ctrl_validMask_1 | ctrl_validMask_2;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68, :83:76]
+  wire        _ctrl_T_2 = _ctrl_T_1 | ctrl_validMask_3;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68, :83:76]
+  wire        _ctrl_T_3 = _ctrl_T_2 | ctrl_validMask_4;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68, :83:76]
+  wire        _ctrl_T_4 = _ctrl_T_3 | ctrl_validMask_5;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68, :83:76]
+  wire        _ctrl_T_5 = _ctrl_T_4 | ctrl_validMask_6;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68, :83:76]
+  wire        _ctrl_T_6 = _ctrl_T_5 | ctrl_validMask_7;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68, :83:76]
+  wire        _ctrl_T_7 = _ctrl_T_6 | io_in_0_valid;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68]
+  wire        _ctrl_T_8 = _ctrl_T_7 | io_in_1_valid;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68]
+  wire        _ctrl_T_9 = _ctrl_T_8 | io_in_2_valid;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68]
+  wire        _ctrl_T_10 = _ctrl_T_9 | io_in_3_valid;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68]
+  wire        _ctrl_T_11 = _ctrl_T_10 | io_in_4_valid;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68]
+  wire        _ctrl_T_12 = _ctrl_T_11 | io_in_5_valid;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:68]
   assign io_chosen_choice =
-    io_in_1_valid & ctrl_validMask_grantMask_lastGrant == 3'h0
+    ctrl_validMask_1
       ? 3'h1
-      : io_in_2_valid & ctrl_validMask_grantMask_lastGrant < 3'h2
+      : ctrl_validMask_2
           ? 3'h2
-          : io_in_3_valid & ctrl_validMask_grantMask_lastGrant < 3'h3
+          : ctrl_validMask_3
               ? 3'h3
-              : io_in_4_valid & ~(ctrl_validMask_grantMask_lastGrant[2])
+              : ctrl_validMask_4
                   ? 3'h4
-                  : io_in_5_valid & ctrl_validMask_grantMask_lastGrant < 3'h5
+                  : ctrl_validMask_5
                       ? 3'h5
-                      : io_in_6_valid & ctrl_validMask_grantMask_lastGrant[2:1] != 2'h3
+                      : ctrl_validMask_6
                           ? 3'h6
-                          : io_in_7_valid & ctrl_validMask_grantMask_lastGrant != 3'h7
+                          : ctrl_validMask_7
                               ? 3'h7
                               : io_in_0_valid
                                   ? 3'h0
@@ -1568,7 +1731,7 @@ module RRArbiter(	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
                                                   ? 3'h4
                                                   : io_in_5_valid
                                                       ? 3'h5
-                                                      : {2'h3, ~io_in_6_valid};	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :82:49, :83:76, :90:41, :92:{26,35}, :94:{24,33}]
+                                                      : {2'h3, ~io_in_6_valid};	// @[src/main/scala/chisel3/util/Arbiter.scala:82:49, :83:76, :90:41, :92:{26,35}, :94:{24,33}]
   always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
     if (io_out_ready & casez_tmp)	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, src/main/scala/chisel3/util/Decoupled.scala:51:35]
       ctrl_validMask_grantMask_lastGrant <= io_chosen_choice;	// @[src/main/scala/chisel3/util/Arbiter.scala:81:33, :94:{24,33}]
@@ -1591,6 +1754,21 @@ module RRArbiter(	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
       `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
+  assign io_in_0_ready = ~_ctrl_T_6 & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :118:7]
+  assign io_in_1_ready = (ctrl_validMask_grantMask_1 | ~_ctrl_T_7) & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :82:49, :87:50, :118:7]
+  assign io_in_2_ready =
+    (~ctrl_validMask_1 & ctrl_validMask_grantMask_2 | ~_ctrl_T_8) & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :82:49, :83:76, :87:{34,50}, :118:7]
+  assign io_in_3_ready =
+    (~_ctrl_T_1 & ctrl_validMask_grantMask_3 | ~_ctrl_T_9) & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :82:49, :87:{34,50}, :118:7]
+  assign io_in_4_ready =
+    (~_ctrl_T_2 & ~(ctrl_validMask_grantMask_lastGrant[2]) | ~_ctrl_T_10) & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :81:33, :82:49, :87:{34,50}, :118:7]
+  assign io_in_5_ready =
+    (~_ctrl_T_3 & ctrl_validMask_grantMask_5 | ~_ctrl_T_11) & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :82:49, :87:{34,50}, :118:7]
+  assign io_in_6_ready =
+    (~_ctrl_T_4 & ctrl_validMask_grantMask_6 | ~_ctrl_T_12) & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :82:49, :87:{34,50}, :118:7]
+  assign io_in_7_ready =
+    (~_ctrl_T_5 & ctrl_validMask_grantMask_7 | ~(_ctrl_T_12 | io_in_6_valid))
+    & io_out_ready;	// @[src/main/scala/chisel3/util/Arbiter.scala:45:{68,78}, :74:21, :82:49, :87:{34,50}, :118:7]
   assign io_out_valid = casez_tmp;	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, :118:7]
   assign io_out_bits_addr = casez_tmp_0;	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, :118:7]
   assign io_out_bits_data = casez_tmp_1;	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, :118:7]
@@ -1894,213 +2072,272 @@ module RRArbiter_1(	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
   assign io_out_bits_data = casez_tmp_4;	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, :118:7]
 endmodule
 
-module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.scala:47:7]
-  input         clock,	// @[src/main/scala/memctrl/MemoryController.scala:47:7]
-                reset,	// @[src/main/scala/memctrl/MemoryController.scala:47:7]
-  output        io_in_ready,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  input         io_in_valid,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_in_bits_rd_en,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_in_bits_wr_en,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  input  [31:0] io_in_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_in_bits_wdata,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  input         io_out_ready,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  output        io_out_valid,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_out_bits_rd_en,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_out_bits_wr_en,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  output [31:0] io_out_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_out_bits_wdata,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_out_bits_data,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_memCmd_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_memCmd_bits_data,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  output        io_memCmd_bits_ras,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_memCmd_bits_cas,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_memCmd_bits_we,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  input         io_phyResp_valid,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-  input  [31:0] io_phyResp_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
-                io_phyResp_bits_data	// @[src/main/scala/memctrl/MemoryController.scala:48:14]
+module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.scala:46:7]
+  input         clock,	// @[src/main/scala/memctrl/MemoryController.scala:46:7]
+                reset,	// @[src/main/scala/memctrl/MemoryController.scala:46:7]
+  output        io_in_ready,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  input         io_in_valid,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_in_bits_rd_en,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_in_bits_wr_en,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  input  [31:0] io_in_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_in_bits_wdata,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  input         io_out_ready,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  output        io_out_valid,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_out_bits_rd_en,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_out_bits_wr_en,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  output [31:0] io_out_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_out_bits_wdata,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_out_bits_data,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_memCmd_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_memCmd_bits_data,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  output        io_memCmd_bits_ras,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_memCmd_bits_cas,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_memCmd_bits_we,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  input         io_phyResp_valid,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+  input  [31:0] io_phyResp_bits_addr,	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
+                io_phyResp_bits_data	// @[src/main/scala/memctrl/MemoryController.scala:47:14]
 );
 
-  wire        _arbResp_io_in_0_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_in_1_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_in_2_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_in_3_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_in_4_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_in_5_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_in_6_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_in_7_ready;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_out_valid;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_out_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _arbResp_io_out_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire [31:0] _arbResp_io_out_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire [31:0] _arbResp_io_out_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire [31:0] _arbResp_io_out_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-  wire        _cmdArb_io_out_valid;	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  wire [31:0] _cmdArb_io_out_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  wire [31:0] _cmdArb_io_out_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  wire        _cmdArb_io_out_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  wire        _cmdArb_io_out_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  wire        _cmdArb_io_out_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  wire        _cmdArb_io_out_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  wire        _MemoryControllerFSM_7_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_7_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_7_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_7_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_7_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_7_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_7_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_6_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_6_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_6_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_6_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_6_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_6_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_5_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_5_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_5_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_5_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_5_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_5_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_4_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_4_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_4_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_4_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_4_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_4_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_3_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_3_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_3_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_3_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_3_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_3_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_2_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_2_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_2_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_2_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_2_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_2_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_1_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_1_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_1_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_1_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_1_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_1_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire [31:0] _MemoryControllerFSM_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _MemoryControllerFSM_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  wire        _cmdQueue_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:68:25]
-  wire        _respQueue_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:64:25]
-  wire        _reqQueue_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:61:25]
-  wire        _reqQueue_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:61:25]
-  wire        _reqQueue_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:61:25]
-  wire [31:0] _reqQueue_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:61:25]
-  wire [31:0] _reqQueue_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:61:25]
-  wire        _GEN = _reqQueue_io_deq_bits_addr[8:6] == 3'h0;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :83:43, :120:23]
-  wire        reqDeqValid_0 =
-    _reqQueue_io_deq_valid & _GEN & _MemoryControllerFSM_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_0 = _reqQueue_io_deq_valid & _GEN & _MemoryControllerFSM_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  wire        _GEN_1 = _reqQueue_io_deq_bits_addr[8:6] == 3'h1;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :83:43, :120:23]
-  wire        reqDeqValid_1 =
-    _reqQueue_io_deq_valid & _GEN_1 & _MemoryControllerFSM_1_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_2 =
-    _reqQueue_io_deq_valid & _GEN_1 & _MemoryControllerFSM_1_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  wire        _GEN_3 = _reqQueue_io_deq_bits_addr[8:6] == 3'h2;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :83:43, :120:23]
-  wire        reqDeqValid_2 =
-    _reqQueue_io_deq_valid & _GEN_3 & _MemoryControllerFSM_2_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_4 =
-    _reqQueue_io_deq_valid & _GEN_3 & _MemoryControllerFSM_2_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  wire        _GEN_5 = _reqQueue_io_deq_bits_addr[8:6] == 3'h3;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :83:43, :120:23]
-  wire        reqDeqValid_3 =
-    _reqQueue_io_deq_valid & _GEN_5 & _MemoryControllerFSM_3_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_6 =
-    _reqQueue_io_deq_valid & _GEN_5 & _MemoryControllerFSM_3_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  wire        _GEN_7 = _reqQueue_io_deq_bits_addr[8:6] == 3'h4;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :83:43, :120:23]
-  wire        reqDeqValid_4 =
-    _reqQueue_io_deq_valid & _GEN_7 & _MemoryControllerFSM_4_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_8 =
-    _reqQueue_io_deq_valid & _GEN_7 & _MemoryControllerFSM_4_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  wire        _GEN_9 = _reqQueue_io_deq_bits_addr[8:6] == 3'h5;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :83:43, :120:23]
-  wire        reqDeqValid_5 =
-    _reqQueue_io_deq_valid & _GEN_9 & _MemoryControllerFSM_5_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_10 =
-    _reqQueue_io_deq_valid & _GEN_9 & _MemoryControllerFSM_5_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  wire        _GEN_11 = _reqQueue_io_deq_bits_addr[8:6] == 3'h6;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :83:43, :120:23]
-  wire        reqDeqValid_6 =
-    _reqQueue_io_deq_valid & _GEN_11 & _MemoryControllerFSM_6_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_12 =
-    _reqQueue_io_deq_valid & _GEN_11 & _MemoryControllerFSM_6_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  wire        reqDeqValid_7 =
-    _reqQueue_io_deq_valid & (&(_reqQueue_io_deq_bits_addr[8:6]))
-    & _MemoryControllerFSM_7_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :83:43, :114:25, :117:31, :120:{23,32}, :121:35]
-  wire        _GEN_13 =
-    _reqQueue_io_deq_valid & (&(_reqQueue_io_deq_bits_addr[8:6]))
-    & _MemoryControllerFSM_7_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :73:11, :83:43, :106:24, :117:31, :120:{23,32}, :121:35, :123:31]
-  Queue8_ControllerRequest reqQueue (	// @[src/main/scala/memctrl/MemoryController.scala:61:25]
+  wire        _arbResp_io_in_0_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_in_1_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_in_2_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_in_3_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_in_4_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_in_5_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_in_6_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_in_7_ready;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_out_valid;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_out_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _arbResp_io_out_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire [31:0] _arbResp_io_out_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire [31:0] _arbResp_io_out_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire [31:0] _arbResp_io_out_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+  wire        _cmdArb_io_in_0_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_in_1_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_in_2_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_in_3_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_in_4_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_in_5_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_in_6_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_in_7_ready;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_out_valid;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire [31:0] _cmdArb_io_out_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire [31:0] _cmdArb_io_out_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_out_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_out_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_out_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _cmdArb_io_out_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  wire        _Queue4_ControllerRequest_7_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_7_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_7_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_7_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_7_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_6_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_6_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_6_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_6_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_6_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_5_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_5_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_5_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_5_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_5_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_4_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_4_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_4_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_4_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_4_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_3_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_3_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_3_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_3_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_3_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_2_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_2_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_2_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_2_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_2_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_1_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_1_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_1_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_1_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_1_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _Queue4_ControllerRequest_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire [31:0] _Queue4_ControllerRequest_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  wire        _MemoryControllerFSM_7_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_7_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_7_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_7_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_7_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_7_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_7_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_6_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_6_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_6_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_6_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_6_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_6_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_5_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_5_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_5_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_5_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_5_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_5_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_4_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_4_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_4_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_4_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_4_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_4_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_3_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_3_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_3_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_3_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_3_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_3_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_2_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_2_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_2_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_2_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_2_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_2_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_1_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_1_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_1_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_1_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_1_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_1_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_req_ready;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_resp_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_resp_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_resp_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_io_resp_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_io_resp_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_io_resp_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_cmdOut_valid;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_io_cmdOut_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire [31:0] _MemoryControllerFSM_io_cmdOut_bits_data;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_cmdOut_bits_cs;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_cmdOut_bits_ras;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_cmdOut_bits_cas;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _MemoryControllerFSM_io_cmdOut_bits_we;	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  wire        _cmdQueue_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:67:25]
+  wire        _respQueue_io_enq_ready;	// @[src/main/scala/memctrl/MemoryController.scala:63:25]
+  wire        _reqQueue_io_deq_valid;	// @[src/main/scala/memctrl/MemoryController.scala:60:25]
+  wire        _reqQueue_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/MemoryController.scala:60:25]
+  wire        _reqQueue_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/MemoryController.scala:60:25]
+  wire [31:0] _reqQueue_io_deq_bits_addr;	// @[src/main/scala/memctrl/MemoryController.scala:60:25]
+  wire [31:0] _reqQueue_io_deq_bits_wdata;	// @[src/main/scala/memctrl/MemoryController.scala:60:25]
+  wire        _GEN = _reqQueue_io_deq_bits_addr[8:6] == 3'h0;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:24]
+  wire        _GEN_0 = _reqQueue_io_deq_valid & _GEN;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :102:{24,33}]
+  wire        _GEN_1 = _reqQueue_io_deq_bits_addr[8:6] == 3'h1;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:24]
+  wire        _GEN_2 = _reqQueue_io_deq_valid & _GEN_1;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :102:{24,33}]
+  wire        _GEN_3 = _reqQueue_io_deq_bits_addr[8:6] == 3'h2;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:24]
+  wire        _GEN_4 = _reqQueue_io_deq_valid & _GEN_3;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :102:{24,33}]
+  wire        _GEN_5 = _reqQueue_io_deq_bits_addr[8:6] == 3'h3;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:24]
+  wire        _GEN_6 = _reqQueue_io_deq_valid & _GEN_5;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :102:{24,33}]
+  wire        _GEN_7 = _reqQueue_io_deq_bits_addr[8:6] == 3'h4;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:24]
+  wire        _GEN_8 = _reqQueue_io_deq_valid & _GEN_7;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :102:{24,33}]
+  wire        _GEN_9 = _reqQueue_io_deq_bits_addr[8:6] == 3'h5;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:24]
+  wire        _GEN_10 = _reqQueue_io_deq_valid & _GEN_9;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :102:{24,33}]
+  wire        _GEN_11 = _reqQueue_io_deq_bits_addr[8:6] == 3'h6;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:24]
+  wire        _GEN_12 = _reqQueue_io_deq_valid & _GEN_11;	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :102:{24,33}]
+  wire        _GEN_13 = _reqQueue_io_deq_valid & (&(_reqQueue_io_deq_bits_addr[8:6]));	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :102:{24,33}]
+  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/MemoryController.scala:103:15]
+    always @(posedge clock) begin	// @[src/main/scala/memctrl/MemoryController.scala:103:15]
+      if ((`PRINTF_COND_) & _GEN_0 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+      if ((`PRINTF_COND_) & _GEN_2 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+      if ((`PRINTF_COND_) & _GEN_4 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+      if ((`PRINTF_COND_) & _GEN_6 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+      if ((`PRINTF_COND_) & _GEN_8 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+      if ((`PRINTF_COND_) & _GEN_10 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+      if ((`PRINTF_COND_) & _GEN_12 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+      if ((`PRINTF_COND_) & _GEN_13 & ~reset)	// @[src/main/scala/memctrl/MemoryController.scala:102:33, :103:15]
+        $fwrite(`PRINTF_FD_, "Enqueuing request to queue %d\n",
+                _reqQueue_io_deq_bits_addr[8:6]);	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :103:15]
+    end // always @(posedge)
+  `endif // not def SYNTHESIS
+  Queue8_ControllerRequest reqQueue (	// @[src/main/scala/memctrl/MemoryController.scala:60:25]
     .clock             (clock),
     .reset             (reset),
     .io_enq_ready      (io_in_ready),
@@ -2110,24 +2347,30 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_enq_bits_addr  (io_in_bits_addr),
     .io_enq_bits_wdata (io_in_bits_wdata),
     .io_deq_ready
-      (reqDeqValid_0 | reqDeqValid_1 | reqDeqValid_2 | reqDeqValid_3 | reqDeqValid_4
-       | reqDeqValid_5 | reqDeqValid_6 | reqDeqValid_7),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35, :129:49]
+      (_GEN_0 & _Queue4_ControllerRequest_io_enq_ready | _GEN_2
+       & _Queue4_ControllerRequest_1_io_enq_ready | _GEN_4
+       & _Queue4_ControllerRequest_2_io_enq_ready | _GEN_6
+       & _Queue4_ControllerRequest_3_io_enq_ready | _GEN_8
+       & _Queue4_ControllerRequest_4_io_enq_ready | _GEN_10
+       & _Queue4_ControllerRequest_5_io_enq_ready | _GEN_12
+       & _Queue4_ControllerRequest_6_io_enq_ready | _GEN_13
+       & _Queue4_ControllerRequest_7_io_enq_ready),	// @[src/main/scala/memctrl/MemoryController.scala:77:11, :97:20, :99:32, :102:33, :106:24, :110:49]
     .io_deq_valid      (_reqQueue_io_deq_valid),
     .io_deq_bits_rd_en (_reqQueue_io_deq_bits_rd_en),
     .io_deq_bits_wr_en (_reqQueue_io_deq_bits_wr_en),
     .io_deq_bits_addr  (_reqQueue_io_deq_bits_addr),
     .io_deq_bits_wdata (_reqQueue_io_deq_bits_wdata)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:61:25]
-  Queue8_ControllerResponse respQueue (	// @[src/main/scala/memctrl/MemoryController.scala:64:25]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:60:25]
+  Queue8_ControllerResponse respQueue (	// @[src/main/scala/memctrl/MemoryController.scala:63:25]
     .clock             (clock),
     .reset             (reset),
     .io_enq_ready      (_respQueue_io_enq_ready),
-    .io_enq_valid      (_arbResp_io_out_valid),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-    .io_enq_bits_rd_en (_arbResp_io_out_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-    .io_enq_bits_wr_en (_arbResp_io_out_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-    .io_enq_bits_addr  (_arbResp_io_out_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-    .io_enq_bits_wdata (_arbResp_io_out_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
-    .io_enq_bits_data  (_arbResp_io_out_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_enq_valid      (_arbResp_io_out_valid),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+    .io_enq_bits_rd_en (_arbResp_io_out_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+    .io_enq_bits_wr_en (_arbResp_io_out_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+    .io_enq_bits_addr  (_arbResp_io_out_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+    .io_enq_bits_wdata (_arbResp_io_out_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
+    .io_enq_bits_data  (_arbResp_io_out_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_deq_ready      (io_out_ready),
     .io_deq_valid      (io_out_valid),
     .io_deq_bits_rd_en (io_out_bits_rd_en),
@@ -2135,40 +2378,41 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_deq_bits_addr  (io_out_bits_addr),
     .io_deq_bits_wdata (io_out_bits_wdata),
     .io_deq_bits_data  (io_out_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:64:25]
-  Queue16_MemCmd cmdQueue (	// @[src/main/scala/memctrl/MemoryController.scala:68:25]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:63:25]
+  Queue16_MemCmd cmdQueue (	// @[src/main/scala/memctrl/MemoryController.scala:67:25]
     .clock            (clock),
     .reset            (reset),
     .io_enq_ready     (_cmdQueue_io_enq_ready),
-    .io_enq_valid     (_cmdArb_io_out_valid),	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-    .io_enq_bits_addr (_cmdArb_io_out_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-    .io_enq_bits_data (_cmdArb_io_out_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-    .io_enq_bits_cs   (_cmdArb_io_out_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-    .io_enq_bits_ras  (_cmdArb_io_out_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-    .io_enq_bits_cas  (_cmdArb_io_out_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-    .io_enq_bits_we   (_cmdArb_io_out_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
+    .io_enq_valid     (_cmdArb_io_out_valid),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+    .io_enq_bits_addr (_cmdArb_io_out_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+    .io_enq_bits_data (_cmdArb_io_out_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+    .io_enq_bits_cs   (_cmdArb_io_out_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+    .io_enq_bits_ras  (_cmdArb_io_out_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+    .io_enq_bits_cas  (_cmdArb_io_out_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+    .io_enq_bits_we   (_cmdArb_io_out_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_deq_bits_addr (io_memCmd_bits_addr),
     .io_deq_bits_data (io_memCmd_bits_data),
     .io_deq_bits_ras  (io_memCmd_bits_ras),
     .io_deq_bits_cas  (io_memCmd_bits_cas),
     .io_deq_bits_we   (io_memCmd_bits_we)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:68:25]
-  MemoryControllerFSM MemoryControllerFSM (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:67:25]
+  MemoryControllerFSM MemoryControllerFSM (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_io_req_ready),
-    .io_req_valid         (reqDeqValid_0),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_0 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_0 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_0 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_0 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_0_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_0_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_0_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_io_cmdOut_bits_data),
@@ -2179,23 +2423,24 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  MemoryControllerFSM MemoryControllerFSM_1 (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  MemoryControllerFSM MemoryControllerFSM_1 (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_1_io_req_ready),
-    .io_req_valid         (reqDeqValid_1),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_2 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_2 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_2 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_2 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_1_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_1_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_1_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_1_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_1_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_1_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_1_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_1_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_1_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_1_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_1_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_1_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_1_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_1_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_1_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_1_io_cmdOut_bits_data),
@@ -2206,23 +2451,24 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  MemoryControllerFSM MemoryControllerFSM_2 (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  MemoryControllerFSM MemoryControllerFSM_2 (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_2_io_req_ready),
-    .io_req_valid         (reqDeqValid_2),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_4 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_4 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_4 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_4 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_2_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_2_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_2_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_2_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_2_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_2_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_2_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_2_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_2_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_2_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_2_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_2_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_2_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_2_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_2_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_2_io_cmdOut_bits_data),
@@ -2233,23 +2479,24 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  MemoryControllerFSM MemoryControllerFSM_3 (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  MemoryControllerFSM MemoryControllerFSM_3 (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_3_io_req_ready),
-    .io_req_valid         (reqDeqValid_3),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_6 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_6 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_6 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_6 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_3_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_3_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_3_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_3_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_3_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_3_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_3_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_3_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_3_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_3_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_3_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_3_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_3_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_3_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_3_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_3_io_cmdOut_bits_data),
@@ -2260,23 +2507,24 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  MemoryControllerFSM MemoryControllerFSM_4 (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  MemoryControllerFSM MemoryControllerFSM_4 (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_4_io_req_ready),
-    .io_req_valid         (reqDeqValid_4),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_8 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_8 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_8 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_8 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_4_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_4_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_4_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_4_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_4_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_4_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_4_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_4_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_4_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_4_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_4_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_4_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_4_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_4_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_4_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_4_io_cmdOut_bits_data),
@@ -2287,23 +2535,24 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  MemoryControllerFSM MemoryControllerFSM_5 (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  MemoryControllerFSM MemoryControllerFSM_5 (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_5_io_req_ready),
-    .io_req_valid         (reqDeqValid_5),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_10 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_10 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_10 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_10 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_5_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_5_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_5_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_5_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_5_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_5_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_5_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_5_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_5_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_5_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_5_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_5_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_5_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_5_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_5_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_5_io_cmdOut_bits_data),
@@ -2314,23 +2563,24 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  MemoryControllerFSM MemoryControllerFSM_6 (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  MemoryControllerFSM MemoryControllerFSM_6 (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_6_io_req_ready),
-    .io_req_valid         (reqDeqValid_6),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_12 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_12 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_12 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_12 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_6_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_6_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_6_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_6_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_6_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_6_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_6_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_6_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_6_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_6_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_6_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_6_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_6_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_6_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_6_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_6_io_cmdOut_bits_data),
@@ -2341,23 +2591,24 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  MemoryControllerFSM MemoryControllerFSM_7 (	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  MemoryControllerFSM MemoryControllerFSM_7 (	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .clock                (clock),
     .reset                (reset),
     .io_req_ready         (_MemoryControllerFSM_7_io_req_ready),
-    .io_req_valid         (reqDeqValid_7),	// @[src/main/scala/memctrl/MemoryController.scala:114:25, :117:31, :120:32, :121:35]
-    .io_req_bits_rd_en    (_GEN_13 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wr_en    (_GEN_13 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_addr     (_GEN_13 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_req_bits_wdata    (_GEN_13 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:61:25, :106:24, :117:31, :120:32, :121:35, :123:31]
-    .io_resp_ready        (_arbResp_io_in_7_ready),	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+    .io_req_valid         (_Queue4_ControllerRequest_7_io_deq_valid),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_rd_en    (_Queue4_ControllerRequest_7_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wr_en    (_Queue4_ControllerRequest_7_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_addr     (_Queue4_ControllerRequest_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_req_bits_wdata    (_Queue4_ControllerRequest_7_io_deq_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .io_resp_ready        (_arbResp_io_in_7_ready),	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .io_resp_valid        (_MemoryControllerFSM_7_io_resp_valid),
     .io_resp_bits_rd_en   (_MemoryControllerFSM_7_io_resp_bits_rd_en),
     .io_resp_bits_wr_en   (_MemoryControllerFSM_7_io_resp_bits_wr_en),
     .io_resp_bits_addr    (_MemoryControllerFSM_7_io_resp_bits_addr),
     .io_resp_bits_wdata   (_MemoryControllerFSM_7_io_resp_bits_wdata),
     .io_resp_bits_data    (_MemoryControllerFSM_7_io_resp_bits_data),
+    .io_cmdOut_ready      (_cmdArb_io_in_7_ready),	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
     .io_cmdOut_valid      (_MemoryControllerFSM_7_io_cmdOut_valid),
     .io_cmdOut_bits_addr  (_MemoryControllerFSM_7_io_cmdOut_bits_addr),
     .io_cmdOut_bits_data  (_MemoryControllerFSM_7_io_cmdOut_bits_data),
@@ -2368,66 +2619,202 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_phyResp_valid     (io_phyResp_valid),
     .io_phyResp_bits_addr (io_phyResp_bits_addr),
     .io_phyResp_bits_data (io_phyResp_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-  RRArbiter cmdArb (	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
     .clock             (clock),
-    .io_in_0_valid     (_MemoryControllerFSM_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_addr (_MemoryControllerFSM_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_data (_MemoryControllerFSM_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_cs   (_MemoryControllerFSM_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_ras  (_MemoryControllerFSM_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_cas  (_MemoryControllerFSM_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_we   (_MemoryControllerFSM_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_valid     (_MemoryControllerFSM_1_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_addr (_MemoryControllerFSM_1_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_data (_MemoryControllerFSM_1_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_cs   (_MemoryControllerFSM_1_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_ras  (_MemoryControllerFSM_1_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_cas  (_MemoryControllerFSM_1_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_we   (_MemoryControllerFSM_1_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_valid     (_MemoryControllerFSM_2_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_addr (_MemoryControllerFSM_2_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_data (_MemoryControllerFSM_2_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_cs   (_MemoryControllerFSM_2_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_ras  (_MemoryControllerFSM_2_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_cas  (_MemoryControllerFSM_2_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_we   (_MemoryControllerFSM_2_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_valid     (_MemoryControllerFSM_3_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_addr (_MemoryControllerFSM_3_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_data (_MemoryControllerFSM_3_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_cs   (_MemoryControllerFSM_3_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_ras  (_MemoryControllerFSM_3_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_cas  (_MemoryControllerFSM_3_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_we   (_MemoryControllerFSM_3_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_valid     (_MemoryControllerFSM_4_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_addr (_MemoryControllerFSM_4_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_data (_MemoryControllerFSM_4_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_cs   (_MemoryControllerFSM_4_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_ras  (_MemoryControllerFSM_4_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_cas  (_MemoryControllerFSM_4_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_we   (_MemoryControllerFSM_4_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_valid     (_MemoryControllerFSM_5_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_addr (_MemoryControllerFSM_5_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_data (_MemoryControllerFSM_5_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_cs   (_MemoryControllerFSM_5_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_ras  (_MemoryControllerFSM_5_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_cas  (_MemoryControllerFSM_5_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_we   (_MemoryControllerFSM_5_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_valid     (_MemoryControllerFSM_6_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_addr (_MemoryControllerFSM_6_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_data (_MemoryControllerFSM_6_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_cs   (_MemoryControllerFSM_6_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_ras  (_MemoryControllerFSM_6_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_cas  (_MemoryControllerFSM_6_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_we   (_MemoryControllerFSM_6_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_valid     (_MemoryControllerFSM_7_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_addr (_MemoryControllerFSM_7_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_data (_MemoryControllerFSM_7_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_cs   (_MemoryControllerFSM_7_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_ras  (_MemoryControllerFSM_7_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_cas  (_MemoryControllerFSM_7_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_we   (_MemoryControllerFSM_7_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_out_ready      (_cmdQueue_io_enq_ready),	// @[src/main/scala/memctrl/MemoryController.scala:68:25]
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & _GEN),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_0 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_0 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_0 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_0 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest_1 (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .clock             (clock),
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_1_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & _GEN_1),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_2 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_2 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_2 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_2 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_1_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_1_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_1_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_1_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_1_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_1_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest_2 (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .clock             (clock),
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_2_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & _GEN_3),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_4 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_4 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_4 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_4 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_2_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_2_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_2_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_2_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_2_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_2_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest_3 (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .clock             (clock),
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_3_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & _GEN_5),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_6 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_6 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_6 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_6 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_3_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_3_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_3_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_3_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_3_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_3_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest_4 (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .clock             (clock),
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_4_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & _GEN_7),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_8 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_8 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_8 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_8 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_4_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_4_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_4_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_4_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_4_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_4_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest_5 (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .clock             (clock),
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_5_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & _GEN_9),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_10 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_10 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_10 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_10 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_5_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_5_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_5_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_5_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_5_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_5_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest_6 (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .clock             (clock),
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_6_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & _GEN_11),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_12 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_12 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_12 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_12 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_6_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_6_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_6_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_6_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_6_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_6_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  Queue4_ControllerRequest Queue4_ControllerRequest_7 (	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+    .clock             (clock),
+    .reset             (reset),
+    .io_enq_ready      (_Queue4_ControllerRequest_7_io_enq_ready),
+    .io_enq_valid      (_reqQueue_io_deq_valid & (&(_reqQueue_io_deq_bits_addr[8:6]))),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :87:43, :95:31, :99:32, :102:{24,33}]
+    .io_enq_bits_rd_en (_GEN_13 & _reqQueue_io_deq_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wr_en (_GEN_13 & _reqQueue_io_deq_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_addr  (_GEN_13 ? _reqQueue_io_deq_bits_addr : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_enq_bits_wdata (_GEN_13 ? _reqQueue_io_deq_bits_wdata : 32'h0),	// @[src/main/scala/memctrl/MemoryController.scala:60:25, :96:31, :99:32, :102:33, :105:35]
+    .io_deq_ready      (_MemoryControllerFSM_7_io_req_ready),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_deq_valid      (_Queue4_ControllerRequest_7_io_deq_valid),
+    .io_deq_bits_rd_en (_Queue4_ControllerRequest_7_io_deq_bits_rd_en),
+    .io_deq_bits_wr_en (_Queue4_ControllerRequest_7_io_deq_bits_wr_en),
+    .io_deq_bits_addr  (_Queue4_ControllerRequest_7_io_deq_bits_addr),
+    .io_deq_bits_wdata (_Queue4_ControllerRequest_7_io_deq_bits_wdata)
+  );	// @[src/main/scala/memctrl/MemoryController.scala:77:11]
+  RRArbiter cmdArb (	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+    .clock             (clock),
+    .io_in_0_ready     (_cmdArb_io_in_0_ready),
+    .io_in_0_valid     (_MemoryControllerFSM_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_addr (_MemoryControllerFSM_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_data (_MemoryControllerFSM_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_cs   (_MemoryControllerFSM_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_ras  (_MemoryControllerFSM_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_cas  (_MemoryControllerFSM_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_we   (_MemoryControllerFSM_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_ready     (_cmdArb_io_in_1_ready),
+    .io_in_1_valid     (_MemoryControllerFSM_1_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_addr (_MemoryControllerFSM_1_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_data (_MemoryControllerFSM_1_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_cs   (_MemoryControllerFSM_1_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_ras  (_MemoryControllerFSM_1_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_cas  (_MemoryControllerFSM_1_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_we   (_MemoryControllerFSM_1_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_ready     (_cmdArb_io_in_2_ready),
+    .io_in_2_valid     (_MemoryControllerFSM_2_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_addr (_MemoryControllerFSM_2_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_data (_MemoryControllerFSM_2_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_cs   (_MemoryControllerFSM_2_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_ras  (_MemoryControllerFSM_2_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_cas  (_MemoryControllerFSM_2_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_we   (_MemoryControllerFSM_2_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_ready     (_cmdArb_io_in_3_ready),
+    .io_in_3_valid     (_MemoryControllerFSM_3_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_addr (_MemoryControllerFSM_3_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_data (_MemoryControllerFSM_3_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_cs   (_MemoryControllerFSM_3_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_ras  (_MemoryControllerFSM_3_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_cas  (_MemoryControllerFSM_3_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_we   (_MemoryControllerFSM_3_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_ready     (_cmdArb_io_in_4_ready),
+    .io_in_4_valid     (_MemoryControllerFSM_4_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_addr (_MemoryControllerFSM_4_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_data (_MemoryControllerFSM_4_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_cs   (_MemoryControllerFSM_4_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_ras  (_MemoryControllerFSM_4_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_cas  (_MemoryControllerFSM_4_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_we   (_MemoryControllerFSM_4_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_ready     (_cmdArb_io_in_5_ready),
+    .io_in_5_valid     (_MemoryControllerFSM_5_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_addr (_MemoryControllerFSM_5_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_data (_MemoryControllerFSM_5_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_cs   (_MemoryControllerFSM_5_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_ras  (_MemoryControllerFSM_5_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_cas  (_MemoryControllerFSM_5_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_we   (_MemoryControllerFSM_5_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_ready     (_cmdArb_io_in_6_ready),
+    .io_in_6_valid     (_MemoryControllerFSM_6_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_addr (_MemoryControllerFSM_6_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_data (_MemoryControllerFSM_6_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_cs   (_MemoryControllerFSM_6_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_ras  (_MemoryControllerFSM_6_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_cas  (_MemoryControllerFSM_6_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_we   (_MemoryControllerFSM_6_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_ready     (_cmdArb_io_in_7_ready),
+    .io_in_7_valid     (_MemoryControllerFSM_7_io_cmdOut_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_addr (_MemoryControllerFSM_7_io_cmdOut_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_data (_MemoryControllerFSM_7_io_cmdOut_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_cs   (_MemoryControllerFSM_7_io_cmdOut_bits_cs),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_ras  (_MemoryControllerFSM_7_io_cmdOut_bits_ras),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_cas  (_MemoryControllerFSM_7_io_cmdOut_bits_cas),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_we   (_MemoryControllerFSM_7_io_cmdOut_bits_we),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_out_ready      (_cmdQueue_io_enq_ready),	// @[src/main/scala/memctrl/MemoryController.scala:67:25]
     .io_out_valid      (_cmdArb_io_out_valid),
     .io_out_bits_addr  (_cmdArb_io_out_bits_addr),
     .io_out_bits_data  (_cmdArb_io_out_bits_data),
@@ -2435,73 +2822,73 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.s
     .io_out_bits_ras   (_cmdArb_io_out_bits_ras),
     .io_out_bits_cas   (_cmdArb_io_out_bits_cas),
     .io_out_bits_we    (_cmdArb_io_out_bits_we)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:88:22]
-  RRArbiter_1 arbResp (	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:123:22]
+  RRArbiter_1 arbResp (	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
     .clock              (clock),
     .io_in_0_ready      (_arbResp_io_in_0_ready),
-    .io_in_0_valid      (_MemoryControllerFSM_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_rd_en (_MemoryControllerFSM_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_wr_en (_MemoryControllerFSM_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_addr  (_MemoryControllerFSM_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_wdata (_MemoryControllerFSM_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_0_bits_data  (_MemoryControllerFSM_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+    .io_in_0_valid      (_MemoryControllerFSM_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_rd_en (_MemoryControllerFSM_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_wr_en (_MemoryControllerFSM_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_addr  (_MemoryControllerFSM_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_wdata (_MemoryControllerFSM_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_0_bits_data  (_MemoryControllerFSM_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .io_in_1_ready      (_arbResp_io_in_1_ready),
-    .io_in_1_valid      (_MemoryControllerFSM_1_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_rd_en (_MemoryControllerFSM_1_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_wr_en (_MemoryControllerFSM_1_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_addr  (_MemoryControllerFSM_1_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_wdata (_MemoryControllerFSM_1_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_1_bits_data  (_MemoryControllerFSM_1_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+    .io_in_1_valid      (_MemoryControllerFSM_1_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_rd_en (_MemoryControllerFSM_1_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_wr_en (_MemoryControllerFSM_1_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_addr  (_MemoryControllerFSM_1_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_wdata (_MemoryControllerFSM_1_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_1_bits_data  (_MemoryControllerFSM_1_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .io_in_2_ready      (_arbResp_io_in_2_ready),
-    .io_in_2_valid      (_MemoryControllerFSM_2_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_rd_en (_MemoryControllerFSM_2_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_wr_en (_MemoryControllerFSM_2_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_addr  (_MemoryControllerFSM_2_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_wdata (_MemoryControllerFSM_2_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_2_bits_data  (_MemoryControllerFSM_2_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+    .io_in_2_valid      (_MemoryControllerFSM_2_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_rd_en (_MemoryControllerFSM_2_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_wr_en (_MemoryControllerFSM_2_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_addr  (_MemoryControllerFSM_2_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_wdata (_MemoryControllerFSM_2_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_2_bits_data  (_MemoryControllerFSM_2_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .io_in_3_ready      (_arbResp_io_in_3_ready),
-    .io_in_3_valid      (_MemoryControllerFSM_3_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_rd_en (_MemoryControllerFSM_3_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_wr_en (_MemoryControllerFSM_3_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_addr  (_MemoryControllerFSM_3_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_wdata (_MemoryControllerFSM_3_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_3_bits_data  (_MemoryControllerFSM_3_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+    .io_in_3_valid      (_MemoryControllerFSM_3_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_rd_en (_MemoryControllerFSM_3_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_wr_en (_MemoryControllerFSM_3_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_addr  (_MemoryControllerFSM_3_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_wdata (_MemoryControllerFSM_3_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_3_bits_data  (_MemoryControllerFSM_3_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .io_in_4_ready      (_arbResp_io_in_4_ready),
-    .io_in_4_valid      (_MemoryControllerFSM_4_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_rd_en (_MemoryControllerFSM_4_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_wr_en (_MemoryControllerFSM_4_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_addr  (_MemoryControllerFSM_4_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_wdata (_MemoryControllerFSM_4_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_4_bits_data  (_MemoryControllerFSM_4_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+    .io_in_4_valid      (_MemoryControllerFSM_4_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_rd_en (_MemoryControllerFSM_4_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_wr_en (_MemoryControllerFSM_4_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_addr  (_MemoryControllerFSM_4_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_wdata (_MemoryControllerFSM_4_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_4_bits_data  (_MemoryControllerFSM_4_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .io_in_5_ready      (_arbResp_io_in_5_ready),
-    .io_in_5_valid      (_MemoryControllerFSM_5_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_rd_en (_MemoryControllerFSM_5_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_wr_en (_MemoryControllerFSM_5_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_addr  (_MemoryControllerFSM_5_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_wdata (_MemoryControllerFSM_5_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_5_bits_data  (_MemoryControllerFSM_5_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+    .io_in_5_valid      (_MemoryControllerFSM_5_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_rd_en (_MemoryControllerFSM_5_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_wr_en (_MemoryControllerFSM_5_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_addr  (_MemoryControllerFSM_5_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_wdata (_MemoryControllerFSM_5_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_5_bits_data  (_MemoryControllerFSM_5_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .io_in_6_ready      (_arbResp_io_in_6_ready),
-    .io_in_6_valid      (_MemoryControllerFSM_6_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_rd_en (_MemoryControllerFSM_6_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_wr_en (_MemoryControllerFSM_6_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_addr  (_MemoryControllerFSM_6_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_wdata (_MemoryControllerFSM_6_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_6_bits_data  (_MemoryControllerFSM_6_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
+    .io_in_6_valid      (_MemoryControllerFSM_6_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_rd_en (_MemoryControllerFSM_6_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_wr_en (_MemoryControllerFSM_6_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_addr  (_MemoryControllerFSM_6_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_wdata (_MemoryControllerFSM_6_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_6_bits_data  (_MemoryControllerFSM_6_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
     .io_in_7_ready      (_arbResp_io_in_7_ready),
-    .io_in_7_valid      (_MemoryControllerFSM_7_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_rd_en (_MemoryControllerFSM_7_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_wr_en (_MemoryControllerFSM_7_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_addr  (_MemoryControllerFSM_7_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_wdata (_MemoryControllerFSM_7_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_in_7_bits_data  (_MemoryControllerFSM_7_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:73:11]
-    .io_out_ready       (_respQueue_io_enq_ready),	// @[src/main/scala/memctrl/MemoryController.scala:64:25]
+    .io_in_7_valid      (_MemoryControllerFSM_7_io_resp_valid),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_rd_en (_MemoryControllerFSM_7_io_resp_bits_rd_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_wr_en (_MemoryControllerFSM_7_io_resp_bits_wr_en),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_addr  (_MemoryControllerFSM_7_io_resp_bits_addr),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_wdata (_MemoryControllerFSM_7_io_resp_bits_wdata),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_in_7_bits_data  (_MemoryControllerFSM_7_io_resp_bits_data),	// @[src/main/scala/memctrl/MemoryController.scala:72:11]
+    .io_out_ready       (_respQueue_io_enq_ready),	// @[src/main/scala/memctrl/MemoryController.scala:63:25]
     .io_out_valid       (_arbResp_io_out_valid),
     .io_out_bits_rd_en  (_arbResp_io_out_bits_rd_en),
     .io_out_bits_wr_en  (_arbResp_io_out_bits_wr_en),
     .io_out_bits_addr   (_arbResp_io_out_bits_addr),
     .io_out_bits_wdata  (_arbResp_io_out_bits_wdata),
     .io_out_bits_data   (_arbResp_io_out_bits_data)
-  );	// @[src/main/scala/memctrl/MemoryController.scala:133:23]
+  );	// @[src/main/scala/memctrl/MemoryController.scala:141:23]
 endmodule
 
 module PerformanceStatistics(	// @[src/main/scala/memctrl/PerformanceStatistics.scala:59:7]

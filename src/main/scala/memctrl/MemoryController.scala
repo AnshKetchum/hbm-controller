@@ -43,7 +43,6 @@ class PhysicalMemResponse extends Bundle {
 //----------------------------------------------------------------------
 // Top-Level MultiRank Memory Controller Module
 //----------------------------------------------------------------------
-
 class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfigurationParams(), bankParams: DRAMBankParams = DRAMBankParams()) extends Module {
   val io = IO(new Bundle {
     // Unified user interface.
@@ -73,6 +72,11 @@ class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfig
     Module(new MemoryControllerFSM(bankParams)).io
   })
 
+  // Create per-FSM request queues to decouple the unified request queue and the FSM’s readiness.
+  val fsmReqQueues = VecInit(Seq.fill(params.numberOfRanks) {
+    Module(new Queue(new ControllerRequest, entries = 4)).io
+  })
+
   //-------------------------------------------------------------------------
   // Address Decoding: Extract Rank Index
   //-------------------------------------------------------------------------
@@ -81,6 +85,37 @@ class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfig
   val bankBits      = log2Ceil(params.numberOfBanks)
   val rankShift     = bankBits + bankGroupBits
   def extractRank(addr: UInt): UInt = addr(rankShift + rankBits - 1, rankShift)
+
+  // Demux incoming requests from the unified queue to the per-FSM request queues.
+  // We always dequeue from reqQueue (if valid) and use the address to determine which FSM’s queue
+  // to enqueue the request into. We only block the unified queue when the target per-FSM queue is full.
+  val enqReadyVec = Wire(Vec(params.numberOfRanks, Bool()))
+  for (i <- 0 until params.numberOfRanks) {
+    // Provide default assignments to avoid uninitialized sinks.
+    fsmReqQueues(i).enq.valid := false.B
+    fsmReqQueues(i).enq.bits  := 0.U.asTypeOf(new ControllerRequest)
+    enqReadyVec(i) := false.B
+  }
+  when (reqQueue.io.deq.valid) {
+    val targetRank = extractRank(reqQueue.io.deq.bits.addr)
+    for (i <- 0 until params.numberOfRanks) {
+      when (targetRank === i.U) {
+        printf("Enqueuing request to queue %d\n", targetRank)
+        fsmReqQueues(i).enq.valid := true.B
+        fsmReqQueues(i).enq.bits  := reqQueue.io.deq.bits
+        enqReadyVec(i) := fsmReqQueues(i).enq.ready
+      }
+    }
+  }
+  reqQueue.io.deq.ready := enqReadyVec.reduce(_ || _)
+
+  //-------------------------------------------------------------------------
+  // Connect each FSM’s request input to its dedicated per-FSM request queue.
+  // Each FSM will pull a request when it is free.
+  //-------------------------------------------------------------------------
+  for (i <- 0 until params.numberOfRanks) {
+    fsmVec(i).req <> fsmReqQueues(i).deq
+  }
 
   //-------------------------------------------------------------------------
   // Connect each FSM's command output to an arbiter.
@@ -93,7 +128,7 @@ class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfig
 
   //-------------------------------------------------------------------------
   // Broadcast the phyResp signal to all FSMs.
-  // Here we manually assign the valid and bits, and tie each FSM's ready to true.
+  //-------------------------------------------------------------------------
   for (fsm <- fsmVec) {
     fsm.phyResp.valid := io.phyResp.valid
     fsm.phyResp.bits  := io.phyResp.bits
@@ -101,35 +136,8 @@ class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfig
   }
 
   //-------------------------------------------------------------------------
-  // Provide default assignments for each FSM's req.bits to avoid uninitialized sinks.
-  for (i <- 0 until params.numberOfRanks) {
-    fsmVec(i).req.bits := 0.U.asTypeOf(new ControllerRequest)
-  }
-
-  //-------------------------------------------------------------------------
-  // Demux incoming requests to the correct FSM based on rank.
-  val reqDeqValid = Wire(Vec(params.numberOfRanks, Bool()))
-  for (i <- 0 until params.numberOfRanks) {
-    // By default, the request interface is not valid.
-    fsmVec(i).req.valid := false.B
-    reqDeqValid(i) := false.B
-  }
-  when(reqQueue.io.deq.valid) {
-    val targetRank = extractRank(reqQueue.io.deq.bits.addr)
-    for (i <- 0 until params.numberOfRanks) {
-      when(targetRank === i.U) {
-        when(fsmVec(i).req.ready) {
-          fsmVec(i).req.valid := true.B
-          fsmVec(i).req.bits  := reqQueue.io.deq.bits
-          reqDeqValid(i)      := true.B
-        }
-      }
-    }
-  }
-  reqQueue.io.deq.ready := reqDeqValid.reduce(_ || _)
-
-  //-------------------------------------------------------------------------
   // Merge responses from FSMs using an arbiter.
+  //-------------------------------------------------------------------------
   val arbResp = Module(new RRArbiter(new ControllerResponse, params.numberOfRanks))
   for (i <- 0 until params.numberOfRanks) {
     arbResp.io.in(i) <> fsmVec(i).resp
@@ -137,5 +145,4 @@ class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfig
   respQueue.io.enq <> arbResp.io.out
 
   io.phyResp.ready := true.B
-
 }

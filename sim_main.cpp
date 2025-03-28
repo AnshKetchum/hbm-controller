@@ -6,8 +6,8 @@
 #include <vector>
 using namespace std;
 
-const int NUM_TRANSACTIONS = 1000;    // Number of write-read pairs
-const int TIMEOUT_CYCLES = 100000;      // Timeout for waiting on valid response
+const int NUM_TRANSACTIONS = 2000;    // Number of write-read pairs
+const int TIMEOUT_CYCLES = 10000;      // Timeout for waiting on valid response
 
 // Global simulation cycle counter
 unsigned long long sim_cycle = 0;

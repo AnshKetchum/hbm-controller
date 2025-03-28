@@ -1,0 +1,37 @@
+verilator --cc --exe --build -Mdir obj_dir -o VSingleChannelSystem src/main/resources/vsrc/SingleChannelSystem.sv sim_main.cpp
+make[1]: Entering directory '/home/nixos/CodingWorkspace/hardware/mem-controller/basic/obj_dir'
+g++  -I.  -MMD -I/nix/store/pkfqkc5lfh4vxrrmcmsrs39gvzcb89qv-verilator-5.028/share/verilator/include -I/nix/store/pkfqkc5lfh4vxrrmcmsrs39gvzcb89qv-verilator-5.028/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable      -Os  -c -o sim_main.o ../sim_main.cpp
+g++    sim_main.o verilated.o verilated_threads.o VSingleChannelSystem__ALL.a    -pthread -lpthread -latomic   -o VSingleChannelSystem
+make[1]: Leaving directory '/home/nixos/CodingWorkspace/hardware/mem-controller/basic/obj_dir'
+- V e r i l a t i o n   R e p o r t: Verilator 5.028 2024-08-21 rev v5.028
+- Verilator: Built from 0.000 MB sources in 0 modules, into 0.000 MB in 0 C++ files needing 0.000 MB
+- Verilator: Walltime 2.053 s (elab=0.000, cvt=0.000, bld=2.053); cpu 0.001 s on 1 threads; alloced 8.227 MB
+./obj_dir/VSingleChannelSystem
+IN VERILOG INPUT
+IN VERILOG OUTPUT
+Write completed: Address 0xffff, Data 0x9ccb48e
+Read completed: Address 0xffff, Expected Data 0x9ccb48e, Read Data 0x9ccb48e
+Write completed: Address 0xffff, Data 0x12012d39
+Read completed: Address 0xffff, Expected Data 0x12012d39, Read Data 0x12012d39
+Write completed: Address 0xffff, Data 0x1ec40af1
+Read completed: Address 0xffff, Expected Data 0x1ec40af1, Read Data 0x1ec40af1
+Write completed: Address 0xffff, Data 0x7be71df5
+Read completed: Address 0xffff, Expected Data 0x7be71df5, Read Data 0x7be71df5
+Timeout during write transaction at address 0xffff
+
+Transaction Cycle Details:
+
+Write Transactions:
+Transaction	Request Cycle	Response Cycle
+0		7		26
+1		49		70
+2		93		114
+3		137		158
+4		181		10182
+
+Read Transactions:
+Transaction	Request Cycle	Response Cycle
+0		27		48
+1		71		92
+2		115		136
+3		159		180
