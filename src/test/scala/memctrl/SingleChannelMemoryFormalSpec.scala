@@ -2,8 +2,11 @@ package memctrl
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental.{annotate, ChiselAnnotation}
+import chiseltest._
 import chiseltest.formal._
 import org.scalatest.flatspec.AnyFlatSpec
+import chiseltest.formal.FormalTag
 
 /**
   * Formal verification spec for the SingleChannelSystem.
