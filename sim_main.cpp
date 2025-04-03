@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 
     for (int t = 0; t < NUM_TRANSACTIONS; t++) {
         // Generate a random address and data value.
-        unsigned int addr  = 0xFFFF;  // limiting address range for example
+        unsigned int addr  = rand() % 0xFFFF;  // limiting address range for example
         unsigned int wdata = rand();
 
         // ----- Write Transaction -----

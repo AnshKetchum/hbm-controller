@@ -1,17 +1,18 @@
 // See README.md for license details.
 
-ThisBuild / scalaVersion     := "2.13.15"
+ThisBuild / scalaVersion     := "2.13.12"
 ThisBuild / version          := "0.1.0"
 ThisBuild / organization     := "%ORGANIZATION%"
 
-val chiselVersion = "6.6.0"
+val chiselVersion = "6.0.0"
 
 lazy val root = (project in file("."))
   .settings(
     name := "memctrl",  
     libraryDependencies ++= Seq(
       "org.chipsalliance" %% "chisel" % chiselVersion,
-      "org.scalatest" %% "scalatest" % "3.2.16" % "test"
+      "edu.berkeley.cs" %% "chiseltest" % "6.0.0" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.17" % "test"
     ),
     scalacOptions ++= Seq(
       "-language:reflectiveCalls",
