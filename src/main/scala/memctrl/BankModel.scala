@@ -41,7 +41,7 @@ case class DRAMBankParams(
   val addressSpaceSize: Int = numRows * numCols
 }
 
-class DRAMBank(params: DRAMBankParams = DRAMBankParams()) extends Module {
+class DRAMBank(params: DRAMBankParams) extends Module {
   val io = IO(new DRAMBankIO())
 
   // Active low: A command is issued when cs === 0.U.

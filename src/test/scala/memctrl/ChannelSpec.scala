@@ -7,7 +7,10 @@ import org.scalatest.matchers.must.Matchers
 
 class ChannelSpec extends AnyFreeSpec with Matchers {
   "Channel should handle basic DRAM operations" in {
-    simulate(new Channel()) { c =>
+    simulate(new Channel(
+      MemoryConfigurationParams(),
+      DRAMBankParams()
+    )) { c =>
       // Helper function to enqueue a memory command
       def sendMemCmd(cs: Boolean, ras: Boolean, cas: Boolean, we: Boolean, addr: UInt, data: UInt = 0.U): Unit = {
         while (!c.io.memCmd.ready.peek().litToBoolean) { 

@@ -19,7 +19,7 @@ class RankIO extends Bundle {
   val response_data     = Output(UInt(32.W))
 }
 
-class Rank(params: MemoryConfigurationParams = MemoryConfigurationParams(), bankParams: DRAMBankParams = DRAMBankParams()) extends Module {
+class Rank(params: MemoryConfigurationParams, bankParams: DRAMBankParams) extends Module {
   val io = IO(new RankIO)
 
   // Use AddressDecoder to get the bank group index from the address

@@ -43,7 +43,7 @@ class PhysicalMemResponse extends Bundle {
 //----------------------------------------------------------------------
 // Top-Level MultiRank Memory Controller Module
 //----------------------------------------------------------------------
-class MultiRankMemoryController(params: MemoryConfigurationParams = MemoryConfigurationParams(), bankParams: DRAMBankParams = DRAMBankParams()) extends Module {
+class MultiRankMemoryController(params: MemoryConfigurationParams, bankParams: DRAMBankParams) extends Module {
   val io = IO(new Bundle {
     // Unified user interface.
     val in  = Flipped(Decoupled(new ControllerRequest))

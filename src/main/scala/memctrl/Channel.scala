@@ -15,7 +15,7 @@ class ChannelIO extends Bundle {
 /** Channel Module
   * Now instantiates an AddressDecoder to obtain the rank index.
   */
-class Channel(params: MemoryConfigurationParams = MemoryConfigurationParams(), bankParams: DRAMBankParams = DRAMBankParams()) extends Module {
+class Channel(params: MemoryConfigurationParams, bankParams: DRAMBankParams) extends Module {
   val io = IO(new Bundle {
     // Define your Channel I/O (example below)
     val memCmd = Flipped(Decoupled(new Bundle {

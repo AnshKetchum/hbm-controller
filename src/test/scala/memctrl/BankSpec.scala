@@ -7,7 +7,9 @@ import org.scalatest.matchers.must.Matchers
 
 class DRAMBankSpec extends AnyFreeSpec with Matchers {
   "DRAMBank should handle basic DRAM operations" in {
-    simulate(new DRAMBank()) { c =>
+    simulate(new DRAMBank(
+      DRAMBankParams()
+    )) { c =>
       // Helper function to set control signals
       def setControl(cs: Boolean, ras: Boolean, cas: Boolean, we: Boolean): Unit = {
         c.io.cs.poke(cs.B)

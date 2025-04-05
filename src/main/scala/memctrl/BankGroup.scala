@@ -19,7 +19,7 @@ class BankGroupIO extends Bundle {
   val response_data     = Output(UInt(32.W))
 }
 
-class BankGroup(params: MemoryConfigurationParams = MemoryConfigurationParams(), bankParams: DRAMBankParams = DRAMBankParams()) extends Module {
+class BankGroup(params: MemoryConfigurationParams, bankParams: DRAMBankParams) extends Module {
   val io = IO(new BankGroupIO)
 
   // Use AddressDecoder to extract the bank index from the address

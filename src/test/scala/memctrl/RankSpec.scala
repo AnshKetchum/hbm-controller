@@ -7,7 +7,10 @@ import org.scalatest.matchers.must.Matchers
 
 class RankSpec extends AnyFreeSpec with Matchers {
   "Rank should handle basic DRAM operations" in {
-    simulate(new Rank()) { c =>
+    simulate(new Rank(
+      MemoryConfigurationParams(),
+      DRAMBankParams()
+    )) { c =>
       // Helper function to set control signals
       def setControl(cs: Boolean, ras: Boolean, cas: Boolean, we: Boolean): Unit = {
         c.io.cs.poke(cs.B)

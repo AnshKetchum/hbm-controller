@@ -7,7 +7,10 @@ import org.scalatest.matchers.must.Matchers
 
 class BankGroupSpec extends AnyFreeSpec with Matchers {
   "BankGroup should handle basic DRAM operations" in {
-    simulate(new BankGroup()) { c =>
+    simulate(new BankGroup(
+      MemoryConfigurationParams(),
+      DRAMBankParams()
+    )) { c =>
       // Helper function to set control signals
       def setControl(cs: Boolean, ras: Boolean, cas: Boolean, we: Boolean): Unit = {
         c.io.cs.poke(cs.B)
