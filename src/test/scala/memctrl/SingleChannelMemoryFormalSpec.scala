@@ -6,7 +6,6 @@ import chisel3.experimental.{annotate, ChiselAnnotation}
 import chiseltest._
 import chiseltest.formal._
 import org.scalatest.flatspec.AnyFlatSpec
-import chiseltest.formal.FormalTag
 
 /**
   * Formal verification spec for the SingleChannelSystem.
@@ -19,7 +18,11 @@ import chiseltest.formal.FormalTag
   */
 class SingleChannelMemoryFormalSpec extends AnyFlatSpec with ChiselScalatestTester with Formal {
   "SingleChannelSystem" should "correctly handle a write followed by a read transaction" in {
-    verify(new SingleChannelSystem, Seq(BoundedCheck(20), DefaultBackend))
+    verify(new SingleChannelSystem(new SingleChannelMemoryConfigurationParams(
+      MemoryConfigurationParams(),
+      DRAMBankParams(),
+      false
+    )), Seq(BoundedCheck(20), Z3EngineAnnotation))
   }
 }
 
