@@ -21,7 +21,7 @@ class DRAMBankSpec extends AnyFreeSpec with Matchers {
 
       
       // Helper function to wait for response_complete
-      def waitForComplete(maxCycles: Int = 500): Boolean = {
+      def waitForComplete(maxCycles: Int = 750): Boolean = {
         var cycles = 0
         while (!c.io.response_complete.peek().litToBoolean && cycles < maxCycles) {
           c.clock.step()

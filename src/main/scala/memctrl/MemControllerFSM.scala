@@ -3,189 +3,187 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
+/**
+ * Memory controller FSM for a single HBM2 rank,
+ * enforcing all timing constraints from DRAMBankParams.
+ */
 class MemoryControllerFSM(params: DRAMBankParams) extends Module {
   val io = IO(new Bundle {
-    val req     = Flipped(Decoupled(new ControllerRequest))  // Input request
-    val resp    = Decoupled(new ControllerResponse)            // Response output
-    val cmdOut  = Decoupled(new MemCmd)                        // Command output
-    val phyResp = Flipped(Decoupled(new PhysicalMemResponse))  // Memory response
+    val req     = Flipped(Decoupled(new ControllerRequest))
+    val resp    = Decoupled(new ControllerResponse)
+    val cmdOut  = Decoupled(new MemCmd)
+    val phyResp = Flipped(Decoupled(new PhysicalMemResponse))
   })
 
-  // Internal registers
+  // --------------------------------------------------
+  // Global cycle counter
+  val cycleCounter = RegInit(0.U(64.W))
+  cycleCounter := cycleCounter + 1.U
+
+  // Command history timestamps
+  val lastActivate    = RegInit(0.U(64.W))
+  val lastPrecharge   = RegInit(0.U(64.W))
+  val lastReadEnd     = RegInit(0.U(64.W))
+  val lastWriteEnd    = RegInit(0.U(64.W))
+  val lastRefresh     = RegInit(0.U(64.W))
+  val activateTimes   = Reg(Vec(4, UInt(64.W)))
+  val actPtr          = RegInit(0.U(2.W))
+
+  // Request tracking
   val reqReg          = Reg(new ControllerRequest)
   val requestActive   = RegInit(false.B)
   val issuedAddrReg   = RegInit(0.U(32.W))
   val responseDataReg = RegInit(0.U(32.W))
 
   // FSM states
-  val sIdle :: sReadIssue :: sReadPending :: sWriteIssue :: sWritePending :: sPrecharge :: sDone :: sRefresh :: Nil = Enum(8)
+  val sIdle :: sActivate :: sReadIssue :: sReadPending :: sWriteIssue :: sWritePending :: sPrecharge :: sDone :: sRefresh :: Nil = Enum(9)
   val state = RegInit(sIdle)
-  val counter = RegInit(0.U(params.counterSize.W))
-  val refreshDelayCounter = RegInit(0.U(params.counterSize.W))
+  val counter = RegInit(0.U(32.W))
 
-  // Default memory command
-  val cmdReg = Wire(new MemCmd)
-  cmdReg.addr := reqReg.addr
-  cmdReg.data := Mux(reqReg.wr_en, reqReg.wdata, 0.U)
-  // By default, assume an active command (cs low) unless overridden.
-  cmdReg.cs   := false.B
-  cmdReg.ras  := false.B
-  cmdReg.cas  := false.B
-  cmdReg.we   := false.B
-
-  // In Idle, no command is issued: drive cs high.
-  when(state === sIdle) {
-    cmdReg.cs := true.B
-  }
-
-  io.cmdOut.bits  := cmdReg
-  // Issue command whenever not idle.
-  io.cmdOut.valid := (state =/= sIdle)
-
-  // Updated response format.
-  val respReg = Wire(new ControllerResponse)
-  respReg.data  := responseDataReg
-  respReg.rd_en := reqReg.rd_en
-  respReg.wr_en := reqReg.wr_en
-  respReg.addr  := reqReg.addr
-  respReg.wdata := reqReg.wdata
-
-  io.resp.bits  := respReg
-  io.resp.valid := (state === sDone)
-
-  // Latch new request when idle.
-  when(state === sIdle && !requestActive && io.req.valid) {
+  // Decode input request
+  io.req.ready := (state === sIdle) && !requestActive
+  when(state === sIdle && io.req.fire) {
     reqReg := io.req.bits
     requestActive := true.B
   }
-  io.req.ready := (state === sIdle) && !requestActive
 
-  // FSM transition signals.
-  val nextStateWire   = WireDefault(state)
-  val nextCounterWire = WireDefault(0.U(params.counterSize.W))
+  // Default cmdOut
+  val cmdReg = Wire(new MemCmd)
+  cmdReg.addr := issuedAddrReg
+  cmdReg.data := reqReg.wdata
+  cmdReg.cs   := true.B
+  cmdReg.ras  := false.B
+  cmdReg.cas  := false.B
+  cmdReg.we   := false.B
+  io.cmdOut.bits  := cmdReg
+  io.cmdOut.valid := (state =/= sIdle)
 
+  // Default resp
+  val respReg = Wire(new ControllerResponse)
+  respReg.addr  := reqReg.addr
+  respReg.wr_en := reqReg.wr_en
+  respReg.rd_en := reqReg.rd_en
+  respReg.wdata := reqReg.wdata
+  respReg.data  := responseDataReg
+  io.resp.bits  := respReg
+  io.resp.valid := (state === sDone)
+
+  // Helper: check if at least 'd' cycles have passed since time t
+  def elapsed(since: UInt, d: UInt): Bool = (cycleCounter - since) >= d
+
+  // State transitions
   switch(state) {
     is(sIdle) {
-      printf("IDLING\n")
-      // No active command.
-      when(refreshDelayCounter + params.tREFRESH.U >= params.refreshCycleCount.U) {
-        nextStateWire   := sRefresh
-        nextCounterWire := params.refreshDelay.U
+      // Auto-refresh if past tREFI
+      when(elapsed(lastRefresh, params.tREFI.U)) {
+        state := sRefresh
       } .elsewhen(requestActive) {
-        when(reqReg.rd_en) {
-          nextStateWire   := sReadIssue
-          nextCounterWire := params.readIssueDelay.U
-        } .elsewhen(reqReg.wr_en) {
-          nextStateWire   := sWriteIssue
-          nextCounterWire := params.writeIssueDelay.U
+        state := sActivate
+      }
+    }
+    is(sActivate) {
+      // Can only activate if: tRRD_L and tFAW
+      val oldest = activateTimes(actPtr)
+      val canFAW = elapsed(oldest, params.tFAW.U)
+      val canRRD = elapsed(lastActivate, params.tRRD_L.U)
+      when(canFAW && canRRD) {
+        // Issue ACT: cs=0, ras=0, cas=1, we=1
+        cmdReg.cs  := false.B
+        cmdReg.ras := false.B
+        cmdReg.cas := true.B
+        cmdReg.we  := true.B
+        issuedAddrReg := reqReg.addr
+        when(io.cmdOut.fire) {
+          lastActivate := cycleCounter
+          activateTimes(actPtr) := cycleCounter
+          actPtr := actPtr + 1.U
+          state := Mux(reqReg.rd_en, sReadIssue, sWriteIssue)
         }
       }
     }
     is(sReadIssue) {
-      printf("READ-ISSUE-ing\n")
-      // For read, drive: cs = 0, ras = 1, cas = 0, we = 1.
-      cmdReg.cs  := false.B
-      cmdReg.ras := true.B
-      cmdReg.cas := false.B
-      cmdReg.we  := true.B
-      issuedAddrReg := reqReg.addr
-      // Wait for the command to be issued.
-      when(io.cmdOut.fire) {
-        nextStateWire := sReadPending
-        nextCounterWire := params.readPendingDelay.U
+      // After ACT, need tRCDRD
+      when(elapsed(lastActivate, params.tRCDRD.U)) {
+        // Issue RD: cs=0, ras=1, cas=0, we=1
+        cmdReg.cs  := false.B
+        cmdReg.ras := true.B
+        cmdReg.cas := false.B
+        cmdReg.we  := true.B
+        when(io.cmdOut.fire) {
+          issuedAddrReg := reqReg.addr
+          counter := params.CL.U
+          state := sReadPending
+        }
       }
     }
     is(sReadPending) {
-      printf("READ-PEND-ing\n")
-      
-      // Ensure correct memory command signals
-      cmdReg.ras := false.B
-      cmdReg.cas := true.B
-      cmdReg.we  := false.B
-
-      // Decrement counter and check for timeout
-      nextCounterWire := counter - 1.U
-
-      when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
-        nextStateWire   := sPrecharge
-        responseDataReg := io.phyResp.bits.data
-      }.elsewhen(counter === 0.U) {  // Timeout case
-        printf("TIMEOUT in READ-PEND-ing, moving to sPrecharge\n")
-        nextStateWire := sPrecharge
+      // Wait CAS latency, tCCD_L, and tWTR_L
+      when(counter === 0.U && elapsed(lastReadEnd, params.tCCD_L.U) && elapsed(lastWriteEnd, params.tWTR_L.U)) {
+        // Capture data
+        when(io.phyResp.fire && io.phyResp.bits.addr === issuedAddrReg) {
+          responseDataReg := io.phyResp.bits.data
+          lastReadEnd := cycleCounter
+          state := sPrecharge
+        }
+      } .otherwise {
+        counter := counter - 1.U
       }
     }
     is(sWriteIssue) {
-      printf("WRITE-ISSUE-ing\n")
-      // For write, drive: cs = 0, ras = 1, cas = false, we = 0.
-      cmdReg.cs  := false.B
-      cmdReg.ras := true.B
-      cmdReg.cas := false.B
-      cmdReg.we  := false.B
-      issuedAddrReg := reqReg.addr
-      // Wait for command handshake rather than a physical response.
-      when(io.cmdOut.fire) {
-        nextStateWire := sWritePending
-        nextCounterWire := params.writePendingDelay.U
+      // After ACT, need tRCDWR and tCCD_L
+      when(elapsed(lastActivate, params.tRCDWR.U) && elapsed(lastWriteEnd, params.tCCD_L.U)) {
+        // Issue WR: cs=0, ras=1, cas=0, we=0
+        cmdReg.cs  := false.B
+        cmdReg.ras := true.B
+        cmdReg.cas := false.B
+        cmdReg.we  := false.B
+        when(io.cmdOut.fire) {
+          issuedAddrReg := reqReg.addr
+          lastWriteEnd := cycleCounter + params.CWL.U + params.tWR.U
+          state := sWritePending
+        }
       }
     }
     is(sWritePending) {
-      printf("WRITE-PEND-ing\n")
-      // Instead of waiting on a physical response (which may not be generated for writes),
-      // wait until the counter expires.
-      when(counter === 0.U) {
-        nextStateWire   := sPrecharge
-        nextCounterWire := params.prechargeDelay.U
-        responseDataReg := reqReg.wdata // Echo the written data.
+      // Wait write recovery (tWR + CWL)
+      when(elapsed(lastWriteEnd, 0.U)) {
+        state := sPrecharge
       }
     }
     is(sPrecharge) {
-      // For precharge, the expected pattern is: cs = 0, ras = 0, cas = 1, we = 0.
-      cmdReg.cs  := false.B
-      cmdReg.ras := false.B
-      cmdReg.cas := true.B
-      cmdReg.we  := false.B
-      nextCounterWire := params.idleDelay.U
-      when(io.phyResp.valid && (io.phyResp.bits.addr === issuedAddrReg)) {
-        nextStateWire := sDone
+      // After RD/WR, need tRTP and tRAS
+      val tRTP = Mux(reqReg.rd_en, params.tRTP_L.U, params.tRTP_S.U)
+      when(elapsed(lastReadEnd, tRTP) && elapsed(lastActivate, params.tRAS.U)) {
+        // Issue PRE: cs=0, ras=0, cas=1, we=0
+        cmdReg.cs  := false.B
+        cmdReg.ras := false.B
+        cmdReg.cas := true.B
+        cmdReg.we  := false.B
+        when(io.cmdOut.fire) {
+          lastPrecharge := cycleCounter
+          state := sDone
+        }
       }
     }
     is(sDone) {
-      printf("DONE-ing\n")
-      nextCounterWire := params.idleDelay.U
-      when(io.resp.fire) {  
-        nextStateWire := sIdle
+      when(io.resp.fire) {
         requestActive := false.B
+        state := sIdle
       }
     }
     is(sRefresh) {
-      // For refresh, the expected pattern is: cs = 0, ras = 0, cas = 0, we = 1.
-      cmdReg.cs  := false.B
-      cmdReg.ras := false.B
-      cmdReg.cas := false.B
-      cmdReg.we  := true.B
-      nextCounterWire := params.idleDelay.U
-      when(io.phyResp.valid) {
-        nextStateWire := sIdle
+      // Issue REF: cs=0, ras=0, cas=0, we=1
+      when(elapsed(lastRefresh, params.tREFI.U)) {
+        cmdReg.cs  := false.B
+        cmdReg.ras := false.B
+        cmdReg.cas := false.B
+        cmdReg.we  := true.B
+        when(io.cmdOut.fire) {
+          lastRefresh := cycleCounter
+          state := sIdle
+        }
       }
     }
-  }
-
-  // Update state and counters.
-  when(reset.asBool) {
-    state               := sIdle
-    counter             := 0.U
-    refreshDelayCounter := 0.U
-    responseDataReg     := 0.U
-    requestActive       := false.B
-  } .otherwise {
-    when(state =/= nextStateWire) {
-      counter             := nextCounterWire
-      refreshDelayCounter := Mux(state === sRefresh, 0.U, refreshDelayCounter + 1.U)
-    } .otherwise {
-      counter             := counter - 1.U
-      refreshDelayCounter := refreshDelayCounter + 1.U
-    }
-    state := nextStateWire
   }
 
   io.phyResp.ready := true.B

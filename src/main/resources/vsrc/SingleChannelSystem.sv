@@ -69,180 +69,204 @@ endmodule
   `endif // RANDOMIZE
 `endif // not def INIT_RANDOM_PROLOG_
 // VCS coverage exclude_file
-module memory_1024x32(	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-  input  [9:0]  R0_addr,
+module mem_2097152x32(	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+  input  [20:0] R0_addr,
   input         R0_en,
                 R0_clk,
   output [31:0] R0_data,
-  input  [9:0]  W0_addr,
+  input  [20:0] W0_addr,
   input         W0_en,
                 W0_clk,
   input  [31:0] W0_data
 );
 
-  reg [31:0] Memory[0:1023];	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-  always @(posedge W0_clk) begin	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-    if (W0_en & 1'h1)	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-      Memory[W0_addr] <= W0_data;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+  reg [31:0] Memory[0:2097151];	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+  always @(posedge W0_clk) begin	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+    if (W0_en & 1'h1)	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+      Memory[W0_addr] <= W0_data;	// @[src/main/scala/memctrl/BankModel.scala:82:16]
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-    reg [31:0] _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-    initial begin	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-      `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-        for (logic [10:0] i = 11'h0; i < 11'h400; i += 11'h1) begin
-          _RANDOM_MEM = `RANDOM;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-          Memory[i[9:0]] = _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+    reg [31:0] _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+    initial begin	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+      `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+        for (logic [21:0] i = 22'h0; i < 22'h200000; i += 22'h1) begin
+          _RANDOM_MEM = `RANDOM;	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+          Memory[i[20:0]] = _RANDOM_MEM;	// @[src/main/scala/memctrl/BankModel.scala:82:16]
         end
       `endif // RANDOMIZE_MEM_INIT
     end // initial
   `endif // ENABLE_INITIAL_MEM_
-  assign R0_data = R0_en ? Memory[R0_addr] : 32'bx;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+  assign R0_data = R0_en ? Memory[R0_addr] : 32'bx;	// @[src/main/scala/memctrl/BankModel.scala:82:16]
 endmodule
 
-
-// Users can define 'PRINTF_FD' to add a specified fd to prints.
-`ifndef PRINTF_FD_
-  `ifdef PRINTF_FD
-    `define PRINTF_FD_ (`PRINTF_FD)
-  `else  // PRINTF_FD
-    `define PRINTF_FD_ 32'h80000002
-  `endif // PRINTF_FD
-`endif // not def PRINTF_FD_
-
-// Users can define 'PRINTF_COND' to add an extra gate to prints.
-`ifndef PRINTF_COND_
-  `ifdef PRINTF_COND
-    `define PRINTF_COND_ (`PRINTF_COND)
-  `else  // PRINTF_COND
-    `define PRINTF_COND_ 1
-  `endif // PRINTF_COND
-`endif // not def PRINTF_COND_
-module DRAMBank(	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-  input         clock,	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-                reset,	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-                io_cs,	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-                io_ras,	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-                io_cas,	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-                io_we,	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-  input  [31:0] io_addr,	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-                io_wdata,	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-  output        io_response_complete,	// @[src/main/scala/memctrl/BankModel.scala:45:14]
-  output [31:0] io_response_data	// @[src/main/scala/memctrl/BankModel.scala:45:14]
+module DRAMBank(	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+  input         clock,	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+                reset,	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+                io_cs,	// @[src/main/scala/memctrl/BankModel.scala:58:14]
+                io_ras,	// @[src/main/scala/memctrl/BankModel.scala:58:14]
+                io_cas,	// @[src/main/scala/memctrl/BankModel.scala:58:14]
+                io_we,	// @[src/main/scala/memctrl/BankModel.scala:58:14]
+  input  [31:0] io_addr,	// @[src/main/scala/memctrl/BankModel.scala:58:14]
+                io_wdata,	// @[src/main/scala/memctrl/BankModel.scala:58:14]
+  output        io_response_complete,	// @[src/main/scala/memctrl/BankModel.scala:58:14]
+  output [31:0] io_response_data	// @[src/main/scala/memctrl/BankModel.scala:58:14]
 );
 
-  wire [31:0] _memory_ext_R0_data;	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-  reg  [31:0] delay_counter;	// @[src/main/scala/memctrl/BankModel.scala:76:30]
-  reg  [31:0] refresh_cycle_counter;	// @[src/main/scala/memctrl/BankModel.scala:77:38]
-  reg         rowActive;	// @[src/main/scala/memctrl/BankModel.scala:80:26]
-  reg  [3:0]  activeRow;	// @[src/main/scala/memctrl/BankModel.scala:81:26]
-  wire        _GEN = ~io_ras & ~io_cas & io_we;	// @[src/main/scala/memctrl/BankModel.scala:123:{17,25,35,43}]
-  wire        _GEN_0 = delay_counter == 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :130:28]
-  wire        _GEN_1 = (|delay_counter) & _GEN_0;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :114:24, :125:{26,35}, :130:{28,37}]
-  wire        _GEN_2 = ~io_ras & io_cas;	// @[src/main/scala/memctrl/BankModel.scala:123:17, :139:30]
-  wire        _GEN_3 = _GEN_2 & io_we;	// @[src/main/scala/memctrl/BankModel.scala:139:{30,48}]
-  wire        _GEN_4 = io_ras & ~io_cas;	// @[src/main/scala/memctrl/BankModel.scala:123:35, :154:30]
-  wire        _GEN_5 = activeRow == io_addr[31:28];	// @[src/main/scala/memctrl/BankModel.scala:81:26, :100:23, :159:{29,41}]
-  wire [10:0] _memIndex_T_1 = {1'h0, activeRow, 6'h0} + {5'h0, io_addr[5:0]};	// @[src/main/scala/memctrl/BankModel.scala:81:26, :101:23, :105:28]
-  wire        _GEN_6 = _GEN | _GEN_3;	// @[src/main/scala/memctrl/BankModel.scala:73:19, :123:{25,43,61}, :139:{48,66}, :154:49]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/BankModel.scala:178:21]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/BankModel.scala:178:21]
-      if ((`PRINTF_COND_) & ~io_cs & ~_GEN & ~_GEN_3 & _GEN_4 & rowActive & _GEN_5
-          & (|delay_counter) & _GEN_0 & ~io_we & ~reset)	// @[src/main/scala/memctrl/BankModel.scala:76:30, :80:26, :117:23, :123:{25,43,61}, :125:26, :130:28, :139:{48,66}, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33, :178:21]
-        $fwrite(`PRINTF_FD_,
-                "[DRAM] Writing %d to row %d, col %d (index %d), addr - %d\n", io_wdata,
-                activeRow, io_addr[5:0], _memIndex_T_1, io_addr);	// @[src/main/scala/memctrl/BankModel.scala:81:26, :101:23, :105:28, :178:21]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  wire        _GEN_7 = _GEN_2 & ~io_we;	// @[src/main/scala/memctrl/BankModel.scala:139:30, :171:33, :187:48]
-  wire        _GEN_8 = refresh_cycle_counter == 32'hC8;	// @[src/main/scala/memctrl/BankModel.scala:77:38, :92:30]
-  wire        _GEN_9 = ~_GEN_8 & rowActive;	// @[src/main/scala/memctrl/BankModel.scala:80:26, :92:{30,50}, :95:15]
-  wire        _GEN_10 = ~(_GEN_0 | _GEN_8) & rowActive;	// @[src/main/scala/memctrl/BankModel.scala:80:26, :91:25, :92:{30,50}, :93:27, :95:15, :130:{28,37}, :132:33, :133:21]
-  always @(posedge clock) begin	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-    if (reset) begin	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-      delay_counter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:76:30]
-      refresh_cycle_counter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:77:38]
-      rowActive <= 1'h0;	// @[src/main/scala/memctrl/BankModel.scala:80:26]
-      activeRow <= 4'h0;	// @[src/main/scala/memctrl/BankModel.scala:81:26]
+  wire        io_busy;	// @[src/main/scala/memctrl/BankModel.scala:176:41, :190:46, :191:13]
+  wire [31:0] _mem_ext_R0_data;	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+  reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/BankModel.scala:61:29]
+  reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/BankModel.scala:65:30]
+  reg  [63:0] lastPrecharge;	// @[src/main/scala/memctrl/BankModel.scala:66:30]
+  reg  [63:0] lastReadEnd;	// @[src/main/scala/memctrl/BankModel.scala:67:30]
+  reg  [63:0] lastWriteEnd;	// @[src/main/scala/memctrl/BankModel.scala:68:30]
+  reg  [63:0] activateTimes_0;	// @[src/main/scala/memctrl/BankModel.scala:70:26]
+  reg  [63:0] activateTimes_1;	// @[src/main/scala/memctrl/BankModel.scala:70:26]
+  reg  [63:0] activateTimes_2;	// @[src/main/scala/memctrl/BankModel.scala:70:26]
+  reg  [63:0] activateTimes_3;	// @[src/main/scala/memctrl/BankModel.scala:70:26]
+  reg  [1:0]  actPtr;	// @[src/main/scala/memctrl/BankModel.scala:71:30]
+  reg         refreshInProgress;	// @[src/main/scala/memctrl/BankModel.scala:74:34]
+  reg  [31:0] refreshCounter;	// @[src/main/scala/memctrl/BankModel.scala:75:34]
+  reg         rowActive;	// @[src/main/scala/memctrl/BankModel.scala:78:26]
+  reg  [14:0] activeRow;	// @[src/main/scala/memctrl/BankModel.scala:79:26]
+  reg         readValid;	// @[src/main/scala/memctrl/BankModel.scala:85:26]
+  reg  [31:0] readData;	// @[src/main/scala/memctrl/BankModel.scala:86:22]
+  wire        _GEN = refreshCounter == 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:75:34, :119:26]
+  wire        _GEN_0 = refreshInProgress & _GEN;	// @[src/main/scala/memctrl/BankModel.scala:74:34, :89:24, :116:28, :119:{26,35}]
+  wire        _GEN_1 = ~io_cs & ~io_ras & io_cas & ~io_we & ~refreshInProgress;	// @[src/main/scala/memctrl/BankModel.scala:74:34, :94:{28,46}, :97:81, :98:{36,54,72}, :112:9, :129:22]
+  wire        _GEN_2 = ~io_busy & cycleCounter - lastPrecharge > 64'hD;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :66:30, :108:{58,67}, :131:{11,20}, :176:41, :190:46, :191:13]
+  wire        _GEN_3 = _GEN_1 & _GEN_2;	// @[src/main/scala/memctrl/BankModel.scala:66:30, :98:{36,54,72}, :129:{22,45}, :131:{20,59}, :133:21]
+  wire        _GEN_4 = ~io_cs & ~io_ras & io_cas & io_we & ~refreshInProgress;	// @[src/main/scala/memctrl/BankModel.scala:74:34, :94:{28,46}, :95:{36,54,72}, :112:9, :140:21]
+  reg  [63:0] casez_tmp;	// @[src/main/scala/memctrl/BankModel.scala:108:58]
+  always_comb begin	// @[src/main/scala/memctrl/BankModel.scala:108:58]
+    casez (actPtr)	// @[src/main/scala/memctrl/BankModel.scala:71:30, :108:58]
+      2'b00:
+        casez_tmp = activateTimes_0;	// @[src/main/scala/memctrl/BankModel.scala:70:26, :108:58]
+      2'b01:
+        casez_tmp = activateTimes_1;	// @[src/main/scala/memctrl/BankModel.scala:70:26, :108:58]
+      2'b10:
+        casez_tmp = activateTimes_2;	// @[src/main/scala/memctrl/BankModel.scala:70:26, :108:58]
+      default:
+        casez_tmp = activateTimes_3;	// @[src/main/scala/memctrl/BankModel.scala:70:26, :108:58]
+    endcase	// @[src/main/scala/memctrl/BankModel.scala:71:30, :108:58]
+  end // always_comb
+  wire        _GEN_5 = _GEN_4 ? ~io_busy | _GEN_3 | _GEN_0 : _GEN_3 | _GEN_0;	// @[src/main/scala/memctrl/BankModel.scala:66:30, :89:24, :95:{36,54,72}, :116:28, :119:35, :129:45, :131:{11,59}, :133:21, :134:28, :140:{21,44}, :145:21, :151:28, :176:41, :190:46, :191:13]
+  wire        _GEN_6 = ~io_cs & io_ras & ~io_cas & io_we & ~refreshInProgress;	// @[src/main/scala/memctrl/BankModel.scala:74:34, :94:{28,64}, :96:{36,54,72}, :112:9, :157:17]
+  wire [20:0] _GEN_7 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/BankModel.scala:79:26, :105:70]
+  wire [20:0] _GEN_8 = {15'h0, io_addr[5:0]};	// @[src/main/scala/memctrl/BankModel.scala:104:25, :105:70]
+  wire        _GEN_9 = ~io_cs & io_ras & ~io_cas & ~io_we & ~refreshInProgress;	// @[src/main/scala/memctrl/BankModel.scala:74:34, :94:{28,64}, :97:{36,54,72,81}, :112:9, :176:18]
+  wire        _GEN_10 = _GEN_9 & ~io_busy;	// @[src/main/scala/memctrl/BankModel.scala:97:{36,54,72}, :131:11, :168:20, :176:{18,41}, :180:21, :182:28, :190:46, :191:13]
+  assign io_busy =
+    ~(io_cs & ~refreshInProgress)
+    & (_GEN_9
+         ? ~rowActive | cycleCounter - lastActivate < 64'hE | cycleCounter
+           - lastWriteEnd < 64'h2
+         : _GEN_6
+             ? ~rowActive | cycleCounter - lastActivate < 64'hE | cycleCounter
+               - lastReadEnd < 64'h2 | cycleCounter - lastWriteEnd < 64'h8
+             : _GEN_4
+                 ? ~(cycleCounter - casez_tmp > 64'h1D & cycleCounter
+                     - lastActivate > 64'h5)
+                 : _GEN_1 ? cycleCounter - lastActivate < 64'h22 : refreshInProgress);	// @[src/main/scala/memctrl/BankModel.scala:61:29, :65:30, :67:30, :68:30, :74:34, :78:26, :95:{36,54,72}, :96:{36,54,72}, :97:{36,54,72}, :98:{36,54,72}, :108:{58,67}, :112:9, :116:28, :129:{22,45}, :130:{13,16}, :140:{21,44}, :144:{13,16,25}, :157:{17,40}, :158:{13,16,27}, :159:{16,54}, :160:{16,53}, :161:16, :176:{18,41}, :177:{13,16,27}, :178:{16,54}, :179:16, :190:{23,46}, :191:13]
+  wire        _GEN_11 = ~refreshInProgress & ~io_cs & ~io_ras & ~io_cas & io_we;	// @[src/main/scala/memctrl/BankModel.scala:74:34, :94:{28,36,46,54,64,72}, :112:{9,28}]
+  wire        _GEN_12 = refreshInProgress & _GEN;	// @[src/main/scala/memctrl/BankModel.scala:74:34, :112:43, :116:28, :119:{26,35}, :120:25]
+  wire        _GEN_13 = _GEN_4 & ~io_busy;	// @[src/main/scala/memctrl/BankModel.scala:95:{36,54,72}, :129:45, :131:11, :140:{21,44}, :145:21, :146:17, :176:41, :190:46, :191:13]
+  wire        _GEN_14 = _GEN_6 & ~io_busy;	// @[src/main/scala/memctrl/BankModel.scala:86:22, :96:{36,54,72}, :131:11, :157:{17,40}, :162:21, :163:17, :176:41, :190:46, :191:13]
+  always @(posedge clock) begin	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+    if (reset) begin	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+      cycleCounter <= 64'h0;	// @[src/main/scala/memctrl/BankModel.scala:61:29]
+      lastActivate <= 64'h0;	// @[src/main/scala/memctrl/BankModel.scala:65:30]
+      lastPrecharge <= 64'h0;	// @[src/main/scala/memctrl/BankModel.scala:66:30]
+      lastReadEnd <= 64'h0;	// @[src/main/scala/memctrl/BankModel.scala:67:30]
+      lastWriteEnd <= 64'h0;	// @[src/main/scala/memctrl/BankModel.scala:68:30]
+      actPtr <= 2'h0;	// @[src/main/scala/memctrl/BankModel.scala:71:30]
+      refreshInProgress <= 1'h0;	// @[src/main/scala/memctrl/BankModel.scala:74:34]
+      refreshCounter <= 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:75:34]
+      rowActive <= 1'h0;	// @[src/main/scala/memctrl/BankModel.scala:78:26]
+      activeRow <= 15'h0;	// @[src/main/scala/memctrl/BankModel.scala:79:26]
+      readValid <= 1'h0;	// @[src/main/scala/memctrl/BankModel.scala:85:26]
     end
-    else begin	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-      if (io_cs) begin	// @[src/main/scala/memctrl/BankModel.scala:45:14]
+    else begin	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+      cycleCounter <= cycleCounter + 64'h1;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :62:32]
+      if (_GEN_13) begin	// @[src/main/scala/memctrl/BankModel.scala:129:45, :140:44, :145:21, :146:17]
+        lastActivate <= cycleCounter;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :65:30]
+        actPtr <= actPtr + 2'h1;	// @[src/main/scala/memctrl/BankModel.scala:71:30, :150:24]
+        activeRow <= io_addr[31:17];	// @[src/main/scala/memctrl/BankModel.scala:79:26, :103:25]
       end
-      else if (_GEN)	// @[src/main/scala/memctrl/BankModel.scala:123:{25,43}]
-        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'hA;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :125:{26,35}, :127:20, :129:{20,37}]
-      else if (_GEN_3)	// @[src/main/scala/memctrl/BankModel.scala:139:48]
-        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'h3;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :125:26, :141:35, :142:20, :144:{20,37}]
-      else if (_GEN_4)	// @[src/main/scala/memctrl/BankModel.scala:154:30]
-        delay_counter <=
-          rowActive & _GEN_5 ? ((|delay_counter) ? delay_counter - 32'h1 : 32'h5) : 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :80:26, :125:26, :157:24, :158:20, :159:{29,41}, :163:37, :165:22, :167:{22,39}]
-      else if (_GEN_7)	// @[src/main/scala/memctrl/BankModel.scala:187:48]
-        delay_counter <= (|delay_counter) ? delay_counter - 32'h1 : 32'hA;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :125:26, :189:35, :190:20, :192:{20,37}]
-      refresh_cycle_counter <=
-        ~io_cs & ~io_cs & _GEN & (|delay_counter) & _GEN_0 | _GEN_8
-          ? 32'h0
-          : refresh_cycle_counter + 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :77:38, :91:{25,50}, :92:{30,50}, :93:27, :117:23, :121:30, :123:{25,43,61}, :125:{26,35}, :130:{28,37}, :132:33]
+      if (_GEN_3)	// @[src/main/scala/memctrl/BankModel.scala:66:30, :129:45, :131:59, :133:21]
+        lastPrecharge <= cycleCounter;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :66:30]
+      if (_GEN_14)	// @[src/main/scala/memctrl/BankModel.scala:86:22, :157:40, :162:21, :163:17]
+        lastReadEnd <= cycleCounter + 64'hE;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :67:30, :165:35]
+      if (_GEN_10)	// @[src/main/scala/memctrl/BankModel.scala:168:20, :176:41, :180:21, :182:28]
+        lastWriteEnd <= cycleCounter + 64'h14;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :68:30, :184:{36,51}]
+      refreshInProgress <= ~_GEN_12 & (_GEN_11 | refreshInProgress);	// @[src/main/scala/memctrl/BankModel.scala:74:34, :94:{36,54,72}, :112:{28,43}, :113:23, :116:28, :119:35, :120:25]
+      if (refreshInProgress)	// @[src/main/scala/memctrl/BankModel.scala:74:34]
+        refreshCounter <= refreshCounter - 32'h1;	// @[src/main/scala/memctrl/BankModel.scala:75:34, :118:38]
+      else if (_GEN_11)	// @[src/main/scala/memctrl/BankModel.scala:94:{36,54,72}, :112:28]
+        refreshCounter <= 32'h104;	// @[src/main/scala/memctrl/BankModel.scala:75:34]
       rowActive <=
-        io_cs
-          ? _GEN_9
-          : _GEN
-              ? ((|delay_counter) ? _GEN_10 : _GEN_9)
-              : _GEN_3
-                  ? _GEN_1 | _GEN_9
-                  : _GEN_4 | ~(_GEN_7 & (|delay_counter)) ? _GEN_9 : _GEN_10;	// @[src/main/scala/memctrl/BankModel.scala:76:30, :80:26, :92:50, :95:15, :114:24, :117:23, :121:30, :123:{25,43,61}, :125:{26,35}, :130:37, :133:21, :139:{48,66}, :141:35, :145:37, :154:{30,49}, :187:{48,66}, :189:35]
-      if (io_cs | _GEN | ~(_GEN_3 & (|delay_counter) & _GEN_0)) begin	// @[src/main/scala/memctrl/BankModel.scala:76:30, :81:26, :117:23, :121:30, :123:{25,43,61}, :125:26, :130:28, :139:{48,66}, :141:35, :145:37]
-      end
-      else	// @[src/main/scala/memctrl/BankModel.scala:81:26, :117:23, :121:30, :123:61, :139:66]
-        activeRow <= io_addr[31:28];	// @[src/main/scala/memctrl/BankModel.scala:81:26, :100:23]
+        _GEN_13 | (_GEN_1 ? ~(_GEN_2 | _GEN_12) & rowActive : ~_GEN_12 & rowActive);	// @[src/main/scala/memctrl/BankModel.scala:78:26, :98:{36,54,72}, :112:43, :116:28, :119:35, :120:25, :122:25, :129:{22,45}, :131:{20,59}, :132:17, :140:44, :145:21, :146:17]
+      readValid <= ~readValid & (_GEN_14 | readValid);	// @[src/main/scala/memctrl/BankModel.scala:85:26, :86:22, :157:40, :162:21, :163:17, :164:17, :168:20, :171:26]
     end
+    if (_GEN_4 & ~io_busy & actPtr == 2'h0)	// @[src/main/scala/memctrl/BankModel.scala:70:26, :71:30, :95:{36,54,72}, :131:11, :140:{21,44}, :145:21, :149:29, :176:41, :190:46, :191:13]
+      activateTimes_0 <= cycleCounter;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :70:26]
+    if (_GEN_4 & ~io_busy & actPtr == 2'h1)	// @[src/main/scala/memctrl/BankModel.scala:70:26, :71:30, :95:{36,54,72}, :131:11, :140:{21,44}, :145:21, :149:29, :176:41, :190:46, :191:13]
+      activateTimes_1 <= cycleCounter;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :70:26]
+    if (_GEN_4 & ~io_busy & actPtr == 2'h2)	// @[src/main/scala/memctrl/BankModel.scala:70:26, :71:30, :95:{36,54,72}, :131:11, :140:{21,44}, :145:21, :149:29, :176:41, :190:46, :191:13]
+      activateTimes_2 <= cycleCounter;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :70:26]
+    if (_GEN_4 & ~io_busy & (&actPtr))	// @[src/main/scala/memctrl/BankModel.scala:70:26, :71:30, :95:{36,54,72}, :131:11, :140:{21,44}, :145:21, :149:29, :176:41, :190:46, :191:13]
+      activateTimes_3 <= cycleCounter;	// @[src/main/scala/memctrl/BankModel.scala:61:29, :70:26]
+    if (_GEN_14)	// @[src/main/scala/memctrl/BankModel.scala:86:22, :157:40, :162:21, :163:17]
+      readData <= _mem_ext_R0_data;	// @[src/main/scala/memctrl/BankModel.scala:82:16, :86:22]
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:44:7]
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:57:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:2];	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-    initial begin	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:44:7]
+    logic [31:0] _RANDOM[0:22];	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+    initial begin	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/BankModel.scala:57:7]
       `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-        for (logic [1:0] i = 2'h0; i < 2'h3; i += 2'h1) begin
-          _RANDOM[i] = `RANDOM;	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-        end	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-        delay_counter = {_RANDOM[2'h0][31:3], _RANDOM[2'h1][2:0]};	// @[src/main/scala/memctrl/BankModel.scala:44:7, :76:30]
-        refresh_cycle_counter = {_RANDOM[2'h1][31:3], _RANDOM[2'h2][2:0]};	// @[src/main/scala/memctrl/BankModel.scala:44:7, :76:30, :77:38]
-        rowActive = _RANDOM[2'h2][3];	// @[src/main/scala/memctrl/BankModel.scala:44:7, :77:38, :80:26]
-        activeRow = _RANDOM[2'h2][7:4];	// @[src/main/scala/memctrl/BankModel.scala:44:7, :77:38, :81:26]
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+        for (logic [4:0] i = 5'h0; i < 5'h17; i += 5'h1) begin
+          _RANDOM[i] = `RANDOM;	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+        end	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+        cycleCounter = {_RANDOM[5'h0], _RANDOM[5'h1]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :61:29]
+        lastActivate = {_RANDOM[5'h2], _RANDOM[5'h3]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :65:30]
+        lastPrecharge = {_RANDOM[5'h4], _RANDOM[5'h5]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :66:30]
+        lastReadEnd = {_RANDOM[5'h6], _RANDOM[5'h7]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :67:30]
+        lastWriteEnd = {_RANDOM[5'h8], _RANDOM[5'h9]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :68:30]
+        activateTimes_0 = {_RANDOM[5'hC], _RANDOM[5'hD]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :70:26]
+        activateTimes_1 = {_RANDOM[5'hE], _RANDOM[5'hF]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :70:26]
+        activateTimes_2 = {_RANDOM[5'h10], _RANDOM[5'h11]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :70:26]
+        activateTimes_3 = {_RANDOM[5'h12], _RANDOM[5'h13]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :70:26]
+        actPtr = _RANDOM[5'h14][1:0];	// @[src/main/scala/memctrl/BankModel.scala:57:7, :71:30]
+        refreshInProgress = _RANDOM[5'h14][2];	// @[src/main/scala/memctrl/BankModel.scala:57:7, :71:30, :74:34]
+        refreshCounter = {_RANDOM[5'h14][31:3], _RANDOM[5'h15][2:0]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :71:30, :75:34]
+        rowActive = _RANDOM[5'h15][3];	// @[src/main/scala/memctrl/BankModel.scala:57:7, :75:34, :78:26]
+        activeRow = _RANDOM[5'h15][18:4];	// @[src/main/scala/memctrl/BankModel.scala:57:7, :75:34, :79:26]
+        readValid = _RANDOM[5'h15][19];	// @[src/main/scala/memctrl/BankModel.scala:57:7, :75:34, :85:26]
+        readData = {_RANDOM[5'h15][31:20], _RANDOM[5'h16][19:0]};	// @[src/main/scala/memctrl/BankModel.scala:57:7, :75:34, :86:22]
       `endif // RANDOMIZE_REG_INIT
     end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:44:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:44:7]
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:57:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/BankModel.scala:57:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  memory_1024x32 memory_ext (	// @[src/main/scala/memctrl/BankModel.scala:73:19]
-    .R0_addr (_memIndex_T_1[9:0]),	// @[src/main/scala/memctrl/BankModel.scala:105:28, :173:46]
-    .R0_en
-      (~io_cs & ~io_cs & ~_GEN_6 & _GEN_4 & rowActive & _GEN_5 & (|delay_counter) & _GEN_0
-       & io_we),	// @[src/main/scala/memctrl/BankModel.scala:73:19, :76:30, :80:26, :91:25, :92:50, :93:27, :117:23, :121:30, :123:61, :125:{26,35}, :130:28, :139:66, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33]
+  mem_2097152x32 mem_ext (	// @[src/main/scala/memctrl/BankModel.scala:82:16]
+    .R0_addr (_GEN_7 + _GEN_8),	// @[src/main/scala/memctrl/BankModel.scala:105:70]
+    .R0_en   (_GEN_6 & ~io_busy),	// @[src/main/scala/memctrl/BankModel.scala:82:16, :96:{36,54,72}, :131:11, :157:{17,40}, :162:21, :176:41, :190:46, :191:13]
     .R0_clk  (clock),
-    .R0_data (_memory_ext_R0_data),
-    .W0_addr (_memIndex_T_1[9:0]),	// @[src/main/scala/memctrl/BankModel.scala:105:28, :176:27]
-    .W0_en
-      (~io_cs & ~io_cs & ~_GEN_6 & _GEN_4 & rowActive & _GEN_5 & (|delay_counter) & _GEN_0
-       & ~io_we),	// @[src/main/scala/memctrl/BankModel.scala:73:19, :76:30, :80:26, :91:25, :92:50, :93:27, :117:23, :121:30, :123:61, :125:{26,35}, :130:28, :139:66, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33]
+    .R0_data (_mem_ext_R0_data),
+    .W0_addr (_GEN_7 + _GEN_8),	// @[src/main/scala/memctrl/BankModel.scala:105:70]
+    .W0_en   (_GEN_9 & ~io_busy),	// @[src/main/scala/memctrl/BankModel.scala:82:16, :97:{36,54,72}, :131:11, :176:{18,41}, :180:21, :190:46, :191:13]
     .W0_clk  (clock),
     .W0_data (io_wdata)
-  );	// @[src/main/scala/memctrl/BankModel.scala:73:19]
+  );	// @[src/main/scala/memctrl/BankModel.scala:82:16]
   assign io_response_complete =
-    ~io_cs & ~io_cs
-    & (_GEN | _GEN_3
-         ? _GEN_1
-         : _GEN_4
-             ? ~(~rowActive | activeRow != io_addr[31:28] | ~(|delay_counter)) & _GEN_0
-             : _GEN_7 & _GEN_1);	// @[src/main/scala/memctrl/BankModel.scala:44:7, :76:30, :80:26, :81:26, :91:25, :92:50, :93:27, :100:23, :114:24, :117:23, :121:30, :123:{25,43,61}, :125:{26,35}, :130:{28,37}, :139:{48,66}, :154:{30,49}, :157:{12,24}, :159:{29,41}, :163:37, :168:39, :187:{48,66}, :189:35]
-  assign io_response_data =
-    io_cs | _GEN_6 | ~(_GEN_4 & rowActive & _GEN_5 & (|delay_counter) & _GEN_0)
-      ? 32'h0
-      : io_we ? _memory_ext_R0_data : io_wdata;	// @[src/main/scala/memctrl/BankModel.scala:44:7, :73:19, :76:30, :80:26, :85:24, :117:23, :121:30, :123:61, :125:26, :130:28, :139:66, :154:{30,49}, :157:24, :159:{29,41}, :163:37, :168:39, :171:33, :173:32, :177:32]
+    _GEN_9 ? ~io_busy | readValid | _GEN_5 : readValid | _GEN_5;	// @[src/main/scala/memctrl/BankModel.scala:57:7, :85:26, :97:{36,54,72}, :129:45, :131:11, :140:44, :145:21, :168:20, :170:26, :176:{18,41}, :180:21, :183:28, :190:46, :191:13]
+  assign io_response_data = _GEN_10 ? io_wdata : readValid ? readData : 32'h0;	// @[src/main/scala/memctrl/BankModel.scala:57:7, :85:26, :86:22, :90:24, :168:20, :169:26, :176:41, :180:21, :182:28]
 endmodule
 
 module BankGroup(	// @[src/main/scala/memctrl/BankGroup.scala:22:7]
@@ -1114,230 +1138,286 @@ module Queue16_MemCmd(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
   assign io_deq_bits_we = _ram_ext_R0_data[0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
 endmodule
 
-module MemoryControllerFSM(	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-  input         clock,	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-                reset,	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-  output        io_req_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  input         io_req_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_req_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_req_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  input  [31:0] io_req_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_req_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  input         io_resp_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  output        io_resp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_resp_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_resp_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  output [31:0] io_resp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_resp_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_resp_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  input         io_cmdOut_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  output        io_cmdOut_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  output [31:0] io_cmdOut_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_cmdOut_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  output        io_cmdOut_bits_cs,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_cmdOut_bits_ras,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_cmdOut_bits_cas,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_cmdOut_bits_we,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  input         io_phyResp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-  input  [31:0] io_phyResp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
-                io_phyResp_bits_data	// @[src/main/scala/memctrl/MemControllerFSM.scala:7:14]
+module MemoryControllerFSM(	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+  input         clock,	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+                reset,	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+  output        io_req_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  input         io_req_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_req_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_req_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  input  [31:0] io_req_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_req_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  input         io_resp_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  output        io_resp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_resp_bits_rd_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_resp_bits_wr_en,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  output [31:0] io_resp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_resp_bits_wdata,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_resp_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  input         io_cmdOut_ready,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  output        io_cmdOut_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  output [31:0] io_cmdOut_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_cmdOut_bits_data,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  output        io_cmdOut_bits_cs,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_cmdOut_bits_ras,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_cmdOut_bits_cas,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_cmdOut_bits_we,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  input         io_phyResp_valid,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+  input  [31:0] io_phyResp_bits_addr,	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
+                io_phyResp_bits_data	// @[src/main/scala/memctrl/MemControllerFSM.scala:11:14]
 );
 
-  reg         reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-  reg         reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-  reg  [31:0] reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-  reg  [31:0] reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-  reg         requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32]
-  reg  [31:0] issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32]
-  reg  [31:0] responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
-  reg  [2:0]  state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22]
-  reg  [31:0] counter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:23:24]
-  reg  [31:0] refreshDelayCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:36]
-  wire        io_resp_valid_0 = state == 3'h6;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :54:27]
-  wire        _GEN = state == 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
-  wire        _GEN_0 = io_cmdOut_ready & (|state);	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:22:22, :43:29]
-  wire        _GEN_1 = state == 3'h2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
-  wire        _GEN_2 = io_phyResp_valid & io_phyResp_bits_addr == issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32, :109:{29,54}]
-  wire        _GEN_3 = counter == 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:23:24, :112:26]
-  wire        _GEN_4 = state == 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
-  wire        _GEN_5 = state == 3'h4;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
-  wire        _GEN_6 = ~(|state) | _GEN;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :22:22, :37:14, :67:17]
-  wire        _GEN_7 = state == 3'h5;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/MemControllerFSM.scala:69:13]
-    wire _GEN_8 = (|state) & state != 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :37:14, :67:17]
-    wire _GEN_9 = _GEN_8 & _GEN_1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17]
-    wire _GEN_10 = _GEN_8 & state != 3'h2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
-    wire _GEN_11 = _GEN_10 & state != 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :67:17]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:69:13]
-      if ((`PRINTF_COND_) & ~(|state) & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :37:14, :69:13]
-        $fwrite(`PRINTF_FD_, "IDLING\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:69:13]
-      if ((`PRINTF_COND_) & (|state) & _GEN & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :37:14, :67:17, :69:13, :85:13]
-        $fwrite(`PRINTF_FD_, "READ-ISSUE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:85:13]
-      if ((`PRINTF_COND_) & _GEN_9 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :99:13]
-        $fwrite(`PRINTF_FD_, "READ-PEND-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:99:13]
-      if ((`PRINTF_COND_) & _GEN_9 & ~_GEN_2 & _GEN_3 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :109:{29,74}, :112:{26,35}, :113:15]
-        $fwrite(`PRINTF_FD_, "TIMEOUT in READ-PEND-ing, moving to sPrecharge\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:113:15]
-      if ((`PRINTF_COND_) & _GEN_10 & _GEN_4 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :118:13]
-        $fwrite(`PRINTF_FD_, "WRITE-ISSUE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:118:13]
-      if ((`PRINTF_COND_) & _GEN_11 & _GEN_5 & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :69:13, :132:13]
-        $fwrite(`PRINTF_FD_, "WRITE-PEND-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:132:13]
-      if ((`PRINTF_COND_) & _GEN_11 & state != 3'h4 & state != 3'h5 & io_resp_valid_0
-          & ~reset)	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :54:27, :67:17, :69:13, :153:13]
-        $fwrite(`PRINTF_FD_, "DONE-ing\n");	// @[src/main/scala/memctrl/MemControllerFSM.scala:153:13]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  wire        _GEN_12 = io_resp_ready & io_resp_valid_0;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:54:27]
-  reg  [2:0]  casez_tmp;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28]
-  wire [2:0]  _GEN_13 =
-    (io_resp_valid_0 ? _GEN_12 : (&state) & io_phyResp_valid) ? 3'h0 : state;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :54:27, :64:36, :67:17, :155:26, :156:23, :167:30, :168:23]
-  always_comb begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74]
-    casez (state)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :67:17, :93:28, :109:74, :126:28, :135:29, :148:74]
-      3'b000:
-        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74, :155:26]
-      3'b001:
-        casez_tmp = _GEN_0 ? 3'h2 : state;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :94:23, :109:74, :126:28, :135:29, :148:74]
-      3'b010:
-        casez_tmp = _GEN_2 | _GEN_3 ? 3'h5 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:{29,74}, :110:25, :112:{26,35}, :114:23, :126:28, :135:29, :148:74]
-      3'b011:
-        casez_tmp = _GEN_0 ? 3'h4 : state;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:74, :126:28, :127:23, :135:29, :148:74]
-      3'b100:
-        casez_tmp = _GEN_3 ? 3'h5 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:74, :112:26, :126:28, :135:29, :136:25, :148:74]
-      3'b101:
-        casez_tmp = _GEN_2 ? 3'h6 : state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :64:36, :67:17, :93:28, :109:{29,74}, :126:28, :135:29, :148:74, :149:23]
-      3'b110:
-        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74, :155:26]
+  reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29]
+  reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:32]
+  reg  [63:0] lastReadEnd;	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:32]
+  reg  [63:0] lastWriteEnd;	// @[src/main/scala/memctrl/MemControllerFSM.scala:27:32]
+  reg  [63:0] lastRefresh;	// @[src/main/scala/memctrl/MemControllerFSM.scala:28:32]
+  reg  [63:0] activateTimes_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28]
+  reg  [63:0] activateTimes_1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28]
+  reg  [63:0] activateTimes_2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28]
+  reg  [63:0] activateTimes_3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28]
+  reg  [1:0]  actPtr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:30:32]
+  reg         reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
+  reg         reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
+  reg  [31:0] reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
+  reg  [31:0] reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
+  reg         requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:34:32]
+  reg  [31:0] issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32]
+  reg  [31:0] responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:36:32]
+  reg  [3:0]  state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+  reg  [31:0] counter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24]
+  wire        _io_req_ready_T = state == 4'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :44:26]
+  wire        io_req_ready_0 = _io_req_ready_T & ~requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:34:32, :44:{26,37,40}]
+  wire        io_resp_valid_0 = state == 4'h7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :69:27]
+  wire [63:0] _GEN = cycleCounter - lastRefresh;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :28:32, :72:59]
+  wire        _GEN_0 = _GEN > 64'hF3B;	// @[src/main/scala/memctrl/MemControllerFSM.scala:72:{59,68}]
+  wire        _GEN_1 = state == 4'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :75:17]
+  reg  [63:0] casez_tmp;	// @[src/main/scala/memctrl/MemControllerFSM.scala:72:59]
+  always_comb begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:72:59]
+    casez (actPtr)	// @[src/main/scala/memctrl/MemControllerFSM.scala:30:32, :72:59]
+      2'b00:
+        casez_tmp = activateTimes_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :72:59]
+      2'b01:
+        casez_tmp = activateTimes_1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :72:59]
+      2'b10:
+        casez_tmp = activateTimes_2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :72:59]
       default:
-        casez_tmp = _GEN_13;	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17, :93:28, :109:74, :126:28, :135:29, :148:74, :155:26]
-    endcase	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :67:17, :93:28, :109:74, :126:28, :135:29, :148:74]
+        casez_tmp = activateTimes_3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :72:59]
+    endcase	// @[src/main/scala/memctrl/MemControllerFSM.scala:30:32, :72:59]
   end // always_comb
-  wire        _GEN_14 = refreshDelayCounter + 32'hA > 32'hC7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:36, :71:{32,52}]
-  wire [31:0] _GEN_15 = _GEN_0 ? 32'h5 : 32'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:65:36, :93:28, :95:25]
-  wire        _GEN_16 = _GEN_5 & _GEN_3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :67:17, :112:26, :135:29, :138:25]
-  wire        _GEN_17 =
-    state == ((|state)
-                ? casez_tmp
-                : _GEN_14
-                    ? 3'h7
-                    : requestActive
-                        ? (reqReg_rd_en ? 3'h1 : reqReg_wr_en ? 3'h3 : state)
-                        : state);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :16:32, :22:22, :37:14, :64:36, :67:17, :71:{52,83}, :72:25, :74:34, :75:28, :76:27, :78:35, :79:27, :93:28, :181:{16,35}, :182:27, :185:27]
-  wire        _GEN_18 = ~(|state) & ~requestActive & io_req_valid;	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32, :22:22, :37:14, :57:{24,27,42}]
-  always @(posedge clock) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-    if (_GEN_18) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:57:{24,42}]
-      reqReg_rd_en <= io_req_bits_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-      reqReg_wr_en <= io_req_bits_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-      reqReg_addr <= io_req_bits_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-      reqReg_wdata <= io_req_bits_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
+  wire        _GEN_2 =
+    cycleCounter - casez_tmp > 64'h1D & cycleCounter - lastActivate > 64'h5;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :24:32, :72:{59,68}, :89:19]
+  wire        _GEN_3 = state == 4'h2;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :75:17]
+  wire [63:0] _GEN_4 = cycleCounter - lastActivate;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :24:32, :72:59]
+  wire        _GEN_5 = _GEN_4 > 64'hD;	// @[src/main/scala/memctrl/MemControllerFSM.scala:72:{59,68}]
+  wire        _GEN_6 = state == 4'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :75:17]
+  wire [63:0] _GEN_7 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :26:32, :72:59]
+  wire [63:0] _GEN_8 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :27:32, :72:59]
+  wire        _GEN_9 = _io_req_ready_T | _GEN_1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24, :44:26, :75:17]
+  wire        _GEN_10 = state == 4'h4;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :75:17]
+  wire        _GEN_11 = _GEN_5 & (|(_GEN_8[63:1]));	// @[src/main/scala/memctrl/MemControllerFSM.scala:72:{59,68}, :134:51]
+  wire        _GEN_12 = state == 4'h5;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :75:17]
+  wire        _GEN_13 = state == 4'h6;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :75:17]
+  wire        _GEN_14 = _GEN_7 >= {62'h1, reqReg_rd_en, 1'h0} & _GEN_4 > 64'h21;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28, :72:{59,68}, :156:39]
+  wire        _GEN_15 = state == 4'h8;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22, :75:17]
+  wire        _GEN_16 = _GEN_6 | _GEN_10 | _GEN_12 | _GEN_13 | io_resp_valid_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:57:15, :69:27, :75:17, :134:94, :156:80]
+  wire        _GEN_17 = counter == 32'h0 & (|(_GEN_7[63:1])) & (|(_GEN_8[63:3]));	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24, :72:{59,68}, :121:{20,28,69}]
+  wire        _GEN_18 =
+    _GEN_17 & io_phyResp_valid & io_phyResp_bits_addr == issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32, :36:32, :121:{28,69,112}, :123:{30,54,73}, :124:27]
+  wire        _GEN_19 = _io_req_ready_T | _GEN_1 | _GEN_3 | ~(_GEN_6 & _GEN_18);	// @[src/main/scala/memctrl/MemControllerFSM.scala:36:32, :44:26, :75:17, :121:112, :123:{30,73}, :124:27]
+  wire        _GEN_20 = io_resp_ready & io_resp_valid_0;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:69:27]
+  wire        _GEN_21 = io_req_ready_0 & io_req_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:44:37, :45:24]
+  wire        _GEN_22 = io_cmdOut_ready & (|state);	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:40:22, :59:29]
+  wire        _GEN_23 = _GEN_2 & _GEN_22;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:24:32, :89:{19,30}, :96:30, :97:24]
+  wire        _GEN_24 = _io_req_ready_T | ~(_GEN_1 & _GEN_23);	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:32, :44:26, :75:17, :89:30, :96:30, :97:24]
+  wire        _GEN_25 = _GEN_5 & _GEN_22;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:35:32, :72:68, :106:52, :112:30, :113:25]
+  wire        _GEN_26 = _GEN_11 & _GEN_22;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:35:32, :134:{51,94}, :140:30, :141:25]
+  wire        _GEN_27 = _GEN_10 & _GEN_26;	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32, :75:17, :134:94, :140:30, :141:25]
+  wire        _GEN_28 = _GEN_15 & _GEN_0 & _GEN_22;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:28:32, :72:68, :75:17, :176:50, :181:30, :182:23]
+  always @(posedge clock) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+    if (reset) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+      cycleCounter <= 64'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29]
+      lastActivate <= 64'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:32]
+      lastReadEnd <= 64'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:32]
+      lastWriteEnd <= 64'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:27:32]
+      lastRefresh <= 64'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:28:32]
+      actPtr <= 2'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:30:32]
+      requestActive <= 1'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:34:32]
+      issuedAddrReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32]
+      responseDataReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:36:32]
+      state <= 4'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+      counter <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24]
     end
-    if (reset) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-      requestActive <= 1'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32]
-      issuedAddrReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32]
-      responseDataReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
-      state <= 3'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
-      counter <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:23:24]
-      refreshDelayCounter <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:36]
-    end
-    else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+    else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+      cycleCounter <= cycleCounter + 64'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :21:32]
+      if (_GEN_24) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:32, :75:17]
+      end
+      else	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:32, :75:17]
+        lastActivate <= cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :24:32]
+      if (_GEN_19) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:32, :36:32, :75:17]
+      end
+      else	// @[src/main/scala/memctrl/MemControllerFSM.scala:26:32, :75:17]
+        lastReadEnd <= cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :26:32]
+      if (_io_req_ready_T | _GEN_1 | _GEN_3 | _GEN_6 | ~_GEN_27) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:27:32, :35:32, :44:26, :75:17, :134:94, :140:30, :141:25]
+      end
+      else	// @[src/main/scala/memctrl/MemControllerFSM.scala:27:32, :75:17]
+        lastWriteEnd <= cycleCounter + 64'h14;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :27:32, :142:{40,55}]
+      if (_io_req_ready_T | _GEN_1 | _GEN_3 | _GEN_16 | ~_GEN_28) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:28:32, :44:26, :57:15, :75:17, :134:94, :156:80, :176:50, :181:30, :182:23]
+      end
+      else	// @[src/main/scala/memctrl/MemControllerFSM.scala:28:32, :75:17]
+        lastRefresh <= cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :28:32]
+      if (_GEN_24) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:32, :30:32, :75:17]
+      end
+      else	// @[src/main/scala/memctrl/MemControllerFSM.scala:30:32, :75:17]
+        actPtr <= actPtr + 2'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:30:32, :99:28]
       requestActive <=
-        ~reset & (~(|state) | _GEN | _GEN_1 | _GEN_4 | _GEN_5 | _GEN_7 | ~_GEN_12)
-        & (_GEN_18 | requestActive);	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:16:32, :22:22, :37:14, :57:{24,42,59}, :59:19, :67:17, :155:26, :157:23, :174:22, :179:25]
-      if ((|state) & (_GEN | ~(_GEN_1 | ~_GEN_4)))	// @[src/main/scala/memctrl/MemControllerFSM.scala:17:32, :22:22, :37:14, :67:17, :91:21]
-        issuedAddrReg <= reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28, :17:32]
-      if (reset) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-        responseDataReg <= 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
-        state <= 3'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
+        (_io_req_ready_T | _GEN_1 | _GEN_3 | _GEN_6 | _GEN_10 | _GEN_12 | _GEN_13
+         | ~_GEN_20) & (_GEN_21 | requestActive);	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:34:32, :44:26, :45:{24,40}, :47:19, :75:17, :169:26, :170:23]
+      if (_io_req_ready_T) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:44:26]
+        if (_GEN_0)	// @[src/main/scala/memctrl/MemControllerFSM.scala:72:68]
+          state <= 4'h8;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+        else if (requestActive)	// @[src/main/scala/memctrl/MemControllerFSM.scala:34:32]
+          state <= 4'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
       end
-      else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-        if (~_GEN_6) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :33:15, :67:17, :89:18]
-          if (_GEN_1) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:67:17]
-            if (_GEN_2)	// @[src/main/scala/memctrl/MemControllerFSM.scala:109:29]
-              responseDataReg <= io_phyResp_bits_data;	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32]
-          end
-          else if (_GEN_4 | ~_GEN_16) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :67:17, :135:29, :138:25]
-          end
-          else	// @[src/main/scala/memctrl/MemControllerFSM.scala:18:32, :67:17]
-            responseDataReg <= reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28, :18:32]
-        end
-        if (|state)	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :37:14]
-          state <= casez_tmp;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :67:17, :93:28]
-        else if (_GEN_14)	// @[src/main/scala/memctrl/MemControllerFSM.scala:71:52]
-          state <= 3'h7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
-        else if (requestActive) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:16:32]
-          if (reqReg_rd_en)	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-            state <= 3'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
-          else if (reqReg_wr_en)	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28]
-            state <= 3'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22]
+      else if (_GEN_1) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+        if (_GEN_2)	// @[src/main/scala/memctrl/MemControllerFSM.scala:89:19]
+          issuedAddrReg <= reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28, :35:32]
+        if (_GEN_23)	// @[src/main/scala/memctrl/MemControllerFSM.scala:24:32, :89:30, :96:30, :97:24]
+          state <= reqReg_rd_en ? 4'h2 : 4'h4;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28, :40:22, :100:23]
+      end
+      else if (_GEN_3) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+        if (_GEN_25) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32, :106:52, :112:30, :113:25]
+          issuedAddrReg <= reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28, :35:32]
+          state <= 4'h3;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
         end
       end
-      counter <=
-        reset
-          ? 32'h0
-          : _GEN_17
-              ? counter - 32'h1
-              : (|state)
-                  ? (_GEN
-                       ? _GEN_15
-                       : _GEN_1
-                           ? counter - 32'h1
-                           : _GEN_4 ? _GEN_15 : _GEN_16 ? 32'hA : 32'h0)
-                  : _GEN_14
-                      ? 32'hA
-                      : requestActive & (reqReg_rd_en | reqReg_wr_en) ? 32'h5 : 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:15:28, :16:32, :18:32, :22:22, :23:24, :37:14, :65:36, :67:17, :71:{52,83}, :73:25, :74:34, :75:28, :77:27, :78:35, :80:27, :93:28, :95:25, :107:{23,34}, :126:28, :135:29, :137:25, :138:25, :174:22, :176:25, :181:{16,35}, :182:27, :185:{27,38}]
-      refreshDelayCounter <=
-        reset
-          ? 32'h0
-          : _GEN_17
-              ? refreshDelayCounter + 32'h1
-              : (&state) ? 32'h0 : refreshDelayCounter + 32'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:22:22, :24:36, :174:22, :177:25, :181:{16,35}, :182:27, :183:{27,33,40,79}, :185:27, :186:{27,50}]
+      else begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+        if (_GEN_6 | ~_GEN_27) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32, :75:17, :134:94, :140:30, :141:25]
+        end
+        else	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32, :75:17]
+          issuedAddrReg <= reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28, :35:32]
+        if (_GEN_6) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+          if (_GEN_18)	// @[src/main/scala/memctrl/MemControllerFSM.scala:36:32, :121:112, :123:{30,73}, :124:27]
+            state <= 4'h6;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+        end
+        else if (_GEN_10) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+          if (_GEN_26)	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32, :134:94, :140:30, :141:25]
+            state <= 4'h5;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+        end
+        else if (_GEN_12)	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+          state <= 4'h6;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+        else if (_GEN_13) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+          if (_GEN_14 & _GEN_22)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:40:22, :156:{39,80}, :162:30, :164:17]
+            state <= 4'h7;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+        end
+        else if (io_resp_valid_0 ? _GEN_20 : _GEN_28)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:28:32, :40:22, :69:27, :75:17, :169:26, :171:15, :176:50, :181:30, :182:23, :183:17]
+          state <= 4'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:40:22]
+      end
+      if (_GEN_19) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:36:32, :75:17]
+      end
+      else	// @[src/main/scala/memctrl/MemControllerFSM.scala:36:32, :75:17]
+        responseDataReg <= io_phyResp_bits_data;	// @[src/main/scala/memctrl/MemControllerFSM.scala:36:32]
+      if (~_GEN_9) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24, :55:15, :75:17, :89:30]
+        if (_GEN_3) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:75:17]
+          if (_GEN_25)	// @[src/main/scala/memctrl/MemControllerFSM.scala:35:32, :106:52, :112:30, :113:25]
+            counter <= 32'hE;	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24]
+        end
+        else if (~_GEN_6 | _GEN_17) begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24, :75:17, :121:{28,69,112}]
+        end
+        else	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24, :75:17, :121:112]
+          counter <= counter - 32'h1;	// @[src/main/scala/memctrl/MemControllerFSM.scala:41:24, :129:28]
+      end
+    end
+    if (_io_req_ready_T | ~(_GEN_1 & _GEN_2 & _GEN_22 & actPtr == 2'h0)) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:29:28, :30:32, :44:26, :75:17, :89:{19,30}, :96:30, :98:33]
+    end
+    else	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :75:17]
+      activateTimes_0 <= cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :29:28]
+    if (_io_req_ready_T | ~(_GEN_1 & _GEN_2 & _GEN_22 & actPtr == 2'h1)) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:29:28, :30:32, :44:26, :75:17, :89:{19,30}, :96:30, :98:33]
+    end
+    else	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :75:17]
+      activateTimes_1 <= cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :29:28]
+    if (_io_req_ready_T | ~(_GEN_1 & _GEN_2 & _GEN_22 & actPtr == 2'h2)) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:29:28, :30:32, :44:26, :75:17, :89:{19,30}, :96:30, :98:33]
+    end
+    else	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :75:17]
+      activateTimes_2 <= cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :29:28]
+    if (_io_req_ready_T | ~(_GEN_1 & _GEN_2 & _GEN_22 & (&actPtr))) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:29:28, :30:32, :44:26, :75:17, :89:{19,30}, :96:30, :98:33]
+    end
+    else	// @[src/main/scala/memctrl/MemControllerFSM.scala:29:28, :75:17]
+      activateTimes_3 <= cycleCounter;	// @[src/main/scala/memctrl/MemControllerFSM.scala:20:29, :29:28]
+    if (_GEN_21) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/MemControllerFSM.scala:45:24]
+      reqReg_rd_en <= io_req_bits_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
+      reqReg_wr_en <= io_req_bits_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
+      reqReg_addr <= io_req_bits_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
+      reqReg_wdata <= io_req_bits_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:33:28]
     end
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:6];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-    initial begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+    logic [31:0] _RANDOM[0:25];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+    initial begin	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
       `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-        for (logic [2:0] i = 3'h0; i < 3'h7; i += 3'h1) begin
-          _RANDOM[i] = `RANDOM;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-        end	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-        reqReg_rd_en = _RANDOM[3'h0][0];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-        reqReg_wr_en = _RANDOM[3'h0][1];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-        reqReg_addr = {_RANDOM[3'h0][31:2], _RANDOM[3'h1][1:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-        reqReg_wdata = {_RANDOM[3'h1][31:2], _RANDOM[3'h2][1:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-        requestActive = _RANDOM[3'h2][2];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :16:32]
-        issuedAddrReg = {_RANDOM[3'h2][31:3], _RANDOM[3'h3][2:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :17:32]
-        responseDataReg = {_RANDOM[3'h3][31:3], _RANDOM[3'h4][2:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :17:32, :18:32]
-        state = _RANDOM[3'h4][5:3];	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32, :22:22]
-        counter = {_RANDOM[3'h4][31:6], _RANDOM[3'h5][5:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32, :23:24]
-        refreshDelayCounter = {_RANDOM[3'h5][31:6], _RANDOM[3'h6][5:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :23:24, :24:36]
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+        for (logic [4:0] i = 5'h0; i < 5'h1A; i += 5'h1) begin
+          _RANDOM[i] = `RANDOM;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+        end	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+        cycleCounter = {_RANDOM[5'h0], _RANDOM[5'h1]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :20:29]
+        lastActivate = {_RANDOM[5'h2], _RANDOM[5'h3]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :24:32]
+        lastReadEnd = {_RANDOM[5'h6], _RANDOM[5'h7]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :26:32]
+        lastWriteEnd = {_RANDOM[5'h8], _RANDOM[5'h9]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :27:32]
+        lastRefresh = {_RANDOM[5'hA], _RANDOM[5'hB]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :28:32]
+        activateTimes_0 = {_RANDOM[5'hC], _RANDOM[5'hD]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :29:28]
+        activateTimes_1 = {_RANDOM[5'hE], _RANDOM[5'hF]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :29:28]
+        activateTimes_2 = {_RANDOM[5'h10], _RANDOM[5'h11]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :29:28]
+        activateTimes_3 = {_RANDOM[5'h12], _RANDOM[5'h13]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :29:28]
+        actPtr = _RANDOM[5'h14][1:0];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :30:32]
+        reqReg_rd_en = _RANDOM[5'h14][2];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :30:32, :33:28]
+        reqReg_wr_en = _RANDOM[5'h14][3];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :30:32, :33:28]
+        reqReg_addr = {_RANDOM[5'h14][31:4], _RANDOM[5'h15][3:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :30:32, :33:28]
+        reqReg_wdata = {_RANDOM[5'h15][31:4], _RANDOM[5'h16][3:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28]
+        requestActive = _RANDOM[5'h16][4];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28, :34:32]
+        issuedAddrReg = {_RANDOM[5'h16][31:5], _RANDOM[5'h17][4:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28, :35:32]
+        responseDataReg = {_RANDOM[5'h17][31:5], _RANDOM[5'h18][4:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :35:32, :36:32]
+        state = _RANDOM[5'h18][8:5];	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :36:32, :40:22]
+        counter = {_RANDOM[5'h18][31:9], _RANDOM[5'h19][8:0]};	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :36:32, :41:24]
       `endif // RANDOMIZE_REG_INIT
     end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7]
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  assign io_req_ready = ~(|state) & ~requestActive;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :16:32, :22:22, :37:14, :57:27, :61:37]
-  assign io_resp_valid = io_resp_valid_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :54:27]
-  assign io_resp_bits_rd_en = reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-  assign io_resp_bits_wr_en = reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-  assign io_resp_bits_addr = reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-  assign io_resp_bits_wdata = reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-  assign io_resp_bits_data = responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32]
-  assign io_cmdOut_valid = |state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :43:29]
-  assign io_cmdOut_bits_addr = reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28]
-  assign io_cmdOut_bits_data = reqReg_wr_en ? reqReg_wdata : 32'h0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :15:28, :29:21]
+  assign io_req_ready = io_req_ready_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :44:37]
+  assign io_resp_valid = io_resp_valid_0;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :69:27]
+  assign io_resp_bits_rd_en = reqReg_rd_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28]
+  assign io_resp_bits_wr_en = reqReg_wr_en;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28]
+  assign io_resp_bits_addr = reqReg_addr;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28]
+  assign io_resp_bits_wdata = reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28]
+  assign io_resp_bits_data = responseDataReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :36:32]
+  assign io_cmdOut_valid = |state;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :40:22, :59:29]
+  assign io_cmdOut_bits_addr = issuedAddrReg;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :35:32]
+  assign io_cmdOut_bits_data = reqReg_wdata;	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :33:28]
   assign io_cmdOut_bits_cs =
-    (~(|state) | ~_GEN
-     & (_GEN_1 | ~_GEN_4 & (_GEN_5 | ~_GEN_7 & (io_resp_valid_0 | ~(&state)))))
-    & ~(|state);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :17:32, :22:22, :37:{14,25}, :54:27, :67:17, :87:18, :120:18, :143:18, :162:18]
-  assign io_cmdOut_bits_ras = (|state) & (_GEN | ~_GEN_1 & _GEN_4);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :32:15, :37:14, :67:17, :88:18, :102:18]
-  assign io_cmdOut_bits_cas = ~_GEN_6 & (_GEN_1 | ~(_GEN_4 | _GEN_5) & _GEN_7);	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :18:32, :33:15, :67:17, :89:18, :103:18, :122:18]
+    _io_req_ready_T
+    | (_GEN_1
+         ? ~_GEN_2
+         : _GEN_3
+             ? _GEN_4 < 64'hE
+             : _GEN_6
+               | (_GEN_10
+                    ? ~_GEN_11
+                    : _GEN_12
+                      | (_GEN_13
+                           ? ~_GEN_14
+                           : io_resp_valid_0 | ~_GEN_15 | _GEN < 64'hF3C)));	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :44:26, :54:15, :69:27, :72:{59,68}, :75:17, :89:{19,30}, :91:20, :106:52, :108:20, :134:{51,94}, :136:20, :156:{39,80}, :158:20, :176:50, :177:20]
+  assign io_cmdOut_bits_ras = ~_GEN_9 & (_GEN_3 ? _GEN_5 : ~_GEN_6 & _GEN_10 & _GEN_11);	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :41:24, :55:15, :72:68, :75:17, :89:30, :106:52, :121:112, :134:{51,94}]
+  assign io_cmdOut_bits_cas =
+    ~_io_req_ready_T
+    & (_GEN_1 ? _GEN_2 : ~(_GEN_3 | _GEN_6 | _GEN_10 | _GEN_12) & _GEN_13 & _GEN_14);	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :44:26, :56:15, :75:17, :89:{19,30}, :106:52, :134:94, :156:{39,80}]
   assign io_cmdOut_bits_we =
-    (|state) & (_GEN | ~(_GEN_1 | _GEN_4 | _GEN_5 | _GEN_7 | io_resp_valid_0) & (&state));	// @[src/main/scala/memctrl/MemControllerFSM.scala:6:7, :22:22, :34:15, :37:14, :54:27, :67:17, :90:18, :104:18, :123:18, :146:18]
+    ~_io_req_ready_T & (_GEN_1 ? _GEN_2 : _GEN_3 ? _GEN_5 : ~_GEN_16 & _GEN_15 & _GEN_0);	// @[src/main/scala/memctrl/MemControllerFSM.scala:10:7, :44:26, :56:15, :57:15, :72:68, :75:17, :89:{19,30}, :106:52, :134:94, :156:80, :176:50]
 endmodule
 
 // VCS coverage exclude_file
@@ -2072,6 +2152,24 @@ module RRArbiter_1(	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
   assign io_out_bits_data = casez_tmp_4;	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, :118:7]
 endmodule
 
+
+// Users can define 'PRINTF_FD' to add a specified fd to prints.
+`ifndef PRINTF_FD_
+  `ifdef PRINTF_FD
+    `define PRINTF_FD_ (`PRINTF_FD)
+  `else  // PRINTF_FD
+    `define PRINTF_FD_ 32'h80000002
+  `endif // PRINTF_FD
+`endif // not def PRINTF_FD_
+
+// Users can define 'PRINTF_COND' to add an extra gate to prints.
+`ifndef PRINTF_COND_
+  `ifdef PRINTF_COND
+    `define PRINTF_COND_ (`PRINTF_COND)
+  `else  // PRINTF_COND
+    `define PRINTF_COND_ 1
+  `endif // PRINTF_COND
+`endif // not def PRINTF_COND_
 module MultiRankMemoryController(	// @[src/main/scala/memctrl/MemoryController.scala:46:7]
   input         clock,	// @[src/main/scala/memctrl/MemoryController.scala:46:7]
                 reset,	// @[src/main/scala/memctrl/MemoryController.scala:46:7]
