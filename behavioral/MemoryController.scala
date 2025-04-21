@@ -24,21 +24,6 @@ class ControllerResponse extends Bundle {
   val data  = UInt(32.W) // Keep data since responses might need to return data
 }
 
-/** Memory Command interface (to external memory) **/
-class MemCmd extends Bundle {
-  val addr = UInt(32.W)
-  val data = UInt(32.W)
-  val cs   = Bool()
-  val ras  = Bool()
-  val cas  = Bool()
-  val we   = Bool()
-}
-
-/** Physical Memory Response interface **/
-class PhysicalMemResponse extends Bundle {
-  val addr = UInt(32.W)
-  val data = UInt(32.W)
-}
 
 //----------------------------------------------------------------------
 // Top-Level MultiRank Memory Controller Module

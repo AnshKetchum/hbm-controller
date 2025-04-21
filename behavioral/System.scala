@@ -9,11 +9,6 @@ class MemorySystemIO extends Bundle {
   val out = Decoupled(new ControllerResponse)
 }
 
-case class MemoryConfigurationParams(
-  numberOfRanks:      Int = 8,
-  numberOfBankGroups: Int = 8,
-  numberOfBanks:      Int = 8
-)
 
 case class SingleChannelMemoryConfigurationParams(
   memConfiguration: MemoryConfigurationParams = MemoryConfigurationParams(),

@@ -1,51 +1,50 @@
-package memctrl 
+// File: src/main/scala/memctrl/Rank.scala
+package memctrl
 
 import chisel3._
 import chisel3.util._
 
-/** Rank Module
-  * Uses AddressDecoder to extract the bank group index.
+/** Rank: fans a single PhysicalMemoryCommand to one of M bank‑groups,
+  * then fans out the PhysicalMemoryResponse from that group.
   */
-class RankIO extends Bundle {
-  // Inputs
-  val cs    = Input(Bool())
-  val ras   = Input(Bool())
-  val cas   = Input(Bool())
-  val we    = Input(Bool())
-  val addr  = Input(UInt(32.W))
-  val wdata = Input(UInt(32.W))
-  // Outputs
-  val response_complete = Output(Bool())
-  val response_data     = Output(UInt(32.W))
-}
+class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends Module {
+  val io = IO(new PhysicalMemoryIO)
 
-class Rank(params: MemoryConfigurationParams, bankParams: DRAMBankParams) extends Module {
-  val io = IO(new RankIO)
+  // 1) Decode the bank‑group index from the incoming address
+  val decoder       = Module(new AddressDecoder(params))
+  decoder.io.addr   := io.memCmd.bits.addr
+  val bgIndex       = decoder.io.bankGroupIndex
 
-  // Use AddressDecoder to get the bank group index from the address
-  val addrDecoder = Module(new AddressDecoder(params))
-  addrDecoder.io.addr := io.addr
+  // 2) Instantiate one BankGroup per bank‑group
+  val groups        = Seq.fill(params.numberOfBankGroups)(
+                        Module(new BankGroup(params, bankParams))
+                      )
 
-  val bankGroupIndex = addrDecoder.io.bankGroupIndex
-
-  // Instantiate bank groups
-  val bank_groups = Seq.fill(params.numberOfBankGroups)(Module(new BankGroup(params, bankParams)))
-  for ((bank_group, i) <- bank_groups.zipWithIndex) {
-    // Note: The original code inverted the equality to drive chip select.
-    // We preserve that logic here.
-    val isActiveBankGroup = ~(bankGroupIndex === i.U)
-    bank_group.io.cs    := isActiveBankGroup
-    bank_group.io.ras   := io.ras 
-    bank_group.io.cas   := io.cas 
-    bank_group.io.we    := io.we
-    bank_group.io.addr  := io.addr
-    bank_group.io.wdata := io.wdata
+  // 3) Wire the command bits into every group
+  groups.foreach { g =>
+    g.io.memCmd.bits := io.memCmd.bits
   }
 
-  // Aggregate responses from bank groups.
-  val responseCompleteVec = VecInit(bank_groups.map(_.io.response_complete))
-  val responseDataVec     = VecInit(bank_groups.map(_.io.response_data))
+  // 4) Only the addressed group sees valid=true
+  groups.zipWithIndex.foreach { case (g, i) =>
+    g.io.memCmd.valid := io.memCmd.valid && (bgIndex === i.U)
+  }
 
-  io.response_complete := responseCompleteVec(bankGroupIndex)
-  io.response_data     := responseDataVec(bankGroupIndex)
+  // 5) memCmd.ready reflects only the addressed group's ready
+  io.memCmd.ready := VecInit(groups.map(_.io.memCmd.ready))(bgIndex)
+
+  // 6) Demux response ready: only the active group sees downstream backpressure
+  groups.zipWithIndex.foreach { case (g, i) =>
+    g.io.phyResp.ready := io.phyResp.ready && (bgIndex === i.U)
+  }
+
+  // 7) Gather all groups’ response signals into Vecs
+  private val respValidVec = VecInit(groups.map(_.io.phyResp.valid))
+  private val respAddrVec  = VecInit(groups.map(_.io.phyResp.bits.addr))
+  private val respDataVec  = VecInit(groups.map(_.io.phyResp.bits.data))
+
+  // 8) Mux out the response from the addressed group
+  io.phyResp.valid     := respValidVec(bgIndex)
+  io.phyResp.bits.addr := respAddrVec(bgIndex)
+  io.phyResp.bits.data := respDataVec(bgIndex)
 }
