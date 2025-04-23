@@ -58,8 +58,35 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
         activeCount mustBe (i + 1)
       }
 
-      // let system settle
-      dut.clock.step(500)
+    // let system settle and track active rank count over time
+    var prevActive = writesToIssue
+    var cycles     = 0
+    var reachedZero = false
+
+    while (cycles < 500 && !reachedZero) {
+        dut.clock.step()
+        cycles += 1
+
+        val currActive = (0 until numRanks).count { j =>
+            dut.io.rankState(j).peek().litValue.toInt != 0
+        }
+
+        // Assert active count never increases
+        assert(currActive <= prevActive,
+            s"Active rank count increased from $prevActive to $currActive at cycle $cycles")
+
+        // Assert active count only decreases by 1 or stays constant
+        assert((prevActive - currActive) <= 1,
+            s"Active rank count dropped too fast: $prevActive → $currActive at cycle $cycles")
+
+        // Update for next check
+        prevActive = currActive
+
+        // Detect terminal condition
+        if (currActive == 0) reachedZero = true
+    }
+
+    assert(reachedZero, s"Active rank count never reached zero after $cycles cycles")
 
     // Check the response queue count
     val respCount = dut.io.respQueueCount.peek().litValue.toInt

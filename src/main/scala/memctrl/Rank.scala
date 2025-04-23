@@ -46,4 +46,21 @@ class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters
   io.phyResp.valid     := respValidVec(bgIndex)
   io.phyResp.bits.addr := respAddrVec(bgIndex)
   io.phyResp.bits.data := respDataVec(bgIndex)
+
+  // Track the number of active sub-memories (bank groups)
+  // Use a register for activeSubMemories to avoid combinational loop
+  val activeSubMemoriesReg = RegInit(0.U(log2Ceil(params.numberOfBankGroups + 1).W))
+
+  // Update activeSubMemories in a clocked process
+  when (io.memCmd.valid) {
+    activeSubMemoriesReg := 0.U // Reset active sub-memories count
+    groups.zipWithIndex.foreach { case (g, i) =>
+      when (g.io.activeSubMemories =/= 0.U) {
+        activeSubMemoriesReg := activeSubMemoriesReg + 1.U
+      }
+    }
+  }
+
+  // Propagate the number of active sub-memories
+  io.activeSubMemories := activeSubMemoriesReg
 }

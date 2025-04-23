@@ -147,4 +147,6 @@ class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
       }
     }
   }
+
+  io.activeSubMemories := (state === sProc)
 }

@@ -45,4 +45,21 @@ class BankGroup(params: MemoryConfigurationParameters, bankParams: DRAMBankParam
   io.phyResp.valid       := respValidVec(bankIndex)
   io.phyResp.bits.addr   := respAddrVec(bankIndex)
   io.phyResp.bits.data   := respDataVec(bankIndex)
+
+  // Track the number of active sub-memories (banks)
+  // Use a register for activeSubMemories to avoid combinational loop
+  val activeSubMemoriesReg = RegInit(0.U(log2Ceil(params.numberOfBanks + 1).W))
+
+  // Update activeSubMemories in a clocked process
+  when (io.memCmd.valid) {
+    activeSubMemoriesReg := 0.U // Reset active sub-memories count
+    banks.zipWithIndex.foreach { case (b, i) =>
+      when (b.io.activeSubMemories =/= 0.U) {
+        activeSubMemoriesReg := activeSubMemoriesReg + 1.U
+      }
+    }
+  }
+
+  // Propagate the number of active sub-memories
+  io.activeSubMemories := activeSubMemoriesReg
 }

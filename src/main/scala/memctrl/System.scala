@@ -14,8 +14,9 @@ class MemorySystemIO(numberOfRanks: Int) extends Bundle {
   val respQueueCount = Output(UInt(4.W))
   val fsmReqQueueCounts = Output(Vec(numberOfRanks, UInt(3.W)))
 
+  // New signal to expose active ranks count
+  val activeRanks = Output(UInt(log2Ceil(numberOfRanks + 1).W))
 }
-
 
 case class SingleChannelMemoryConfigurationParams(
   memConfiguration: MemoryConfigurationParameters = MemoryConfigurationParameters(),
@@ -61,4 +62,10 @@ class SingleChannelSystem(
   io.reqQueueCount := memory_controller.io.reqQueueCount
   io.respQueueCount := memory_controller.io.respQueueCount
   io.fsmReqQueueCounts := memory_controller.io.fsmReqQueueCounts
+
+  // Calculate the number of active ranks
+  val activeRanksCount = memory_controller.io.rankState.count(_ =/= 0.U)
+
+  // Expose the number of active ranks to the top-level I/O
+  io.activeRanks := activeRanksCount
 }

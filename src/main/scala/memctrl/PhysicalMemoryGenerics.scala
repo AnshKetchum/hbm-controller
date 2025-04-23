@@ -26,6 +26,8 @@ class PhysicalMemoryIO extends Bundle {
   val memCmd  = Flipped(Decoupled(new PhysicalMemoryCommand))
   /** Output response back to controller **/
   val phyResp = Decoupled(new PhysicalMemoryResponse)
+  /** Output active sub-memories count **/
+  val activeSubMemories = Output(UInt(32.W)) // Track number of active sub-memories
 }
 
 /** HBM2 timing parameters + ACK constant **/

@@ -13,18 +13,32 @@ class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParamet
   // Instantiate ranks
   val ranks = Seq.fill(params.numberOfRanks)(Module(new Rank(params, bankParams)))
 
-  // Wire command to all ranks, only one gets valid
+  // Track the number of active sub-memories (ranks) using a register to avoid combinational loop
+  val activeSubMemoriesReg = RegInit(0.U(log2Ceil(params.numberOfRanks + 1).W))
+
+  // Propagate active sub-memory state from the ranks
+  when (io.memCmd.valid) {
+    activeSubMemoriesReg := 0.U // Reset active sub-memories count on valid command
+    ranks.zipWithIndex.foreach { case (rank, i) =>
+      when (rank.io.activeSubMemories =/= 0.U) {
+        activeSubMemoriesReg := activeSubMemoriesReg + 1.U
+      }
+    }
+  }
+
+  // Command wiring: send memCmd to the selected rank
   for ((rank, i) <- ranks.zipWithIndex) {
     val isSelected = rankIndex === i.U
-    rank.io.memCmd.bits  := io.memCmd.bits
+    rank.io.memCmd.bits := io.memCmd.bits
     rank.io.memCmd.valid := io.memCmd.valid && isSelected
   }
 
+  // Set ready signal based on the selected rank
   io.memCmd.ready := Mux1H(
     Seq.tabulate(params.numberOfRanks)(i => (rankIndex === i.U, ranks(i).io.memCmd.ready))
   )
 
-  // Wire response ready to all ranks (only one gets true)
+  // Response ready wiring
   for ((rank, i) <- ranks.zipWithIndex) {
     rank.io.phyResp.ready := io.phyResp.ready && (rankIndex === i.U)
   }
@@ -37,4 +51,7 @@ class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParamet
   io.phyResp.valid     := respValidVec(rankIndex)
   io.phyResp.bits.addr := respAddrVec(rankIndex)
   io.phyResp.bits.data := respDataVec(rankIndex)
+
+  // Propagate the number of active sub-memories
+  io.activeSubMemories := activeSubMemoriesReg
 }
