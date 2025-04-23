@@ -20,7 +20,7 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       dut.reset.poke(false.B); dut.clock.step()
 
       // prepare
-      dut.io.out.ready.poke(true.B)
+      dut.io.out.ready.poke(false.B)
       dut.io.in.bits.rd_en.poke(false.B)
       dut.io.in.bits.wr_en.poke(true.B)
 
@@ -59,7 +59,12 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       }
 
       // let system settle
-      dut.clock.step(2500)
+      dut.clock.step(500)
+
+    // Check the response queue count
+    val respCount = dut.io.respQueueCount.peek().litValue.toInt
+    assert(respCount == writesToIssue, s"Expected $writesToIssue responses, but found $respCount in the response queue")
+
 
       // now drain exactly writesToIssue responses back-to-back
       var drained = 0

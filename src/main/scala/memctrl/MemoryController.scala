@@ -17,7 +17,11 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
 
     // Unified physical memory response channel.
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
+
     val rankState = Output(Vec(params.numberOfRanks, UInt(3.W)))
+    val reqQueueCount = Output(UInt(4.W))
+    val respQueueCount = Output(UInt(4.W))
+    val fsmReqQueueCounts = Output(Vec(params.numberOfRanks, UInt(3.W)))
   })
 
   // Create unified request and response queues.
@@ -123,7 +127,7 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
              i.U, fsmVec(i).resp.bits.addr)
     }
   }
-  
+
   // respQueue.io.enq <> arbResp.io.out
   // connect arbiter output into the respQueue, but also print on each enqueue
   respQueue.io.enq.valid := arbResp.io.out.valid
@@ -137,4 +141,11 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
   }
 
   io.phyResp.ready := true.B
+
+    // Connect internal queue counts to IO
+  io.reqQueueCount := reqQueue.io.count
+  io.respQueueCount := respQueue.io.count
+  for (i <- 0 until params.numberOfRanks) {
+    io.fsmReqQueueCounts(i) := fsmReqQueues(i).count
+  }
 }

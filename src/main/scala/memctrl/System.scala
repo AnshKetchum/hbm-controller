@@ -7,7 +7,13 @@ import chisel3.util._
 class MemorySystemIO(numberOfRanks: Int) extends Bundle {
   val in  = Flipped(Decoupled(new ControllerRequest))
   val out = Decoupled(new ControllerResponse)
+
+  // Internals-Monitoring Signals
   val rankState = Output(Vec(numberOfRanks, UInt(3.W)))
+  val reqQueueCount = Output(UInt(4.W))
+  val respQueueCount = Output(UInt(4.W))
+  val fsmReqQueueCounts = Output(Vec(numberOfRanks, UInt(3.W)))
+
 }
 
 
@@ -51,4 +57,8 @@ class SingleChannelSystem(
 
   io.rankState := memory_controller.io.rankState
 
+  // Connect internal queue counts
+  io.reqQueueCount := memory_controller.io.reqQueueCount
+  io.respQueueCount := memory_controller.io.respQueueCount
+  io.fsmReqQueueCounts := memory_controller.io.fsmReqQueueCounts
 }

@@ -10,6 +10,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
     val cmdOut  = Decoupled(new PhysicalMemoryCommand)
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
     val stateOut = Output(UInt(3.W))
+    
   })
 
   // --------------------------------------------------
