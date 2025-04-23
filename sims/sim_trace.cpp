@@ -9,7 +9,6 @@
 using namespace std;
 
 const int TIMEOUT_CYCLES = 10000;  // Timeout for waiting on valid response
-const int FUDGE_FACTOR_CYCLES = 1000; // Number of cycles to continue ticking after last trace entry
 unsigned long long sim_cycle = 0;
 
 struct TraceEntry {
@@ -107,11 +106,6 @@ int main(int argc, char** argv) {
             }
         }
         idx++;
-    }
-
-    // Tick extra cycles after last trace
-    for (int i = 0; i < FUDGE_FACTOR_CYCLES; ++i) {
-        tick(top);
     }
 
     top->final();
