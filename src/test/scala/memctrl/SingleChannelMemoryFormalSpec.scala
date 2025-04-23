@@ -19,8 +19,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SingleChannelMemoryFormalSpec extends AnyFlatSpec with ChiselScalatestTester with Formal {
   "SingleChannelSystem" should "correctly handle a write followed by a read transaction" in {
     verify(new SingleChannelSystem(new SingleChannelMemoryConfigurationParams(
-      MemoryConfigurationParams(),
-      DRAMBankParams(),
+      MemoryConfigurationParameters(),
+      DRAMBankParameters(),
       false
     )), Seq(BoundedCheck(20), Z3EngineAnnotation))
   }

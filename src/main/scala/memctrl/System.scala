@@ -11,8 +11,8 @@ class MemorySystemIO extends Bundle {
 
 
 case class SingleChannelMemoryConfigurationParams(
-  memConfiguration: MemoryConfigurationParams = MemoryConfigurationParams(),
-  bankConfiguration: DRAMBankParams = DRAMBankParams(),
+  memConfiguration: MemoryConfigurationParameters = MemoryConfigurationParameters(),
+  bankConfiguration: DRAMBankParameters = DRAMBankParameters(),
   trackPerformance: Boolean = true
 )
 

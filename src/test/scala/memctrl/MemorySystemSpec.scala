@@ -56,7 +56,7 @@ class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
 
       // Wait for read transaction to complete
       cycles = 0
-      while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
+      while (!dut.io.out.valid.peek().litToBoolean && cycles < 2000) {
         dut.clock.step()
         cycles += 1
       }

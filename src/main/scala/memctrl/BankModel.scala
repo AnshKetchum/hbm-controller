@@ -35,9 +35,8 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
   val rowActive            = RegInit(false.B)
   val activeRow            = RegInit(0.U(log2Ceil(params.numRows).W))
 
+  // Memory array
   val mem                  = Mem(params.addressSpaceSize, UInt(32.W))
-  val readValidReg         = RegInit(false.B)
-  val readDataReg          = Reg(UInt(32.W))
 
   // Address slicing widths
   val rowWidth             = log2Ceil(params.numRows)
@@ -47,22 +46,28 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
   def elapsed(s: UInt, d: Int): Bool = (cycleCounter - s) >= d.U
 
   // Default I/O assignments
-  cmd.ready  := (state === sIdle) && !refreshInProg
-  resp.valid := false.B
+  cmd.ready      := (state === sIdle) && !refreshInProg
+  resp.valid     := false.B
   resp.bits.addr := pendingCmd.addr
   resp.bits.data := params.ackData
 
   // ----- Command acceptance -----
-  when (state === sIdle && cmd.fire) {
+  when (state === sIdle && cmd.fire && cmd.bits.cs === false.B) {
     pendingCmd := cmd.bits
     state      := sProc
+    printf("\n\n[DRAM] Received a Command %d %d %d %d \n\n",
+           cmd.bits.cs, cmd.bits.ras, cmd.bits.cas, cmd.bits.we)
+  } .elsewhen (resp.fire) {
+    // go back to Idle and allow next command
+    printf("[DRAM] Response fired.\n")
+    state := sIdle
   }
 
   // Decode active‑low fields from pendingCmd
-  val cs_p   = !pendingCmd.cs
-  val ras_p  = !pendingCmd.ras
-  val cas_p  = !pendingCmd.cas
-  val we_p   = !pendingCmd.we
+  val cs_p        = !pendingCmd.cs
+  val ras_p       = !pendingCmd.ras
+  val cas_p       = !pendingCmd.cas
+  val we_p        = !pendingCmd.we
 
   val doRefresh   = cs_p && ras_p && cas_p && !we_p
   val doActivate  = cs_p && ras_p && !cas_p && !we_p
@@ -75,54 +80,60 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
 
   // ----- Processing -----
   when (state === sProc) {
-    // Start refresh
+    // Refresh
     when (!refreshInProg && doRefresh) {
       refreshInProg := true.B
       refreshCntr   := params.tRFC.U
-    }
+
     // Precharge
-    .elsewhen (doPrecharge && !refreshInProg &&
-               elapsed(lastActivate, params.tRAS) &&
-               elapsed(lastPrecharge, params.tRP)) {
+    } .elsewhen (doPrecharge && !refreshInProg &&
+                 elapsed(lastActivate, params.tRAS) &&
+                 elapsed(lastPrecharge, params.tRP)) {
       rowActive     := false.B
       lastPrecharge := cycleCounter
       resp.valid    := true.B
-    }
+
     // Activate
-    .elsewhen (doActivate && !refreshInProg) {
+    } .elsewhen (doActivate && !refreshInProg) {
       val oldest = activateTimes(actPtr)
       when (elapsed(oldest, params.tFAW) && elapsed(lastActivate, params.tRRD_L)) {
-        rowActive              := true.B
-        activeRow              := reqRow
-        lastActivate           := cycleCounter
-        activateTimes(actPtr)  := cycleCounter
-        actPtr                 := actPtr + 1.U
-        resp.valid             := true.B
+        rowActive             := true.B
+        activeRow             := reqRow
+        lastActivate          := cycleCounter
+        activateTimes(actPtr) := cycleCounter
+        actPtr                := actPtr + 1.U
+        resp.valid            := true.B
       }
-    }
+
     // Read
-    .elsewhen (doRead && !refreshInProg &&
-               rowActive &&
-               elapsed(lastActivate, params.tRCDRD) &&
-               elapsed(lastReadEnd, params.tCCD_L) &&
-               elapsed(lastWriteEnd, params.tWTR_L)) {
-      readDataReg  := mem.read(activeRow * params.numCols.U + reqCol)
-      readValidReg := true.B
-      lastReadEnd  := cycleCounter + params.CL.U
-    }
+    } .elsewhen (doRead && !refreshInProg && rowActive) {
+      when (elapsed(lastActivate, params.tRCDRD) &&
+            elapsed(lastReadEnd, params.tCCD_L) &&
+            elapsed(lastWriteEnd, params.tWTR_L)) {
+        printf("[DRAM] Read with cc %d for active row %d, col %d, data=%d\n",
+               cycleCounter, activeRow, reqCol,
+               mem.read(activeRow * params.numCols.U + reqCol))
+        resp.bits.data := mem.read(activeRow * params.numCols.U + reqCol)
+        lastReadEnd    := cycleCounter + params.CL.U
+        resp.valid     := true.B
+      }
+
     // Write
-    .elsewhen (doWrite && !refreshInProg &&
-               rowActive &&
-               elapsed(lastActivate, params.tRCDWR) &&
-               elapsed(lastWriteEnd, params.tCCD_L)) {
-      mem.write(activeRow * params.numCols.U + reqCol, pendingCmd.data)
-      lastWriteEnd := cycleCounter + params.CWL.U + params.tWR.U
-      resp.bits.data := pendingCmd.data
-      resp.valid     := true.B
+    } .elsewhen (doWrite && !refreshInProg && rowActive) {
+      when (elapsed(lastActivate, params.tRCDWR) &&
+            elapsed(lastWriteEnd, params.tCCD_L)) {
+        printf("[DRAM] Write with cc %d data=%d @ addr %d, row=%d, col=%d\n",
+               cycleCounter, pendingCmd.data, pendingCmd.addr, activeRow, reqCol)
+        mem.write(activeRow * params.numCols.U + reqCol, pendingCmd.data)
+        lastWriteEnd    := cycleCounter + params.CWL.U + params.tWR.U
+        resp.bits.data  := pendingCmd.data
+        resp.valid      := true.B
+      }
     }
 
     // Complete refresh
     when (refreshInProg) {
+      printf("[DRAM] Refresh with cc %d\n", cycleCounter)
       refreshCntr := refreshCntr - 1.U
       when (refreshCntr === 1.U) {
         refreshInProg := false.B
@@ -131,18 +142,5 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
         resp.valid    := true.B
       }
     }
-  }
-
-  // ----- Read response -----
-  when (readValidReg) {
-    resp.bits.data := readDataReg
-    resp.valid     := true.B
-    readValidReg   := false.B
-  }
-
-  // ----- Response handshake -----
-  when (resp.fire) {
-    // go back to Idle and allow next command
-    state := sIdle
   }
 }
