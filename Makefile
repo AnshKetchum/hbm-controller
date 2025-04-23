@@ -26,11 +26,15 @@ verilog:
 	sed -i '/PerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
 	sed -i '/PerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
 
-verilator: 
-	verilator --cc --exe --build -Mdir obj_dir -o VSingleChannelSystem src/main/resources/vsrc/SingleChannelSystem.sv sim_main.cpp
+verilator-random: 
+	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/SingleChannelSystem.sv ./sims/sim_random.cpp
+	./$(TARGET)
+	
+verilator-trace: 
+	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/SingleChannelSystem.sv ./sims/sim_trace.cpp
 	./$(TARGET)
 
-all: verilog verilator
+all: verilog verilator-trace
 
 # Clean up generated files
 clean:
@@ -40,4 +44,3 @@ clean:
 	rm -f *.csv
 	rm -f *.log
 	rm -f *.png
-	rm -f *.txt
