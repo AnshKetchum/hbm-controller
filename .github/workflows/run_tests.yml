@@ -1,4 +1,4 @@
-name: Chisel CI
+name: Nix powered Chisel CI
 
 on:
   push:
@@ -16,22 +16,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: temurin
-          java-version: 17
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
 
-      - name: Cache sbt
+      - name: Cache Nix store
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.ivy2/cache
-            ~/.sbt
-            ~/.coursier
-          key: sbt-${{ runner.os }}-${{ hashFiles('**/build.sbt') }}
+          path: /nix/store
+          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
           restore-keys: |
-            sbt-${{ runner.os }}-
+            nix-store-${{ runner.os }}-
 
-      - name: Run tests
-        run: sbt test
+      - name: Run sbt test in nix develop shell
+        run: nix develop --command sbt test
