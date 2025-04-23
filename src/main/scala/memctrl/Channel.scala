@@ -3,62 +3,39 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
+class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends Module {
+  val io = IO(new PhysicalMemoryIO)
 
-class ChannelIO extends Bundle {
-  // Input from the memory controller: now a single Decoupled MemCmd interface.
-  val memCmd = Flipped(Decoupled(new MemCmd))
-
-  // Output: Decoupled physical memory response.
-  val phyResp = Decoupled(new PhysicalMemResponse)
-}
-
-/** Channel Module
-  * Now instantiates an AddressDecoder to obtain the rank index.
-  */
-class Channel(params: MemoryConfigurationParams, bankParams: DRAMBankParams) extends Module {
-  val io = IO(new Bundle {
-    // Define your Channel I/O (example below)
-    val memCmd = Flipped(Decoupled(new Bundle {
-      val cs   = Bool()
-      val ras  = Bool()
-      val cas  = Bool()
-      val we   = Bool()
-      val addr = UInt(32.W)
-      val data = UInt(32.W)
-    }))
-    val phyResp = Decoupled(new Bundle {
-      val addr = UInt(32.W)
-      val data = UInt(32.W)
-    })
-  })
-
-  // Instantiate the address decoder
+  // Address Decoder
   val addrDecoder = Module(new AddressDecoder(params))
   addrDecoder.io.addr := io.memCmd.bits.addr
-
-  // Get rank index from the decoder
   val rankIndex = addrDecoder.io.rankIndex
 
-  // Instantiate rank modules
+  // Instantiate ranks
   val ranks = Seq.fill(params.numberOfRanks)(Module(new Rank(params, bankParams)))
+
+  // Wire command to all ranks, only one gets valid
   for ((rank, i) <- ranks.zipWithIndex) {
-    val isActiveRank = ~(rankIndex === i.U)
-    rank.io.cs    := isActiveRank
-    rank.io.ras   := io.memCmd.bits.ras
-    rank.io.cas   := io.memCmd.bits.cas
-    rank.io.we    := io.memCmd.bits.we
-    rank.io.addr  := io.memCmd.bits.addr
-    rank.io.wdata := io.memCmd.bits.data
+    val isSelected = rankIndex === i.U
+    rank.io.memCmd.bits  := io.memCmd.bits
+    rank.io.memCmd.valid := io.memCmd.valid && isSelected
   }
 
-  // Collect responses from all ranks and forward the selected one.
-  val responseCompleteVec = VecInit(ranks.map(_.io.response_complete))
-  val responseDataVec     = VecInit(ranks.map(_.io.response_data))
+  io.memCmd.ready := Mux1H(
+    Seq.tabulate(params.numberOfRanks)(i => (rankIndex === i.U, ranks(i).io.memCmd.ready))
+  )
 
-  io.phyResp.valid     := responseCompleteVec(rankIndex)
-  io.phyResp.bits.addr := io.memCmd.bits.addr
-  io.phyResp.bits.data := responseDataVec(rankIndex)
+  // Wire response ready to all ranks (only one gets true)
+  for ((rank, i) <- ranks.zipWithIndex) {
+    rank.io.phyResp.ready := io.phyResp.ready && (rankIndex === i.U)
+  }
 
-  // Decoupled interface ready signal
-  io.memCmd.ready := true.B
+  // Mux response valid/bits from selected rank
+  val respValidVec = VecInit(ranks.map(_.io.phyResp.valid))
+  val respAddrVec  = VecInit(ranks.map(_.io.phyResp.bits.addr))
+  val respDataVec  = VecInit(ranks.map(_.io.phyResp.bits.data))
+
+  io.phyResp.valid     := respValidVec(rankIndex)
+  io.phyResp.bits.addr := respAddrVec(rankIndex)
+  io.phyResp.bits.data := respDataVec(rankIndex)
 }

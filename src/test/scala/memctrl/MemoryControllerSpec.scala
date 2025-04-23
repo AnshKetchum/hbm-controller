@@ -25,8 +25,8 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
 
   "MultiRankMemoryController should complete a read transaction correctly" in {
     simulate(new MultiRankMemoryController(
-      MemoryConfigurationParams(),
-      DRAMBankParams()
+      MemoryConfigurationParameters(),
+      DRAMBankParameters()
     )) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
@@ -68,8 +68,8 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
 
   "MultiRankMemoryController should complete a write transaction correctly" in {
     simulate(new MultiRankMemoryController(
-      MemoryConfigurationParams(),
-      DRAMBankParams()
+      MemoryConfigurationParameters(),
+      DRAMBankParameters()
     )) { dut =>
       // Apply reset
       dut.reset.poke(true.B)

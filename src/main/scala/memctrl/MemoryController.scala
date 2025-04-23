@@ -4,56 +4,19 @@ import chisel3._
 import chisel3.util._
 
 //----------------------------------------------------------------------
-// Top-level interface bundles (renamed)
-//----------------------------------------------------------------------
-
-/** Controller Request interface **/
-class ControllerRequest extends Bundle {
-  val rd_en = Bool()
-  val wr_en = Bool()
-  val addr  = UInt(32.W)
-  val wdata = UInt(32.W)
-}
-
-/** Controller Response interface **/
-class ControllerResponse extends Bundle {
-  val rd_en = Bool()
-  val wr_en = Bool()
-  val addr  = UInt(32.W)
-  val wdata = UInt(32.W)
-  val data  = UInt(32.W) // Keep data since responses might need to return data
-}
-
-/** Memory Command interface (to external memory) **/
-class MemCmd extends Bundle {
-  val addr = UInt(32.W)
-  val data = UInt(32.W)
-  val cs   = Bool()
-  val ras  = Bool()
-  val cas  = Bool()
-  val we   = Bool()
-}
-
-/** Physical Memory Response interface **/
-class PhysicalMemResponse extends Bundle {
-  val addr = UInt(32.W)
-  val data = UInt(32.W)
-}
-
-//----------------------------------------------------------------------
 // Top-Level MultiRank Memory Controller Module
 //----------------------------------------------------------------------
-class MultiRankMemoryController(params: MemoryConfigurationParams, bankParams: DRAMBankParams) extends Module {
+class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends Module {
   val io = IO(new Bundle {
     // Unified user interface.
     val in  = Flipped(Decoupled(new ControllerRequest))
     val out = Decoupled(new ControllerResponse)
 
     // Unified memory command interface.
-    val memCmd = Decoupled(new MemCmd)
+    val memCmd = Decoupled(new PhysicalMemoryCommand)
 
     // Unified physical memory response channel.
-    val phyResp = Flipped(Decoupled(new PhysicalMemResponse))
+    val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
   })
 
   // Create unified request and response queues.
@@ -64,7 +27,7 @@ class MultiRankMemoryController(params: MemoryConfigurationParams, bankParams: D
   io.out <> respQueue.io.deq
 
   // Create a unified command queue.
-  val cmdQueue  = Module(new Queue(new MemCmd, entries = 16))
+  val cmdQueue  = Module(new Queue(new PhysicalMemoryCommand, entries = 16))
   io.memCmd <> cmdQueue.io.deq
 
   // Instantiate FSMs for each rank.
@@ -120,7 +83,7 @@ class MultiRankMemoryController(params: MemoryConfigurationParams, bankParams: D
   //-------------------------------------------------------------------------
   // Connect each FSM's command output to an arbiter.
   //-------------------------------------------------------------------------
-  val cmdArb = Module(new RRArbiter(new MemCmd, params.numberOfRanks))
+  val cmdArb = Module(new RRArbiter(new PhysicalMemoryCommand, params.numberOfRanks))
   for (i <- 0 until params.numberOfRanks) {
     cmdArb.io.in(i) <> fsmVec(i).cmdOut
   }

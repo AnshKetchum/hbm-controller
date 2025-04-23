@@ -12,7 +12,7 @@ import chisel3.util._
   * - bankGroupIndex: [bankBits + bankGroupBits - 1 : bankBits]
   * - rankIndex:      [bankBits + bankGroupBits + rankBits - 1 : bankBits + bankGroupBits]
   */
-class AddressDecoder(params: MemoryConfigurationParams) extends Module {
+class AddressDecoder(params: MemoryConfigurationParameters) extends Module {
   val io = IO(new Bundle {
     val addr            = Input(UInt(32.W))
     val bankIndex       = Output(UInt(log2Ceil(params.numberOfBanks).W))

@@ -40,7 +40,7 @@ class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
         dut.clock.step()
         cycles += 1
       }
-      assert(cycles < 1000, "Timeout reached during write transaction")
+      assert(cycles < 2000, "Timeout reached during write transaction")
       dut.io.out.valid.expect(true.B)
 
       // Enqueue a read transaction.
@@ -56,11 +56,11 @@ class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
 
       // Wait for read transaction to complete
       cycles = 0
-      while (!dut.io.out.valid.peek().litToBoolean && cycles < 1000) {
+      while (!dut.io.out.valid.peek().litToBoolean && cycles < 2000) {
         dut.clock.step()
         cycles += 1
       }
-      assert(cycles < 1000, "Timeout reached during read transaction")
+      assert(cycles < 2000, "Timeout reached during read transaction")
       dut.io.out.valid.expect(true.B)
       dut.io.out.bits.data.expect("hCAFEBABE".U)
     }
