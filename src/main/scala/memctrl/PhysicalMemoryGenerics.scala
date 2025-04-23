@@ -72,3 +72,10 @@ case class MemoryConfigurationParameters(
   numberOfBankGroups: Int = 8,
   numberOfBanks:      Int = 8
 )
+
+/**
+ * Base class for any module exposing a PhysicalMemoryIO interface
+ */
+abstract class PhysicalMemoryModuleBase extends Module {
+  val io = IO(new PhysicalMemoryIO)
+}

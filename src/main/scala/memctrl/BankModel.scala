@@ -3,10 +3,10 @@ package memctrl
 
 import chisel3._
 import chisel3.util._
+import chisel3.assert
 
-/** Single HBM2 bank with FSM‑based Decoupled processing **/
-class DRAMBank(params: DRAMBankParameters) extends Module {
-  val io = IO(new PhysicalMemoryIO)
+/** Single HBM2 1T DRAM bank with FSM‑based Decoupled processing **/
+class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
   val cmd  = io.memCmd
   val resp = io.phyResp
 
@@ -79,6 +79,10 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
   val reqCol = pendingCmd.addr(colWidth - 1, 0)
 
   // ----- Processing -----
+
+  // If we fail to meet the refresh deadline, bail out immedietly.
+  assert(refreshCntr <= params.tRFC.U)
+
   when (state === sProc) {
     // Refresh
     when (!refreshInProg && doRefresh) {

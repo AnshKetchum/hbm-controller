@@ -3,8 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends Module {
-  val io = IO(new PhysicalMemoryIO)
+class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends PhysicalMemoryModuleBase {
 
   // Address Decoder
   val addrDecoder = Module(new AddressDecoder(params))

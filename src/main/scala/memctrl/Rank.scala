@@ -7,8 +7,7 @@ import chisel3.util._
 /** Rank: fans a single PhysicalMemoryCommand to one of M bank‑groups,
   * then fans out the PhysicalMemoryResponse from that group.
   */
-class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends Module {
-  val io = IO(new PhysicalMemoryIO)
+class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends PhysicalMemoryModuleBase {
 
   // 1) Decode the bank‑group index from the incoming address
   val decoder       = Module(new AddressDecoder(params))
