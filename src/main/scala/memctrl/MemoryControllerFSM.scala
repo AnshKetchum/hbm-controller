@@ -9,6 +9,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
     val resp    = Decoupled(new ControllerResponse)
     val cmdOut  = Decoupled(new PhysicalMemoryCommand)
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
+    val stateOut = Output(UInt(3.W))
   })
 
   // --------------------------------------------------
@@ -41,6 +42,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   val sentCmd   = RegInit(false.B)
   val prevState = RegNext(state)
   when(prevState =/= state) { sentCmd := false.B }
+  io.stateOut  := state
 
   // Request acceptance
   io.req.ready := (state === sIdle) && !requestActive
@@ -170,7 +172,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
       }
       when(io.cmdOut.fire) { sentCmd := true.B }
 
-      printf("[Controller] In pre-charge %d %d\n", sentCmd, io.phyResp.fire)
+      // printf("[Controller] In pre-charge %d %d\n", sentCmd, io.phyResp.fire)
       when(sentCmd && (io.phyResp.fire)) {
         printf("[Controller] In pre-charge, now moving to DONE\n")
         lastPrecharge := cycleCounter
@@ -206,8 +208,8 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   }
 
   when(state =/= sIdle) {
-      printf("State %d %d addr=%d wdata=%d mem data = %d\n", state, sDone, reqAddrReg, reqWdataReg, responseDataReg)
-      printf("External Memory Interface: rdy (controller) =%d valid (mem)=%d", io.phyResp.ready, io.phyResp.valid)
+      // printf("State %d %d addr=%d wdata=%d mem data = %d\n", state, sDone, reqAddrReg, reqWdataReg, responseDataReg)
+      // printf("External Memory Interface: rdy (controller) =%d valid (mem)=%d", io.phyResp.ready, io.phyResp.valid)
   }
 
   io.phyResp.ready := true.B

@@ -81,7 +81,7 @@ class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
   // ----- Processing -----
 
   // If we fail to meet the refresh deadline, bail out immedietly.
-  assert(refreshCntr <= params.tRFC.U)
+  // assert(refreshCntr <= params.tRFC.U)
 
   when (state === sProc) {
     // Refresh

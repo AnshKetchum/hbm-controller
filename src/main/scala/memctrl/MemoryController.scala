@@ -17,6 +17,7 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
 
     // Unified physical memory response channel.
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
+    val rankState = Output(Vec(params.numberOfRanks, UInt(3.W)))
   })
 
   // Create unified request and response queues.
@@ -34,6 +35,13 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
   val fsmVec = VecInit(Seq.fill(params.numberOfRanks) {
     Module(new MemoryControllerFSM(bankParams)).io
   })
+
+    // ------------------------------------------------
+  // Hook up the state register from each FSM into io.rankState
+  for ((fsmIo, idx) <- fsmVec.zipWithIndex) {
+    // MemoryControllerFSM should have `state: UInt` already defined as a Register
+    io.rankState(idx) := fsmIo.stateOut
+  }
 
   // Create per-FSM request queues to decouple the unified request queue and the FSM’s readiness.
   val fsmReqQueues = VecInit(Seq.fill(params.numberOfRanks) {
@@ -78,6 +86,10 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
   //-------------------------------------------------------------------------
   for (i <- 0 until params.numberOfRanks) {
     fsmVec(i).req <> fsmReqQueues(i).deq
+    // print just the FSM index when its request is taken
+    when(fsmVec(i).req.fire) {
+      printf("[MultiRankMC] FSM #%d req.fire\n", i.U)
+    }
   }
 
   //-------------------------------------------------------------------------
@@ -103,9 +115,26 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
   //-------------------------------------------------------------------------
   val arbResp = Module(new RRArbiter(new ControllerResponse, params.numberOfRanks))
   for (i <- 0 until params.numberOfRanks) {
+    // wire FSM resp into arbiter
     arbResp.io.in(i) <> fsmVec(i).resp
+    // print whenever this FSM’s resp.fire() to the arbiter
+    when(fsmVec(i).resp.fire) {
+      printf("[MultiRankMC] FSM #%d resp.fire -> arbiter (addr=0x%x)\n",
+             i.U, fsmVec(i).resp.bits.addr)
+    }
   }
-  respQueue.io.enq <> arbResp.io.out
+  
+  // respQueue.io.enq <> arbResp.io.out
+  // connect arbiter output into the respQueue, but also print on each enqueue
+  respQueue.io.enq.valid := arbResp.io.out.valid
+  respQueue.io.enq.bits  := arbResp.io.out.bits
+  arbResp.io.out.ready    := respQueue.io.enq.ready
+
+  // Print when a response is actually enqueued
+  when (respQueue.io.enq.fire) {
+    // Print the rank-group’s response address as a hex value
+    printf("[MultiRankMC] Response enqueued, addr=0x%x\n", respQueue.io.enq.bits.addr)
+  }
 
   io.phyResp.ready := true.B
 }

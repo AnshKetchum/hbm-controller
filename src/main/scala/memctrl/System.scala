@@ -4,9 +4,10 @@ import chisel3._
 import chisel3.util._
 
 /** Updated top-level memory system I/O using the new names. */
-class MemorySystemIO extends Bundle {
+class MemorySystemIO(numberOfRanks: Int) extends Bundle {
   val in  = Flipped(Decoupled(new ControllerRequest))
   val out = Decoupled(new ControllerResponse)
+  val rankState = Output(Vec(numberOfRanks, UInt(3.W)))
 }
 
 
@@ -17,9 +18,9 @@ case class SingleChannelMemoryConfigurationParams(
 )
 
 class SingleChannelSystem(
-  params: SingleChannelMemoryConfigurationParams = SingleChannelMemoryConfigurationParams()
+  params: SingleChannelMemoryConfigurationParams
 ) extends Module {
-  val io = IO(new MemorySystemIO())
+  val io = IO(new MemorySystemIO(params.memConfiguration.numberOfRanks))
 
   val channel = Module(new Channel(params.memConfiguration, params.bankConfiguration))
   val memory_controller = Module(new MultiRankMemoryController(params.memConfiguration, params.bankConfiguration))
@@ -47,4 +48,7 @@ class SingleChannelSystem(
     perfStats.io.out_fire := outputFire
     perfStats.io.out_bits := io.out.bits
   }
+
+  io.rankState := memory_controller.io.rankState
+
 }
