@@ -4,11 +4,19 @@ import chisel3._
 import chisel3.util._
 
 /** Updated top-level memory system I/O using the new names. */
-class MemorySystemIO extends Bundle {
+class MemorySystemIO(numberOfRanks: Int) extends Bundle {
   val in  = Flipped(Decoupled(new ControllerRequest))
   val out = Decoupled(new ControllerResponse)
-}
 
+  // Internals-Monitoring Signals
+  val rankState = Output(Vec(numberOfRanks, UInt(3.W)))
+  val reqQueueCount = Output(UInt(4.W))
+  val respQueueCount = Output(UInt(4.W))
+  val fsmReqQueueCounts = Output(Vec(numberOfRanks, UInt(3.W)))
+
+  // New signal to expose active ranks count
+  val activeRanks = Output(UInt(log2Ceil(numberOfRanks + 1).W))
+}
 
 case class SingleChannelMemoryConfigurationParams(
   memConfiguration: MemoryConfigurationParameters = MemoryConfigurationParameters(),
@@ -17,9 +25,9 @@ case class SingleChannelMemoryConfigurationParams(
 )
 
 class SingleChannelSystem(
-  params: SingleChannelMemoryConfigurationParams = SingleChannelMemoryConfigurationParams()
+  params: SingleChannelMemoryConfigurationParams
 ) extends Module {
-  val io = IO(new MemorySystemIO())
+  val io = IO(new MemorySystemIO(params.memConfiguration.numberOfRanks))
 
   val channel = Module(new Channel(params.memConfiguration, params.bankConfiguration))
   val memory_controller = Module(new MultiRankMemoryController(params.memConfiguration, params.bankConfiguration))
@@ -47,4 +55,17 @@ class SingleChannelSystem(
     perfStats.io.out_fire := outputFire
     perfStats.io.out_bits := io.out.bits
   }
+
+  io.rankState := memory_controller.io.rankState
+
+  // Connect internal queue counts
+  io.reqQueueCount := memory_controller.io.reqQueueCount
+  io.respQueueCount := memory_controller.io.respQueueCount
+  io.fsmReqQueueCounts := memory_controller.io.fsmReqQueueCounts
+
+  // Calculate the number of active ranks
+  val activeRanksCount = memory_controller.io.rankState.count(_ =/= 0.U)
+
+  // Expose the number of active ranks to the top-level I/O
+  io.activeRanks := activeRanksCount
 }

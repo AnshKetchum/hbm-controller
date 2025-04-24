@@ -3,10 +3,10 @@ package memctrl
 
 import chisel3._
 import chisel3.util._
+import chisel3.assert
 
-/** Single HBM2 bank with FSM‑based Decoupled processing **/
-class DRAMBank(params: DRAMBankParameters) extends Module {
-  val io = IO(new PhysicalMemoryIO)
+/** Single HBM2 1T DRAM bank with FSM‑based Decoupled processing **/
+class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
   val cmd  = io.memCmd
   val resp = io.phyResp
 
@@ -55,11 +55,11 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
   when (state === sIdle && cmd.fire && cmd.bits.cs === false.B) {
     pendingCmd := cmd.bits
     state      := sProc
-    printf("\n\n[DRAM] Received a Command %d %d %d %d \n\n",
-           cmd.bits.cs, cmd.bits.ras, cmd.bits.cas, cmd.bits.we)
+    printf("\n\n[DRAM] addr = %d Received a Command %d %d %d %d \n\n",
+           cmd.bits.addr, cmd.bits.cs, cmd.bits.ras, cmd.bits.cas, cmd.bits.we)
   } .elsewhen (resp.fire) {
     // go back to Idle and allow next command
-    printf("[DRAM] Response fired.\n")
+    printf("[DRAM] addr = %d Response fired.\n", resp.bits.addr)
     state := sIdle
   }
 
@@ -79,6 +79,10 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
   val reqCol = pendingCmd.addr(colWidth - 1, 0)
 
   // ----- Processing -----
+
+  // If we fail to meet the refresh deadline, bail out immedietly.
+  // assert(refreshCntr <= params.tRFC.U)
+
   when (state === sProc) {
     // Refresh
     when (!refreshInProg && doRefresh) {
@@ -97,6 +101,8 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
     } .elsewhen (doActivate && !refreshInProg) {
       val oldest = activateTimes(actPtr)
       when (elapsed(oldest, params.tFAW) && elapsed(lastActivate, params.tRRD_L)) {
+        printf("[DRAM] Activate with cc %d data = %d @ addr %d, row %d, col=%d\n", 
+               cycleCounter, pendingCmd.data, pendingCmd.addr, activeRow, reqCol)
         rowActive             := true.B
         activeRow             := reqRow
         lastActivate          := cycleCounter
@@ -143,4 +149,6 @@ class DRAMBank(params: DRAMBankParameters) extends Module {
       }
     }
   }
+
+  io.activeSubMemories := (state === sProc)
 }

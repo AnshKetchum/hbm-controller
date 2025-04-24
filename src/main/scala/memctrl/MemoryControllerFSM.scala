@@ -9,6 +9,8 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
     val resp    = Decoupled(new ControllerResponse)
     val cmdOut  = Decoupled(new PhysicalMemoryCommand)
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
+    val stateOut = Output(UInt(3.W))
+    
   })
 
   // --------------------------------------------------
@@ -41,6 +43,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   val sentCmd   = RegInit(false.B)
   val prevState = RegNext(state)
   when(prevState =/= state) { sentCmd := false.B }
+  io.stateOut  := state
 
   // Request acceptance
   io.req.ready := (state === sIdle) && !requestActive
@@ -107,7 +110,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
         actPtr                := actPtr + 1.U
         sentCmd               := false.B
         state                 := Mux(reqIsRead, sRead, sWrite)
-        printf("\n [Controller] Activation complete. \n")
+        printf("\n [Controller] %d Activation complete. \n", reqAddrReg)
       }
     }
 
@@ -125,15 +128,15 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
       }
 
       when(sentCmd) {
-        printf("Complete read ... %d %d %d %d %d\n", counter, io.phyResp.fire, io.phyResp.bits.addr, issuedAddrReg, io.phyResp.bits.data)
+        printf("[CONTROLLER] %d Complete read ... %d %d %d %d %d\n", reqAddrReg, counter, io.phyResp.fire, io.phyResp.bits.addr, issuedAddrReg, io.phyResp.bits.data)
         when((io.phyResp.fire) && io.phyResp.bits.addr === issuedAddrReg) {
           responseDataReg := io.phyResp.bits.data
-          printf("In READ here, receiving %d ... \n", io.phyResp.bits.data)
+          printf("[CONTROLLER] %d In READ here, receiving %d ... \n", reqAddrReg, io.phyResp.bits.data)
           lastReadEnd     := cycleCounter
           sentCmd         := false.B
           state           := sPrecharge
         } .otherwise {
-          printf("In READ otherwise ... \n")
+          printf("[CONTROLLER] %d In READ otherwise ... \n", reqAddrReg)
           counter := counter - 1.U
         }
       }
@@ -141,7 +144,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
 
     is(sWrite) {
       when(!sentCmd) {
-        printf("[CONTROLLER] Initiating Write\n")
+        printf("[CONTROLLER] %d Initiating Write\n", reqAddrReg)
         cmdReg.cs  := false.B
         cmdReg.ras := true.B
         cmdReg.cas := false.B
@@ -153,7 +156,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
       }
 
       when(sentCmd && (io.phyResp.fire)) {
-        printf("[CONTROLLER] Received Write Ack\n")
+        printf("[CONTROLLER]  %d Received Write Ack\n", reqAddrReg)
         sentCmd          := false.B
         state            := sPrecharge
         responseDataReg := io.phyResp.bits.data
@@ -170,7 +173,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
       }
       when(io.cmdOut.fire) { sentCmd := true.B }
 
-      printf("[Controller] In pre-charge %d %d\n", sentCmd, io.phyResp.fire)
+      // printf("[Controller] In pre-charge %d %d\n", sentCmd, io.phyResp.fire)
       when(sentCmd && (io.phyResp.fire)) {
         printf("[Controller] In pre-charge, now moving to DONE\n")
         lastPrecharge := cycleCounter
@@ -206,8 +209,8 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   }
 
   when(state =/= sIdle) {
-      printf("State %d %d addr=%d wdata=%d mem data = %d\n", state, sDone, reqAddrReg, reqWdataReg, responseDataReg)
-      printf("External Memory Interface: rdy (controller) =%d valid (mem)=%d", io.phyResp.ready, io.phyResp.valid)
+      // printf("State %d %d addr=%d wdata=%d mem data = %d\n", state, sDone, reqAddrReg, reqWdataReg, responseDataReg)
+      // printf("External Memory Interface: rdy (controller) =%d valid (mem)=%d", io.phyResp.ready, io.phyResp.valid)
   }
 
   io.phyResp.ready := true.B

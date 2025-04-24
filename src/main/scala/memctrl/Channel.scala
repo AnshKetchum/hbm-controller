@@ -3,39 +3,44 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends Module {
-  val io = IO(new PhysicalMemoryIO)
+class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends PhysicalMemoryModuleBase {
 
   // Address Decoder
   val addrDecoder = Module(new AddressDecoder(params))
   addrDecoder.io.addr := io.memCmd.bits.addr
   val rankIndex = addrDecoder.io.rankIndex
 
-  // Instantiate ranks
+  // Instantiate ranks and per-rank queues
   val ranks = Seq.fill(params.numberOfRanks)(Module(new Rank(params, bankParams)))
 
-  // Wire command to all ranks, only one gets valid
-  for ((rank, i) <- ranks.zipWithIndex) {
-    val isSelected = rankIndex === i.U
-    rank.io.memCmd.bits  := io.memCmd.bits
-    rank.io.memCmd.valid := io.memCmd.valid && isSelected
+  val reqQueues  = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryCommand, 4)))
+  val respQueues = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryResponse, 4)))
+
+  // Dispatch memCmd to the correct per-rank queue
+  for (i <- 0 until params.numberOfRanks) {
+    reqQueues(i).io.enq.valid := io.memCmd.valid && (rankIndex === i.U)
+    reqQueues(i).io.enq.bits  := io.memCmd.bits
   }
 
-  io.memCmd.ready := Mux1H(
-    Seq.tabulate(params.numberOfRanks)(i => (rankIndex === i.U, ranks(i).io.memCmd.ready))
-  )
+  io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
+    case (rdy, i) => Mux(rankIndex === i.U, rdy, false.B)
+  }.reduce(_ || _)
 
-  // Wire response ready to all ranks (only one gets true)
-  for ((rank, i) <- ranks.zipWithIndex) {
-    rank.io.phyResp.ready := io.phyResp.ready && (rankIndex === i.U)
+  // Connect rank <-> queues
+  for (i <- 0 until params.numberOfRanks) {
+    ranks(i).io.memCmd <> reqQueues(i).io.deq
+    respQueues(i).io.enq <> ranks(i).io.phyResp
   }
 
-  // Mux response valid/bits from selected rank
-  val respValidVec = VecInit(ranks.map(_.io.phyResp.valid))
-  val respAddrVec  = VecInit(ranks.map(_.io.phyResp.bits.addr))
-  val respDataVec  = VecInit(ranks.map(_.io.phyResp.bits.data))
+  // Response arbiter
+  val arbResp = Module(new RRArbiter(new PhysicalMemoryResponse, params.numberOfRanks))
+  for (i <- 0 until params.numberOfRanks) {
+    arbResp.io.in(i) <> respQueues(i).io.deq
+  }
 
-  io.phyResp.valid     := respValidVec(rankIndex)
-  io.phyResp.bits.addr := respAddrVec(rankIndex)
-  io.phyResp.bits.data := respDataVec(rankIndex)
+  io.phyResp <> arbResp.io.out
+
+  // Active sub-memories: sum from each rank
+  val activeSubMemoriesVec = VecInit(ranks.map(_.io.activeSubMemories))
+  io.activeSubMemories := activeSubMemoriesVec.reduce(_ +& _)
 }
