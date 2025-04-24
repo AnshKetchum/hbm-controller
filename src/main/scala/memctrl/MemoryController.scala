@@ -3,74 +3,58 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-//----------------------------------------------------------------------
-// Top-Level MultiRank Memory Controller Module
-//----------------------------------------------------------------------
 class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends Module {
   val io = IO(new Bundle {
-    // Unified user interface.
     val in  = Flipped(Decoupled(new ControllerRequest))
     val out = Decoupled(new ControllerResponse)
 
-    // Unified memory command interface.
-    val memCmd = Decoupled(new PhysicalMemoryCommand)
-
-    // Unified physical memory response channel.
+    val memCmd  = Decoupled(new PhysicalMemoryCommand)
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
 
-    val rankState = Output(Vec(params.numberOfRanks, UInt(3.W)))
-    val reqQueueCount = Output(UInt(4.W))
-    val respQueueCount = Output(UInt(4.W))
+    val rankState        = Output(Vec(params.numberOfRanks, UInt(3.W)))
+    val reqQueueCount    = Output(UInt(4.W))
+    val respQueueCount   = Output(UInt(4.W))
     val fsmReqQueueCounts = Output(Vec(params.numberOfRanks, UInt(3.W)))
   })
 
-  // Create unified request and response queues.
+  // Request and response queues
   val reqQueue  = Module(new Queue(new ControllerRequest, entries = 8))
   reqQueue.io.enq <> io.in
 
   val respQueue = Module(new Queue(new ControllerResponse, entries = 8))
   io.out <> respQueue.io.deq
 
-  // Create a unified command queue.
   val cmdQueue  = Module(new Queue(new PhysicalMemoryCommand, entries = 16))
   io.memCmd <> cmdQueue.io.deq
 
-  // Instantiate FSMs for each rank.
+  // FSM instantiation
   val fsmVec = VecInit(Seq.fill(params.numberOfRanks) {
     Module(new MemoryControllerFSM(bankParams)).io
   })
 
-    // ------------------------------------------------
-  // Hook up the state register from each FSM into io.rankState
   for ((fsmIo, idx) <- fsmVec.zipWithIndex) {
-    // MemoryControllerFSM should have `state: UInt` already defined as a Register
     io.rankState(idx) := fsmIo.stateOut
   }
 
-  // Create per-FSM request queues to decouple the unified request queue and the FSM’s readiness.
   val fsmReqQueues = VecInit(Seq.fill(params.numberOfRanks) {
     Module(new Queue(new ControllerRequest, entries = 4)).io
   })
 
-  //-------------------------------------------------------------------------
-  // Address Decoding: Extract Rank Index
-  //-------------------------------------------------------------------------
+  // Address decoding helper
   val rankBits      = log2Ceil(params.numberOfRanks)
   val bankGroupBits = log2Ceil(params.numberOfBankGroups)
   val bankBits      = log2Ceil(params.numberOfBanks)
   val rankShift     = bankBits + bankGroupBits
   def extractRank(addr: UInt): UInt = addr(rankShift + rankBits - 1, rankShift)
 
-  // Demux incoming requests from the unified queue to the per-FSM request queues.
-  // We always dequeue from reqQueue (if valid) and use the address to determine which FSM’s queue
-  // to enqueue the request into. We only block the unified queue when the target per-FSM queue is full.
+  // Demux requests to per-FSM queues
   val enqReadyVec = Wire(Vec(params.numberOfRanks, Bool()))
   for (i <- 0 until params.numberOfRanks) {
-    // Provide default assignments to avoid uninitialized sinks.
     fsmReqQueues(i).enq.valid := false.B
     fsmReqQueues(i).enq.bits  := 0.U.asTypeOf(new ControllerRequest)
     enqReadyVec(i) := false.B
   }
+
   when (reqQueue.io.deq.valid) {
     val targetRank = extractRank(reqQueue.io.deq.bits.addr)
     for (i <- 0 until params.numberOfRanks) {
@@ -82,67 +66,62 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
       }
     }
   }
+
   reqQueue.io.deq.ready := enqReadyVec.reduce(_ || _)
 
-  //-------------------------------------------------------------------------
-  // Connect each FSM’s request input to its dedicated per-FSM request queue.
-  // Each FSM will pull a request when it is free.
-  //-------------------------------------------------------------------------
+  // Connect FSMs to their queues
   for (i <- 0 until params.numberOfRanks) {
     fsmVec(i).req <> fsmReqQueues(i).deq
-    // print just the FSM index when its request is taken
     when(fsmVec(i).req.fire) {
       printf("[MultiRankMC] FSM #%d req.fire\n", i.U)
     }
   }
 
-  //-------------------------------------------------------------------------
-  // Connect each FSM's command output to an arbiter.
-  //-------------------------------------------------------------------------
+  // Arbiter for command output
   val cmdArb = Module(new RRArbiter(new PhysicalMemoryCommand, params.numberOfRanks))
   for (i <- 0 until params.numberOfRanks) {
     cmdArb.io.in(i) <> fsmVec(i).cmdOut
   }
   cmdQueue.io.enq <> cmdArb.io.out
 
-  //-------------------------------------------------------------------------
-  // Broadcast the phyResp signal to all FSMs.
-  //-------------------------------------------------------------------------
-  for (fsm <- fsmVec) {
-    fsm.phyResp.valid := io.phyResp.valid
+  // ----------------------
+  // Address-based response routing
+  // ----------------------
+  val respAddrDecoder = Module(new AddressDecoder(params))
+  respAddrDecoder.io.addr := io.phyResp.bits.addr
+  val targetRankFromResp = respAddrDecoder.io.rankIndex
+
+  for ((fsm, idx) <- fsmVec.zipWithIndex) {
+    val isTargetRank = targetRankFromResp === idx.U
+    fsm.phyResp.valid := io.phyResp.valid && isTargetRank
     fsm.phyResp.bits  := io.phyResp.bits
     fsm.phyResp.ready := true.B
-  }
 
-  //-------------------------------------------------------------------------
-  // Merge responses from FSMs using an arbiter.
-  //-------------------------------------------------------------------------
-  val arbResp = Module(new RRArbiter(new ControllerResponse, params.numberOfRanks))
-  for (i <- 0 until params.numberOfRanks) {
-    // wire FSM resp into arbiter
-    arbResp.io.in(i) <> fsmVec(i).resp
-    // print whenever this FSM’s resp.fire() to the arbiter
-    when(fsmVec(i).resp.fire) {
-      printf("[MultiRankMC] FSM #%d resp.fire -> arbiter (addr=0x%x)\n",
-             i.U, fsmVec(i).resp.bits.addr)
+    when(io.phyResp.valid && isTargetRank && fsm.phyResp.ready) {
+      printf("[MultiRankMC] Response from memory accepted by FSM #%d | addr = 0x%x\n", idx.U, io.phyResp.bits.addr)
     }
   }
 
-  // respQueue.io.enq <> arbResp.io.out
-  // connect arbiter output into the respQueue, but also print on each enqueue
+  io.phyResp.ready := fsmVec(targetRankFromResp).phyResp.ready
+
+  // Response arbiter
+  val arbResp = Module(new RRArbiter(new ControllerResponse, params.numberOfRanks))
+  for (i <- 0 until params.numberOfRanks) {
+    arbResp.io.in(i) <> fsmVec(i).resp
+    when(fsmVec(i).resp.fire) {
+      printf("[MultiRankMC] FSM #%d resp.fire -> arbiter (addr=0x%x)\n", i.U, fsmVec(i).resp.bits.addr)
+    }
+  }
+
   respQueue.io.enq.valid := arbResp.io.out.valid
   respQueue.io.enq.bits  := arbResp.io.out.bits
-  arbResp.io.out.ready    := respQueue.io.enq.ready
+  arbResp.io.out.ready   := respQueue.io.enq.ready
 
-  // Print when a response is actually enqueued
   when (respQueue.io.enq.fire) {
-    // Print the rank-group’s response address as a hex value
     printf("[MultiRankMC] Response enqueued, addr=0x%x\n", respQueue.io.enq.bits.addr)
   }
 
-  io.phyResp.ready := true.B
-
-    // Connect internal queue counts to IO
+  // Queue counts
   io.reqQueueCount := reqQueue.io.count
   io.respQueueCount := respQueue.io.count
   for (i <- 0 until params.numberOfRanks) {

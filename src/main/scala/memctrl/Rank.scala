@@ -1,66 +1,44 @@
-// File: src/main/scala/memctrl/Rank.scala
 package memctrl
 
 import chisel3._
 import chisel3.util._
 
-/** Rank: fans a single PhysicalMemoryCommand to one of M bank‑groups,
-  * then fans out the PhysicalMemoryResponse from that group.
-  */
 class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends PhysicalMemoryModuleBase {
 
-  // 1) Decode the bank‑group index from the incoming address
-  val decoder       = Module(new AddressDecoder(params))
-  decoder.io.addr   := io.memCmd.bits.addr
-  val bgIndex       = decoder.io.bankGroupIndex
+  val decoder     = Module(new AddressDecoder(params))
+  decoder.io.addr := io.memCmd.bits.addr
+  val bgIndex     = decoder.io.bankGroupIndex
 
-  // 2) Instantiate one BankGroup per bank‑group
-  val groups        = Seq.fill(params.numberOfBankGroups)(
-                        Module(new BankGroup(params, bankParams))
-                      )
+  // Instantiate BankGroups and per-bank-group queues
+  val groups      = Seq.fill(params.numberOfBankGroups)(Module(new BankGroup(params, bankParams)))
+  val reqQueues   = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryCommand, 4)))
+  val respQueues  = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryResponse, 4)))
 
-  // 3) Wire the command bits into every group
-  groups.foreach { g =>
-    g.io.memCmd.bits := io.memCmd.bits
+  // Demux command to appropriate request queue
+  for (i <- 0 until params.numberOfBankGroups) {
+    reqQueues(i).io.enq.valid := io.memCmd.valid && (bgIndex === i.U)
+    reqQueues(i).io.enq.bits  := io.memCmd.bits
   }
 
-  // 4) Only the addressed group sees valid=true
-  groups.zipWithIndex.foreach { case (g, i) =>
-    g.io.memCmd.valid := io.memCmd.valid && (bgIndex === i.U)
+  io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
+    case (rdy, i) => Mux(bgIndex === i.U, rdy, false.B)
+  }.reduce(_ || _)
+
+  // Connect queues to bank groups
+  for (i <- 0 until params.numberOfBankGroups) {
+    groups(i).io.memCmd <> reqQueues(i).io.deq
+    respQueues(i).io.enq <> groups(i).io.phyResp
   }
 
-  // 5) memCmd.ready reflects only the addressed group's ready
-  io.memCmd.ready := VecInit(groups.map(_.io.memCmd.ready))(bgIndex)
-
-  // 6) Demux response ready: only the active group sees downstream backpressure
-  groups.zipWithIndex.foreach { case (g, i) =>
-    g.io.phyResp.ready := io.phyResp.ready && (bgIndex === i.U)
+  // Arbiter to choose one response to send out
+  val arbResp = Module(new RRArbiter(new PhysicalMemoryResponse, params.numberOfBankGroups))
+  for (i <- 0 until params.numberOfBankGroups) {
+    arbResp.io.in(i) <> respQueues(i).io.deq
   }
 
-  // 7) Gather all groups’ response signals into Vecs
-  private val respValidVec = VecInit(groups.map(_.io.phyResp.valid))
-  private val respAddrVec  = VecInit(groups.map(_.io.phyResp.bits.addr))
-  private val respDataVec  = VecInit(groups.map(_.io.phyResp.bits.data))
+  io.phyResp <> arbResp.io.out
 
-  // 8) Mux out the response from the addressed group
-  io.phyResp.valid     := respValidVec(bgIndex)
-  io.phyResp.bits.addr := respAddrVec(bgIndex)
-  io.phyResp.bits.data := respDataVec(bgIndex)
-
-  // Track the number of active sub-memories (bank groups)
-  // Use a register for activeSubMemories to avoid combinational loop
-  val activeSubMemoriesReg = RegInit(0.U(log2Ceil(params.numberOfBankGroups + 1).W))
-
-  // Update activeSubMemories in a clocked process
-  when (io.memCmd.valid) {
-    activeSubMemoriesReg := 0.U // Reset active sub-memories count
-    groups.zipWithIndex.foreach { case (g, i) =>
-      when (g.io.activeSubMemories =/= 0.U) {
-        activeSubMemoriesReg := activeSubMemoriesReg + 1.U
-      }
-    }
-  }
-
-  // Propagate the number of active sub-memories
-  io.activeSubMemories := activeSubMemoriesReg
+  // Active sub-memories: sum across all bank groups
+  val activeSubMemoriesVec = VecInit(groups.map(_.io.activeSubMemories))
+  io.activeSubMemories := activeSubMemoriesVec.reduce(_ +& _)
 }

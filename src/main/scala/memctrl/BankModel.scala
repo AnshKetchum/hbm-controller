@@ -55,11 +55,11 @@ class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
   when (state === sIdle && cmd.fire && cmd.bits.cs === false.B) {
     pendingCmd := cmd.bits
     state      := sProc
-    printf("\n\n[DRAM] Received a Command %d %d %d %d \n\n",
-           cmd.bits.cs, cmd.bits.ras, cmd.bits.cas, cmd.bits.we)
+    printf("\n\n[DRAM] addr = %d Received a Command %d %d %d %d \n\n",
+           cmd.bits.addr, cmd.bits.cs, cmd.bits.ras, cmd.bits.cas, cmd.bits.we)
   } .elsewhen (resp.fire) {
     // go back to Idle and allow next command
-    printf("[DRAM] Response fired.\n")
+    printf("[DRAM] addr = %d Response fired.\n", resp.bits.addr)
     state := sIdle
   }
 
