@@ -10,7 +10,6 @@
 #include <unordered_map>
 using namespace std;
 
-const int TIMEOUT_CYCLES = 100000;
 unsigned long long sim_cycle = 0;
 
 struct TraceEntry {
@@ -52,6 +51,22 @@ vector<TraceEntry> load_trace(const string &filename) {
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
+    string trace_filename = "test.trace";
+    unsigned long long max_cycles = 100000;
+
+    // Parse short CLI flags: -t for trace file, -c for cycles
+    for (int i = 1; i < argc; ++i) {
+        string arg = argv[i];
+        if (arg == "-t" && i + 1 < argc) {
+            trace_filename = argv[++i];
+        } else if (arg == "-c" && i + 1 < argc) {
+            max_cycles = stoull(argv[++i]);
+        } else {
+            cerr << "Usage: " << argv[0] << " [-t <trace_file>] [-c <max_cycles>]" << endl;
+            return 1;
+        }
+    }
+
     VSingleChannelSystem* top = new VSingleChannelSystem;
     srand(time(0));
 
@@ -61,20 +76,18 @@ int main(int argc, char** argv) {
 
     top->io_out_ready = 1;
 
-    auto trace = load_trace("test.trace");
+    auto trace = load_trace(trace_filename);
 
     size_t idx = 0;
     deque<TraceEntry> pendingReads;
-    unordered_map<unsigned int, unsigned int> expectedData; // addr → data
+    unordered_map<unsigned int, unsigned int> expectedData;
 
     while (idx < trace.size() || !pendingReads.empty()) {
-        // Check if the simulation has exceeded the timeout
-        if (sim_cycle >= TIMEOUT_CYCLES) {
+        if (sim_cycle >= max_cycles) {
             cout << "ERROR: Simulation timeout after " << sim_cycle << " cycles." << endl;
             break;
         }
 
-        // Feed trace entries if it's their time
         if (idx < trace.size()) {
             auto &e = trace[idx];
             if (sim_cycle >= e.cycle) {
@@ -95,11 +108,10 @@ int main(int argc, char** argv) {
                 top->io_in_valid = 0;
                 tick(top);
                 idx++;
-                continue; // let tick handle response in next cycle
+                continue;
             }
         }
 
-        // Handle output response
         if (top->io_out_valid) {
             unsigned int raddr = top->io_out_bits_addr;
             unsigned int rdata = top->io_out_bits_data;
@@ -119,7 +131,6 @@ int main(int argc, char** argv) {
             }
 
             if (!pendingReads.empty()) {
-                // remove from pending list if it matches
                 auto it = find_if(pendingReads.begin(), pendingReads.end(),
                                   [raddr](const TraceEntry &e) { return e.addr == raddr; });
                 if (it != pendingReads.end()) pendingReads.erase(it);

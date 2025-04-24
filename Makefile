@@ -32,7 +32,6 @@ verilator-random:
 	
 verilator-trace: 
 	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/SingleChannelSystem.sv ./sims/sim_trace.cpp
-	./$(TARGET)
 
 all: verilog verilator-trace
 

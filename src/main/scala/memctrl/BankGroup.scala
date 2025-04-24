@@ -1,65 +1,63 @@
-// File: src/main/scala/memctrl/BankGroup.scala
 package memctrl
 
 import chisel3._
 import chisel3.util._
 
-/** BankGroup: fans a single PhysicalMemoryCommand to one of N banks,
-  * then fans out the PhysicalMemoryResponse from that bank.
-  */
+/** BankGroup: safely routes commands to banks and muxes responses back */
 class BankGroup(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends PhysicalMemoryModuleBase {
 
-  // 1) Decode the bank index from the incoming address
-  val decoder    = Module(new AddressDecoder(params))
+  // === 1. Address decode ===
+  val decoder     = Module(new AddressDecoder(params))
   decoder.io.addr := io.memCmd.bits.addr
-  val bankIndex = decoder.io.bankIndex
+  val decodedBankIndex = decoder.io.bankIndex
 
-  // 2) Instantiate N banks, all sharing the same IO bundle type
+  // === 2. Instantiate banks ===
   val banks = Seq.fill(params.numberOfBanks)(Module(new DRAMBank(bankParams)))
 
-  // 3) Hook up the common fields of MemCmd to every bank
-  banks.foreach { b =>
-    b.io.memCmd.bits := io.memCmd.bits
-  }
+  // === 3. Request Queue for each bank ===
+  val reqQueues = Seq.fill(params.numberOfBanks)(Module(new Queue(new PhysicalMemoryCommand, 4)))
 
-  // 4) Per‐bank .valid: only the addressed bank gets the valid pulse
-  banks.zipWithIndex.foreach { case (b, i) =>
-    b.io.memCmd.valid := io.memCmd.valid && (bankIndex === i.U)
-  }
+  // === 4. Demux command to the appropriate request queue ===
+  for (i <- 0 until params.numberOfBanks) {
+    reqQueues(i).io.enq.valid := io.memCmd.valid && (decodedBankIndex === i.U)
+    reqQueues(i).io.enq.bits  := io.memCmd.bits
 
-  // 5) Collect all banks’ ready signals into a Vec, then index with the UInt
-  private val readyVec = VecInit(banks.map(_.io.memCmd.ready))
-  io.memCmd.ready     := readyVec(bankIndex)
-
-  // 6) Demux response .ready: only the active bank sees your downstream ready
-  banks.zipWithIndex.foreach { case (b, i) =>
-    b.io.phyResp.ready := io.phyResp.ready && (bankIndex === i.U)
-  }
-
-  // 7) Gather all banks’ response valids and bits into Vecs...
-  private val respValidVec = VecInit(banks.map(_.io.phyResp.valid))
-  private val respAddrVec  = VecInit(banks.map(_.io.phyResp.bits.addr))
-  private val respDataVec  = VecInit(banks.map(_.io.phyResp.bits.data))
-
-  // 8) ...and mux them out with the same bankIndex
-  io.phyResp.valid       := respValidVec(bankIndex)
-  io.phyResp.bits.addr   := respAddrVec(bankIndex)
-  io.phyResp.bits.data   := respDataVec(bankIndex)
-
-  // Track the number of active sub-memories (banks)
-  // Use a register for activeSubMemories to avoid combinational loop
-  val activeSubMemoriesReg = RegInit(0.U(log2Ceil(params.numberOfBanks + 1).W))
-
-  // Update activeSubMemories in a clocked process
-  when (io.memCmd.valid) {
-    activeSubMemoriesReg := 0.U // Reset active sub-memories count
-    banks.zipWithIndex.foreach { case (b, i) =>
-      when (b.io.activeSubMemories =/= 0.U) {
-        activeSubMemoriesReg := activeSubMemoriesReg + 1.U
-      }
+    when(reqQueues(i).io.enq.fire) {
+      printf(p"[BankGroup] Request enqueued to bank $i: addr=0x${Hexadecimal(io.memCmd.bits.addr)} data=0x${Hexadecimal(io.memCmd.bits.data)}\n")
     }
   }
 
-  // Propagate the number of active sub-memories
-  io.activeSubMemories := activeSubMemoriesReg
+  // === 5. Ready signal for the memCmd based on bank selection ===
+  io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
+    case (rdy, i) => Mux(decodedBankIndex === i.U, rdy, false.B)
+  }.reduce(_ || _)
+
+  // === 6. Connect queues to banks ===
+  for (i <- 0 until params.numberOfBanks) {
+    banks(i).io.memCmd <> reqQueues(i).io.deq
+  }
+
+  // === 7. Response Queue for each bank ===
+  val respQueues = Seq.fill(params.numberOfBanks)(Module(new Queue(new PhysicalMemoryResponse, 4)))
+
+  // === 8. Connect response queues to bank responses ===
+  for (i <- 0 until params.numberOfBanks) {
+    respQueues(i).io.enq <> banks(i).io.phyResp
+
+    when(respQueues(i).io.enq.fire) {
+      printf(p"[BankGroup] Response enqueued from bank $i: addr=0x${Hexadecimal(banks(i).io.phyResp.bits.addr)} data=0x${Hexadecimal(banks(i).io.phyResp.bits.data)}\n")
+    }
+  }
+
+  // === 9. Arbiter to select one response to send out ===
+  val arbResp = Module(new RRArbiter(new PhysicalMemoryResponse, params.numberOfBanks))
+  for (i <- 0 until params.numberOfBanks) {
+    arbResp.io.in(i) <> respQueues(i).io.deq
+  }
+
+  io.phyResp <> arbResp.io.out
+
+  // === 10. Active sub-memories ===
+  val activeSubMemoriesVec = VecInit(banks.map(_.io.activeSubMemories))
+  io.activeSubMemories := activeSubMemoriesVec.reduce(_ +& _)
 }

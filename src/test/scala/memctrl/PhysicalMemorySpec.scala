@@ -138,18 +138,22 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
           val d1    = "h5555".U
 
           // write d0 at addr0
+          println("Test 1")
           sendReq(rd = false, wr = true,  addr0, d0)
           expectRespCR(rd = false, wr = true,  addr0, d0)
 
           // read back d0
+          println("Test 2")
           sendReq(rd = true,  wr = false, addr0, 0.U)
           expectRespCR(rd = true,  wr = false, addr0, d0)
 
           // write d1 at addr1
+          println("Test 3")
           sendReq(false, true,  addr1, d1)
           expectRespCR(false, true,  addr1, d1)
 
           // read back d1
+          println("Test 4")
           sendReq(true, false, addr1, 0.U)
           expectRespCR(true, false, addr1, d1)
         }

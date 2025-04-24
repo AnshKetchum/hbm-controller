@@ -101,6 +101,8 @@ class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
     } .elsewhen (doActivate && !refreshInProg) {
       val oldest = activateTimes(actPtr)
       when (elapsed(oldest, params.tFAW) && elapsed(lastActivate, params.tRRD_L)) {
+        printf("[DRAM] Activate with cc %d data = %d @ addr %d, row %d, col=%d\n", 
+               cycleCounter, pendingCmd.data, pendingCmd.addr, activeRow, reqCol)
         rowActive             := true.B
         activeRow             := reqRow
         lastActivate          := cycleCounter

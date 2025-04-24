@@ -18,6 +18,10 @@ class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters
   for (i <- 0 until params.numberOfBankGroups) {
     reqQueues(i).io.enq.valid := io.memCmd.valid && (bgIndex === i.U)
     reqQueues(i).io.enq.bits  := io.memCmd.bits
+
+    when(reqQueues(i).io.enq.fire) {
+      printf(p"[Rank] Request enqueued to bankGroup $i: addr=0x${Hexadecimal(io.memCmd.bits.addr)} data=0x${Hexadecimal(io.memCmd.bits.data)}\n")
+    }
   }
 
   io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
@@ -28,6 +32,10 @@ class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters
   for (i <- 0 until params.numberOfBankGroups) {
     groups(i).io.memCmd <> reqQueues(i).io.deq
     respQueues(i).io.enq <> groups(i).io.phyResp
+
+    when(respQueues(i).io.enq.fire) {
+      printf(p"[Rank] Response enqueued from bankGroup $i: addr=0x${Hexadecimal(groups(i).io.phyResp.bits.addr)} data=0x${Hexadecimal(groups(i).io.phyResp.bits.data)}\n")
+    }
   }
 
   // Arbiter to choose one response to send out
