@@ -6,19 +6,20 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <deque>
+#include <unordered_map>
 using namespace std;
 
-const int TIMEOUT_CYCLES = 10000;  // Timeout for waiting on valid response
+const int TIMEOUT_CYCLES = 100000;
 unsigned long long sim_cycle = 0;
 
 struct TraceEntry {
     unsigned int addr;
     bool is_write;
     unsigned long long cycle;
-    unsigned int wdata;  // only valid for writes
+    unsigned int wdata;
 };
 
-// Tick function: one clock cycle
 void tick(VSingleChannelSystem* top) {
     top->clock = 0; top->eval();
     top->clock = 1; top->eval();
@@ -54,58 +55,78 @@ int main(int argc, char** argv) {
     VSingleChannelSystem* top = new VSingleChannelSystem;
     srand(time(0));
 
-    // reset
     top->reset = 1;
     for (int i = 0; i < 5; i++) tick(top);
     top->reset = 0; tick(top);
 
-    // always ready
     top->io_out_ready = 1;
 
-    // load trace
     auto trace = load_trace("test.trace");
 
     size_t idx = 0;
-    while (idx < trace.size()) {
-        auto &e = trace[idx];
-        // advance to target cycle
-        while (sim_cycle < e.cycle) {
-            tick(top);
-        }
+    deque<TraceEntry> pendingReads;
+    unordered_map<unsigned int, unsigned int> expectedData; // addr → data
 
-        // drive signals
-        top->io_in_valid = 1;
-        top->io_in_bits_addr = e.addr;
-        top->io_in_bits_rd_en = !e.is_write;
-        top->io_in_bits_wr_en = e.is_write;
-        if (e.is_write) top->io_in_bits_wdata = e.wdata;
-        tick(top);
-
-        // deassert
-        top->io_in_valid = 0;
-        tick(top);
-
-        // wait for response
-        unsigned long long start = sim_cycle;
-        while (!top->io_out_valid && sim_cycle - start < TIMEOUT_CYCLES) {
-            tick(top);
-        }
-        if (!top->io_out_valid) {
-            cerr << "Timeout at trace index " << idx << " cycle " << sim_cycle << endl;
+    while (idx < trace.size() || !pendingReads.empty()) {
+        // Check if the simulation has exceeded the timeout
+        if (sim_cycle >= TIMEOUT_CYCLES) {
+            cout << "ERROR: Simulation timeout after " << sim_cycle << " cycles." << endl;
             break;
         }
 
-        if (e.is_write) {
-            cout << "WRITE ack @" << sim_cycle << " addr=0x" << hex << e.addr << dec << endl;
-        } else {
-            unsigned int rdata = top->io_out_bits_data;
-            cout << "READ resp @" << sim_cycle << " addr=0x" << hex << e.addr
-                 << " data=0x" << rdata << dec << endl;
-            if (rdata != e.wdata) {
-                cout << "ERROR: mismatch at idx " << idx << endl;
+        // Feed trace entries if it's their time
+        if (idx < trace.size()) {
+            auto &e = trace[idx];
+            if (sim_cycle >= e.cycle) {
+                top->io_in_valid = 1;
+                top->io_in_bits_addr = e.addr;
+                top->io_in_bits_rd_en = !e.is_write;
+                top->io_in_bits_wr_en = e.is_write;
+                if (e.is_write) {
+                    top->io_in_bits_wdata = e.wdata;
+                    expectedData[e.addr] = e.wdata;
+                    cout << "[WRITE ] cycle " << sim_cycle << " addr=0x" << hex << e.addr << dec << endl;
+                } else {
+                    pendingReads.push_back(e);
+                    cout << "[READ  ] issued @" << sim_cycle << " addr=0x" << hex << e.addr << dec << endl;
+                }
+
+                tick(top);
+                top->io_in_valid = 0;
+                tick(top);
+                idx++;
+                continue; // let tick handle response in next cycle
             }
         }
-        idx++;
+
+        // Handle output response
+        if (top->io_out_valid) {
+            unsigned int raddr = top->io_out_bits_addr;
+            unsigned int rdata = top->io_out_bits_data;
+
+            cout << "[RESP  ] cycle " << sim_cycle << " addr=0x" << hex << raddr
+                 << " data=0x" << rdata << dec << endl;
+
+            if (expectedData.count(raddr)) {
+                unsigned int expected = expectedData[raddr];
+                if (rdata != expected) {
+                    cout << "ERROR: Mismatch at addr 0x" << hex << raddr
+                         << ". Expected 0x" << expected << ", got 0x" << rdata << dec << endl;
+                }
+                expectedData.erase(raddr);
+            } else {
+                cout << "WARNING: Unexpected response for addr 0x" << hex << raddr << dec << endl;
+            }
+
+            if (!pendingReads.empty()) {
+                // remove from pending list if it matches
+                auto it = find_if(pendingReads.begin(), pendingReads.end(),
+                                  [raddr](const TraceEntry &e) { return e.addr == raddr; });
+                if (it != pendingReads.end()) pendingReads.erase(it);
+            }
+        }
+
+        tick(top);
     }
 
     top->final();
