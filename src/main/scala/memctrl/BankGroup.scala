@@ -3,61 +3,79 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/** BankGroup: safely routes commands to banks and muxes responses back */
-class BankGroup(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends PhysicalMemoryModuleBase {
+/** BankGroup: routes BankMemoryCommand to banks, tracks and stamps last-column metadata **/
+class BankGroup(
+    params: MemoryConfigurationParameters,
+    bankParams: DRAMBankParameters,
+    localConfig: LocalConfigurationParameters
+) extends PhysicalMemoryModuleBase {
 
-  // === 1. Address decode ===
-  val decoder     = Module(new AddressDecoder(params))
+  val decoder = Module(new AddressDecoder(params))
   decoder.io.addr := io.memCmd.bits.addr
   val decodedBankIndex = decoder.io.bankIndex
 
-  // === 2. Instantiate banks ===
-  val banks = Seq.fill(params.numberOfBanks)(Module(new DRAMBank(bankParams)))
+  // Track metadata: where the last column command completed
+  val lastColBankGroup = RegInit(0.U(32.W))
+  val lastColCycle     = RegInit(0.U(32.W))
 
-  // === 3. Request Queue for each bank ===
-  val reqQueues = Seq.fill(params.numberOfBanks)(Module(new Queue(new PhysicalMemoryCommand, 4)))
-
-  // === 4. Demux command to the appropriate request queue ===
-  for (i <- 0 until params.numberOfBanks) {
-    reqQueues(i).io.enq.valid := io.memCmd.valid && (decodedBankIndex === i.U)
-    reqQueues(i).io.enq.bits  := io.memCmd.bits
-
-    when(reqQueues(i).io.enq.fire) {
-      printf(p"[BankGroup] Request enqueued to bank $i: addr=0x${Hexadecimal(io.memCmd.bits.addr)} data=0x${Hexadecimal(io.memCmd.bits.data)}\n")
-    }
+  // Instantiate banks
+  val banks = Seq.tabulate(params.numberOfBanks) { idx =>
+    val cfg = localConfig.copy(bankIndex = idx)
+    Module(new DRAMBank(bankParams, cfg))
   }
 
-  // === 5. Ready signal for the memCmd based on bank selection ===
-  io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
-    case (rdy, i) => Mux(decodedBankIndex === i.U, rdy, false.B)
+  // Per-bank command queues
+  val reqQs = Seq.fill(params.numberOfBanks)(Module(new Queue(new BankMemoryCommand, 4)))
+
+  for ((q, idx) <- reqQs.zipWithIndex) {
+    q.io.enq.valid := io.memCmd.valid && (decodedBankIndex === idx.U)
+
+    // Build BankMemoryCommand from PhysicalMemoryCommand
+    q.io.enq.bits.addr              := io.memCmd.bits.addr
+    q.io.enq.bits.data              := io.memCmd.bits.data
+    q.io.enq.bits.cs := io.memCmd.bits.cs
+    q.io.enq.bits.ras:= io.memCmd.bits.ras
+    q.io.enq.bits.cas:= io.memCmd.bits.cas
+    q.io.enq.bits.we := io.memCmd.bits.we
+    q.io.enq.bits.lastColBankGroup  := lastColBankGroup
+    q.io.enq.bits.lastColCycle      := lastColCycle
+
+    when(q.io.enq.fire) {
+      printf("[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
+        localConfig.bankGroupIndex.U, clock.asUInt, idx.U,
+        q.io.enq.bits.addr, q.io.enq.bits.lastColBankGroup, q.io.enq.bits.lastColCycle)
+    }
+
+    banks(idx).io.memCmd <> q.io.deq
+  }
+
+  io.memCmd.ready := reqQs.zipWithIndex.map { case (q, i) =>
+    Mux(decodedBankIndex === i.U, q.io.enq.ready, false.B)
   }.reduce(_ || _)
 
-  // === 6. Connect queues to banks ===
-  for (i <- 0 until params.numberOfBanks) {
-    banks(i).io.memCmd <> reqQueues(i).io.deq
-  }
+  // Per-bank response queues
+  val respQs = Seq.fill(params.numberOfBanks)(Module(new Queue(new BankMemoryResponse, 4)))
 
-  // === 7. Response Queue for each bank ===
-  val respQueues = Seq.fill(params.numberOfBanks)(Module(new Queue(new PhysicalMemoryResponse, 4)))
+  for ((bank, q) <- banks.zip(respQs)) {
+    q.io.enq <> bank.io.phyResp
 
-  // === 8. Connect response queues to bank responses ===
-  for (i <- 0 until params.numberOfBanks) {
-    respQueues(i).io.enq <> banks(i).io.phyResp
-
-    when(respQueues(i).io.enq.fire) {
-      printf(p"[BankGroup] Response enqueued from bank $i: addr=0x${Hexadecimal(banks(i).io.phyResp.bits.addr)} data=0x${Hexadecimal(banks(i).io.phyResp.bits.data)}\n")
+    when(q.io.enq.fire) {
+      // Update metadata on completion
+      lastColBankGroup := localConfig.bankGroupIndex.U
+      lastColCycle     := clock.asUInt
+      printf("[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
+        localConfig.bankGroupIndex.U, clock.asUInt, lastColBankGroup, lastColCycle)
     }
   }
 
-  // === 9. Arbiter to select one response to send out ===
-  val arbResp = Module(new RRArbiter(new PhysicalMemoryResponse, params.numberOfBanks))
-  for (i <- 0 until params.numberOfBanks) {
-    arbResp.io.in(i) <> respQueues(i).io.deq
+  // Arbiter for responses
+  val arb = Module(new RRArbiter(new BankMemoryResponse, params.numberOfBanks))
+  for ((q, idx) <- respQs.zipWithIndex) {
+    arb.io.in(idx) <> q.io.deq
   }
 
-  io.phyResp <> arbResp.io.out
+  io.phyResp <> arb.io.out
 
-  // === 10. Active sub-memories ===
-  val activeSubMemoriesVec = VecInit(banks.map(_.io.activeSubMemories))
-  io.activeSubMemories := activeSubMemoriesVec.reduce(_ +& _)
+  // Sum active banks
+  io.activeSubMemories := banks.map(_.io.activeSubMemories).reduce(_ +& _)
 }

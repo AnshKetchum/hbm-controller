@@ -20,12 +20,41 @@ class PhysicalMemoryResponse extends Bundle {
   val data = UInt(32.W)
 }
 
+
 /** Generic Physical Memory I/O: decoupled command in, decoupled response out **/
 class PhysicalMemoryIO extends Bundle {
   /** Input command from controller **/
   val memCmd  = Flipped(Decoupled(new PhysicalMemoryCommand))
   /** Output response back to controller **/
   val phyResp = Decoupled(new PhysicalMemoryResponse)
+  /** Output active sub-memories count **/
+  val activeSubMemories = Output(UInt(32.W)) // Track number of active sub-memories
+}
+
+/** Memory Command interface (to external memory) **/
+class BankMemoryCommand extends Bundle {
+  val addr = UInt(32.W)
+  val data = UInt(32.W)
+  val cs   = Bool()
+  val ras  = Bool()
+  val cas  = Bool()
+  val we   = Bool()
+  val lastColBankGroup = UInt(32.W)
+  val lastColCycle = UInt(32.W)
+}
+
+/** Physical Memory Response interface **/
+class BankMemoryResponse extends Bundle {
+  val addr = UInt(32.W)
+  val data = UInt(32.W)
+}
+
+/** Physical Memory I/O for DRAMBank: decoupled command in, decoupled response out **/
+class PhysicalBankIO extends Bundle {
+  /** Input command from controller **/
+  val memCmd  = Flipped(Decoupled(new BankMemoryCommand))
+  /** Output response back to controller **/
+  val phyResp = Decoupled(new BankMemoryResponse)
   /** Output active sub-memories count **/
   val activeSubMemories = Output(UInt(32.W)) // Track number of active sub-memories
 }
@@ -63,6 +92,7 @@ case class DRAMBankParameters(
   tRTP_S:     Int = 4,
   /** Constant to return as ‘ACK’ on non‑data operations **/
   ack:        Int = 0
+
 ) {
   require(numRows > 0 && numCols > 0, "numRows and numCols must be positive")
   val addressSpaceSize = numRows * numCols
@@ -75,9 +105,23 @@ case class MemoryConfigurationParameters(
   numberOfBanks:      Int = 8
 )
 
+case class LocalConfigurationParameters(
+  channelIndex:      Int,
+  rankIndex:      Int,
+  bankGroupIndex: Int,
+  bankIndex: Int
+)
+
 /**
- * Base class for any module exposing a PhysicalMemoryIO interface
+ * Base class for any non-bank module exposing a PhysicalMemoryIO interface
  */
 abstract class PhysicalMemoryModuleBase extends Module {
   val io = IO(new PhysicalMemoryIO)
+}
+
+/**
+ * Base class for the bank module 
+ */
+abstract class PhysicalBankModuleBase extends Module {
+  val io = IO(new PhysicalBankIO)
 }

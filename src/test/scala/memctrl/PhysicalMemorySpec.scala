@@ -53,6 +53,8 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
           dut.io.phyResp.ready.poke(true.B)
           val base = 0x10.U; val pat = "hABCD".U
           // init read
+
+          println("IN DRAM FLOW SPEC")
           sendCmd(dut, base, 0.U, cs=false, ras=false, cas=true, we=true)
           expectResp(dut, base, 0.U)
           sendCmd(dut, base, 0.U, cs=false, ras=true, cas=false, we=true)
@@ -164,14 +166,23 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
   // ----------------
   // Test Invocation
   // DRAM flow tests
-  dramFlowSpec("Channel",   new Channel(MemoryConfigurationParameters(), DRAMBankParameters()))
-  dramFlowSpec("Rank",      new Rank(MemoryConfigurationParameters(), DRAMBankParameters()))
-  dramFlowSpec("BankGroup", new BankGroup(MemoryConfigurationParameters(), DRAMBankParameters()))
-  dramFlowSpec("DRAMBank",  new DRAMBank(DRAMBankParameters()))
+  val memParams = MemoryConfigurationParameters()
+  val bankParams = DRAMBankParameters()
+  val localConfig = LocalConfigurationParameters(
+    channelIndex = 0,
+    rankIndex = 0,
+    bankGroupIndex = 0, 
+    bankIndex = 0
+  )
+
+
+  println("[PhysicalMemorySpec] In here. ")
+  dramFlowSpec("Channel",   new Channel(memParams, bankParams))
+  dramFlowSpec("Rank",      new Rank(memParams, bankParams, localConfig))
+  dramFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
 
   // Controller integration tests
-  controllerFlowSpec("Channel",   new Channel(MemoryConfigurationParameters(), DRAMBankParameters()))
-  controllerFlowSpec("Rank",      new Rank(MemoryConfigurationParameters(), DRAMBankParameters()))
-  controllerFlowSpec("BankGroup", new BankGroup(MemoryConfigurationParameters(), DRAMBankParameters()))
-  controllerFlowSpec("DRAMBank",  new DRAMBank(DRAMBankParameters()))
+  controllerFlowSpec("Channel",   new Channel(memParams, bankParams))
+  controllerFlowSpec("Rank",      new Rank(memParams, bankParams, localConfig))
+  controllerFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
 }

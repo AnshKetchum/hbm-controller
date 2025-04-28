@@ -3,71 +3,81 @@ package memctrl
 
 import chisel3._
 import chisel3.util._
-import chisel3.assert
 
-/** Single HBM2 1T DRAM bank with FSM‑based Decoupled processing **/
-class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
-  val cmd  = io.memCmd
-  val resp = io.phyResp
+/** Single HBM2 1T DRAM bank with FSM-based Decoupled processing **/
+class DRAMBank(params: DRAMBankParameters, localConfig: LocalConfigurationParameters) extends PhysicalBankModuleBase {
+  // Shorthand for IO
+  val cmd  = io.memCmd    // Decoupled[BankMemoryCommand]
+  val resp = io.phyResp   // Decoupled[BankMemoryResponse]
 
-  // FSM states
+  // This bank’s fixed indices
+  private val bankGroupId = localConfig.bankGroupIndex.U
+  private val bankIndex   = localConfig.bankIndex.U
+
+  // FSM states: Idle or Processing
   val sIdle :: sProc :: Nil = Enum(2)
   val state                = RegInit(sIdle)
 
-  // Latch for the current command
-  val pendingCmd           = Reg(new PhysicalMemoryCommand)
+  // Latch the incoming command
+  val pending = Reg(new BankMemoryCommand)
 
-  // Timing & counters
-  val cycleCounter         = RegInit(0.U(64.W))
-  cycleCounter            := cycleCounter + 1.U
+  // 64-bit cycle counter
+  val cycleCounter = RegInit(0.U(64.W))
+  cycleCounter    := cycleCounter + 1.U
 
-  val lastActivate         = RegInit(0.U(64.W))
-  val lastPrecharge        = RegInit(0.U(64.W))
-  val lastReadEnd          = RegInit(0.U(64.W))
-  val lastWriteEnd         = RegInit(0.U(64.W))
-  val lastRefresh          = RegInit(0.U(64.W))
-  val activateTimes        = Reg(Vec(4, UInt(64.W)))
-  val actPtr               = RegInit(0.U(2.W))
+  // JEDEC timing stamps
+  val lastActivate  = RegInit(0.U(64.W))
+  val lastPrecharge = RegInit(0.U(64.W))
+  val lastReadEnd   = RegInit(0.U(64.W))
+  val lastWriteEnd  = RegInit(0.U(64.W))
+  val lastRefresh   = RegInit(0.U(64.W))
 
-  val refreshInProg        = RegInit(false.B)
-  val refreshCntr          = RegInit(0.U(32.W))
+  // Four-activate window (tFAW) tracking
+  val activateTimes = Reg(Vec(4, UInt(64.W)))
+  val actPtr        = RegInit(0.U(2.W))
 
-  val rowActive            = RegInit(false.B)
-  val activeRow            = RegInit(0.U(log2Ceil(params.numRows).W))
+  // Refresh in progress?
+  val refreshInProg = RegInit(false.B)
+  val refreshCntr   = RegInit(0.U(32.W))
 
-  // Memory array
-  val mem                  = Mem(params.addressSpaceSize, UInt(32.W))
+  // Row-buffer state
+  val rowActive = RegInit(false.B)
+  val activeRow = RegInit(0.U(log2Ceil(params.numRows).W))
 
-  // Address slicing widths
-  val rowWidth             = log2Ceil(params.numRows)
-  val colWidth             = log2Ceil(params.numCols)
+  // Underlying memory array
+  val mem = Mem(params.addressSpaceSize, UInt(32.W))
 
-  // Helpers
-  def elapsed(s: UInt, d: Int): Bool = (cycleCounter - s) >= d.U
+  // Helper: has `delay` cycles elapsed since `start`?
+  private def elapsed(start: UInt, delay: UInt): Bool =
+    (cycleCounter - start) >= delay
 
-  // Default I/O assignments
-  cmd.ready      := (state === sIdle) && !refreshInProg
+  // Default ready/valid
+  cmd.ready      := state === sIdle && !refreshInProg
   resp.valid     := false.B
-  resp.bits.addr := pendingCmd.addr
-  resp.bits.data := params.ackData
+  resp.bits.addr := pending.addr
+  resp.bits.data := pending.data
 
-  // ----- Command acceptance -----
-  when (state === sIdle && cmd.fire && cmd.bits.cs === false.B) {
-    pendingCmd := cmd.bits
-    state      := sProc
-    printf("\n\n[DRAM] addr = %d Received a Command %d %d %d %d \n\n",
-           cmd.bits.addr, cmd.bits.cs, cmd.bits.ras, cmd.bits.cas, cmd.bits.we)
-  } .elsewhen (resp.fire) {
-    // go back to Idle and allow next command
-    printf("[DRAM] addr = %d Response fired.\n", resp.bits.addr)
+  // Accept new command
+  when (state === sIdle && cmd.fire) {
+    pending := cmd.bits
+    state   := sProc
+    printf("[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
+      bankGroupId, bankIndex, cycleCounter,
+      cmd.bits.cs, cmd.bits.ras, cmd.bits.cas, cmd.bits.we,
+      cmd.bits.addr, cmd.bits.data,
+      cmd.bits.lastColBankGroup, cmd.bits.lastColCycle)
+  } .elsewhen (state === sProc && resp.fire) {
+    printf("[Bank %d,%d] Cycle %d: RESP fired addr=0x%x data=0x%x\n",
+      bankGroupId, bankIndex, cycleCounter,
+      resp.bits.addr, resp.bits.data)
     state := sIdle
   }
 
-  // Decode active‑low fields from pendingCmd
-  val cs_p        = !pendingCmd.cs
-  val ras_p       = !pendingCmd.ras
-  val cas_p       = !pendingCmd.cas
-  val we_p        = !pendingCmd.we
+  // Decode command
+  val cs_p  = !pending.cs
+  val ras_p = !pending.ras
+  val cas_p = !pending.cas
+  val we_p  = !pending.we
 
   val doRefresh   = cs_p && ras_p && cas_p && !we_p
   val doActivate  = cs_p && ras_p && !cas_p && !we_p
@@ -75,80 +85,94 @@ class DRAMBank(params: DRAMBankParameters) extends PhysicalMemoryModuleBase {
   val doWrite     = cs_p && !ras_p && cas_p && we_p
   val doPrecharge = cs_p && ras_p && !cas_p && we_p
 
-  val reqRow = pendingCmd.addr(31, 32 - rowWidth)
-  val reqCol = pendingCmd.addr(colWidth - 1, 0)
+  val reqRow = pending.addr(31, 32 - log2Ceil(params.numRows))
+  val reqCol = pending.addr(log2Ceil(params.numCols) - 1, 0)
 
-  // ----- Processing -----
+  // tCCD selection based on previous bank-group from command metadata
+  val neededCCD = Mux(
+    pending.lastColBankGroup === bankGroupId,
+    params.tCCD_L.U,
+    params.tCCD_S.U
+  )
 
-  // If we fail to meet the refresh deadline, bail out immedietly.
-  // assert(refreshCntr <= params.tRFC.U)
-
+  // Main FSM enforcing all timing
   when (state === sProc) {
-    // Refresh
+    // 1) REFRESH command
     when (!refreshInProg && doRefresh) {
       refreshInProg := true.B
       refreshCntr   := params.tRFC.U
+      printf("[Bank %d,%d] Cycle %d: BEGIN REFRESH\n", bankGroupId, bankIndex, cycleCounter)
 
-    // Precharge
+    // 2) PRECHARGE command
     } .elsewhen (doPrecharge && !refreshInProg &&
-                 elapsed(lastActivate, params.tRAS) &&
-                 elapsed(lastPrecharge, params.tRP)) {
+                 elapsed(lastActivate, params.tRAS.U) &&
+                 elapsed(lastPrecharge, params.tRP.U)) {
       rowActive     := false.B
       lastPrecharge := cycleCounter
       resp.valid    := true.B
+      printf("[Bank %d,%d] Cycle %d: PRECHARGE issued\n", bankGroupId, bankIndex, cycleCounter)
 
-    // Activate
+    // 3) ACTIVATE command
     } .elsewhen (doActivate && !refreshInProg) {
       val oldest = activateTimes(actPtr)
-      when (elapsed(oldest, params.tFAW) && elapsed(lastActivate, params.tRRD_L)) {
-        printf("[DRAM] Activate with cc %d data = %d @ addr %d, row %d, col=%d\n", 
-               cycleCounter, pendingCmd.data, pendingCmd.addr, activeRow, reqCol)
+      when (elapsed(oldest, params.tFAW.U) &&
+            elapsed(lastActivate, params.tRRD_L.U)) {
         rowActive             := true.B
         activeRow             := reqRow
         lastActivate          := cycleCounter
         activateTimes(actPtr) := cycleCounter
         actPtr                := actPtr + 1.U
         resp.valid            := true.B
+        printf("[Bank %d,%d] Cycle %d: ACTIVATE row=%d\n", bankGroupId, bankIndex, cycleCounter, reqRow)
       }
 
-    // Read
-    } .elsewhen (doRead && !refreshInProg && rowActive) {
-      when (elapsed(lastActivate, params.tRCDRD) &&
-            elapsed(lastReadEnd, params.tCCD_L) &&
-            elapsed(lastWriteEnd, params.tWTR_L)) {
-        printf("[DRAM] Read with cc %d for active row %d, col %d, data=%d\n",
-               cycleCounter, activeRow, reqCol,
-               mem.read(activeRow * params.numCols.U + reqCol))
-        resp.bits.data := mem.read(activeRow * params.numCols.U + reqCol)
-        lastReadEnd    := cycleCounter + params.CL.U
+    // 4) READ command
+    } .elsewhen (doRead && rowActive && !refreshInProg) {
+      when (
+        elapsed(lastActivate, params.tRCDRD.U)    && // ACT→READ
+        elapsed(pending.lastColCycle, neededCCD)  && // tCCD_S/L
+        elapsed(lastReadEnd, params.tCCD_L.U)     && // read→read gap
+        elapsed(lastWriteEnd, params.tWTR_L.U)    && // write→read turn-around
+        elapsed(lastPrecharge, params.tRP.U)         // no pending precharge
+      ) {
+        val data = mem.read(activeRow * params.numCols.U + reqCol)
+        resp.bits.data := data
         resp.valid     := true.B
+        lastReadEnd    := cycleCounter + params.CL.U
+        printf("[Bank %d,%d] Cycle %d: READ  row=%d col=%d data=0x%x\n",
+          bankGroupId, bankIndex, cycleCounter, activeRow, reqCol, data)
       }
 
-    // Write
-    } .elsewhen (doWrite && !refreshInProg && rowActive) {
-      when (elapsed(lastActivate, params.tRCDWR) &&
-            elapsed(lastWriteEnd, params.tCCD_L)) {
-        printf("[DRAM] Write with cc %d data=%d @ addr %d, row=%d, col=%d\n",
-               cycleCounter, pendingCmd.data, pendingCmd.addr, activeRow, reqCol)
-        mem.write(activeRow * params.numCols.U + reqCol, pendingCmd.data)
-        lastWriteEnd    := cycleCounter + params.CWL.U + params.tWR.U
-        resp.bits.data  := pendingCmd.data
-        resp.valid      := true.B
+    // 5) WRITE command
+    } .elsewhen (doWrite && rowActive && !refreshInProg) {
+      when (
+        elapsed(lastActivate, params.tRCDWR.U)     && // ACT→WRITE
+        elapsed(pending.lastColCycle, neededCCD)  && // tCCD_S/L
+        elapsed(lastWriteEnd, params.tCCD_L.U)    && // write→write gap
+        elapsed(lastPrecharge, params.tRP.U)         // no pending precharge
+      ) {
+        mem.write(activeRow * params.numCols.U + reqCol, pending.data)
+        resp.bits.data := pending.data
+        resp.valid     := true.B
+        lastWriteEnd   := cycleCounter + params.CWL.U + params.tWR.U
+        printf("[Bank %d,%d] Cycle %d: WRITE row=%d col=%d data=0x%x\n",
+          bankGroupId, bankIndex, cycleCounter, activeRow, reqCol, pending.data)
       }
     }
 
-    // Complete refresh
+    // 6) Complete REFRESH
     when (refreshInProg) {
-      printf("[DRAM] Refresh with cc %d\n", cycleCounter)
       refreshCntr := refreshCntr - 1.U
       when (refreshCntr === 1.U) {
         refreshInProg := false.B
         lastRefresh   := cycleCounter
         rowActive     := false.B
         resp.valid    := true.B
+        printf("[Bank %d,%d] Cycle %d: REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
       }
     }
   }
 
-  io.activeSubMemories := (state === sProc)
+  // Active sub-memory count
+  io.activeSubMemories := Mux(state === sProc, 1.U, 0.U)
 }

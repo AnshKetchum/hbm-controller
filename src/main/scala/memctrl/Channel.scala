@@ -3,7 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters) extends PhysicalMemoryModuleBase {
+class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, channelIndex: Int = 0) extends PhysicalMemoryModuleBase {
 
   // Address Decoder
   val addrDecoder = Module(new AddressDecoder(params))
@@ -11,7 +11,15 @@ class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParamet
   val rankIndex = addrDecoder.io.rankIndex
 
   // Instantiate ranks and per-rank queues
-  val ranks = Seq.fill(params.numberOfRanks)(Module(new Rank(params, bankParams)))
+  val ranks = Seq.tabulate(params.numberOfRanks) { i => 
+    val rankConfig = LocalConfigurationParameters(
+      channelIndex = channelIndex,
+      rankIndex = i,
+      bankGroupIndex = 0,
+      bankIndex = 0
+    )
+    Module(new Rank(params, bankParams, rankConfig))
+  }
 
   val reqQueues  = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryCommand, 4)))
   val respQueues = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryResponse, 4)))
