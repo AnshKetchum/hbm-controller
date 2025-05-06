@@ -19,19 +19,23 @@ def convert_dramsim3_json_to_csv(json_path, input_csv, output_csv):
     req_id = 0
 
     for chan, chdat in json_data.items():
-        for latency_str, count in chdat.get('read_latency', {}).items():
-            latency = int(latency_str)
-            for _ in range(count):
-                input_rows.append([req_id, 0, 1, 0, 0])
-                output_rows.append([req_id, 0, 1, 0, latency])
-                req_id += 1
+        print(chan, chdat)
+        if chdat:
+            if chdat.get('read_latency'):
+                for latency_str, count in chdat.get('read_latency', {}).items():
+                    latency = int(latency_str)
+                    for _ in range(count):
+                        input_rows.append([req_id, 0, 1, 0, 0])
+                        output_rows.append([req_id, 0, 1, 0, latency])
+                        req_id += 1
 
-        for latency_str, count in chdat.get('write_latency', {}).items():
-            latency = int(latency_str)
-            for _ in range(count):
-                input_rows.append([req_id, 0, 0, 1, 0])
-                output_rows.append([req_id, 0, 0, 1, latency])
-                req_id += 1
+            if chdat.get('write_latency'):
+                for latency_str, count in chdat.get('write_latency', {}).items():
+                    latency = int(latency_str)
+                    for _ in range(count):
+                        input_rows.append([req_id, 0, 0, 1, 0])
+                        output_rows.append([req_id, 0, 0, 1, latency])
+                        req_id += 1
 
     with open(input_csv, 'w', newline='') as f:
         w = csv.writer(f)
@@ -63,17 +67,24 @@ def run_simulation(sim_exe, trace_path, config_path, out_dir, csv_dir, cycles, e
         ], check=True)
     except subprocess.CalledProcessError:
         print(f"❌ Error while running simulation on {trace_path}")
+        shutil.rmtree(exp_dir, ignore_errors=True)
         return
 
     # Locate and convert the JSON file
     json_path = csv_dir / "dramsim3.json"
     if not json_path.exists():
         print(f"❌ dramsim3.json not found in {csv_dir}")
+        shutil.rmtree(exp_dir, ignore_errors=True)
         return
 
     input_csv = csv_dir / "input_request_stats.csv"
     output_csv = csv_dir / "output_request_stats.csv"
-    convert_dramsim3_json_to_csv(json_path, input_csv, output_csv)
+    try:
+        convert_dramsim3_json_to_csv(json_path, input_csv, output_csv)
+    except Exception as e:
+        print(f"❌ Failed to convert JSON to CSV for {trace_name}: {e}")
+        shutil.rmtree(exp_dir, ignore_errors=True)
+        return
 
     # Save results
     shutil.copy(trace_path, exp_dir / trace_path.name)
