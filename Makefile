@@ -1,2 +1,2 @@
-include evaluate.mk
-include build_simulator.mk
+include Makefrags/evaluate.mk
+include Makefrags/build_simulator.mk
