@@ -35,12 +35,13 @@ def load_latencies(dirpath, prefix='dramsim'):
     return lat_reads, lat_writes
 
 def summarize_and_write(diffs, outpath):
-    """Compute mean & variance of diffs, write CSV with two rows."""
-    mean  = np.mean(diffs)
-    var   = np.var(diffs, ddof=0)
+    """Compute mean, variance, and std dev of diffs, and write to CSV."""
+    mean = np.mean(diffs)
+    var  = np.var(diffs, ddof=0)
+    std  = np.std(diffs, ddof=0)
     df = pd.DataFrame({
-        'metric':   ['mean', 'variance'],
-        'value':    [mean, var]
+        'metric': ['mean', 'variance', 'stddev'],
+        'value':  [mean, var, std]
     })
     df.to_csv(outpath, index=False)
 
