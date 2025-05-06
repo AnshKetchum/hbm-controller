@@ -356,3 +356,6 @@ __pycache__
 exp*
 exp_dramsim
 traces
+dramsim3.json
+dramsim3.txt
+*cmd.trace

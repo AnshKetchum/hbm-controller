@@ -5,8 +5,9 @@ import tempfile
 from parse_trace import convert_memtrace
 
 def compile_c_file(src_path, out_path):
+    compile_flags = ["-lm"]
     try:
-        subprocess.check_call(['gcc', src_path, '-o', out_path])
+        subprocess.check_call(['gcc', src_path, *compile_flags ,'-o', out_path])
         return True
     except subprocess.CalledProcessError:
         print(f"[!] Failed to compile {src_path}")
