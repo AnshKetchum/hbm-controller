@@ -27,5 +27,11 @@ jobs:
           restore-keys: |
             nix-store-${{ runner.os }}-
 
-      - name: Run sbt test in nix develop shell
+      - name: Run sbt tests 
         run: nix develop --command sbt test
+
+      - name: Run Verilog elaboration to ensure it works
+        run: nix develop --command make verilog
+
+      - name: Run Verilator binary construction to ensure it works
+        run: nix develop --command make verilator
