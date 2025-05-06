@@ -351,3 +351,8 @@ obj_dir
 *.pdf
 *.pyc
 __pycache__
+
+# Experiment data
+exp*
+exp_dramsim
+traces
