@@ -1,11 +1,12 @@
-module PerformanceStatisticsInput(
+module SystemQueuePerformanceStatisticsInput(
     input wire clk,
     input wire reset,
     input wire req_fire,
     input wire rd_en,
     input wire wr_en,
     input wire [31:0] addr,
-    input wire [63:0] globalCycle
+    input wire [63:0] globalCycle,
+    input wire [31:0] request_id
 );
     integer file;
     initial begin
@@ -14,14 +15,11 @@ module PerformanceStatisticsInput(
         $display("IN VERILOG INPUT");
     end
 
-    reg [31:0] reqId = 0;
 
     always @(posedge clk) begin
         if (reset) begin
-            reqId <= 0;
         end else if (req_fire) begin
-            $fwrite(file, "%d,%d,%d,%d,%d\n", reqId, addr, rd_en, wr_en, globalCycle);
-            reqId <= reqId + 1;
+            $fwrite(file, "%d,%d,%d,%d,%d\n", request_id, addr, rd_en, wr_en, globalCycle);
         end
     end
 endmodule

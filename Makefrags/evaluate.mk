@@ -11,7 +11,7 @@ TOTAL_SIMULATION_CYCLES := 100000
 
 # DRAMSim3 Configuration
 DRAMSIM_BINARY := /home/nixos/CodingWorkspace/hardware/mem-controller/DRAMsim3/build/dramsim3main
-DRAMSIM_MEMORY_CONFIG := /home/nixos/CodingWorkspace/hardware/mem-controller/DRAMsim3/configs/HBM2_4Gb_x128.ini
+DRAMSIM_MEMORY_CONFIG := HBM2_4Gb_x128.ini
 
 .PHONY: convert-traces evaluate-current evaluate-dramsim3 compare-experiments post-job-cleanup evaluate evaluate-dramsim evaluate-all
 
@@ -25,13 +25,17 @@ convert-traces:
 evaluate-current: convert-traces verilog verilator-trace
 	rm -rf $(EXPERIMENT_DIR)
 	$(PYTHON) scripts/evaluate/evaluate_trace_current.py --sim $(TARGET) --traces $(TRACES_DIR) --outdir $(EXPERIMENT_DIR) --csv_dir . --cycles $(TOTAL_SIMULATION_CYCLES)
-	$(PYTHON) scripts/visualize/visualize_experiments.py $(EXPERIMENT_DIR)
+
+visualize-current:
+	$(PYTHON) scripts/visualize/visualize_experiments.py $(EXPERIMENT_DIR) --num-cycles $(TOTAL_SIMULATION_CYCLES) --prefix current
 
 # Evaluate DRAMSim3 reference
 evaluate-dramsim3: convert-traces
 	rm -rf $(DRAMSIM_EXPERIMENT_DIR)
 	$(PYTHON) scripts/evaluate/evaluate_trace_dramsim3.py --sim $(DRAMSIM_BINARY) --traces $(TRACES_DIR) --outdir $(DRAMSIM_EXPERIMENT_DIR) --csv_dir . --cycles $(TOTAL_SIMULATION_CYCLES) --dramsim-config $(DRAMSIM_MEMORY_CONFIG)
-	$(PYTHON) scripts/visualize/visualize_experiments.py $(DRAMSIM_EXPERIMENT_DIR)
+
+visualize-dramsim3:
+	$(PYTHON) scripts/visualize/visualize_experiments.py $(DRAMSIM_EXPERIMENT_DIR) --num-cycles $(TOTAL_SIMULATION_CYCLES) --prefix dramsim
 
 # Compare Chisel vs DRAMSim3 results
 compare-experiments:
@@ -47,9 +51,9 @@ post-job-cleanup:
 
 # Full pipeline evaluations
 evaluate: evaluate-current
-evaluate-dramsim: evaluate-dramsim3
+evaluate-dramsim: evaluate-dramsim3 visualize-dramsim3
 
-evaluate-all: clean evaluate-current evaluate-dramsim3 compare-experiments post-job-cleanup
+evaluate-all: clean evaluate-current visualize-current evaluate-dramsim3 visualize-dramsim3 compare-experiments post-job-cleanup
 
 # Clean up all outputs
 clean:

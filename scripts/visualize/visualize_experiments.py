@@ -3,9 +3,9 @@ import argparse
 import os
 import json
 import pandas as pd
-from plot_stats import plot_latency_pdf  # Assuming the original script is named 'plot_latency_histograms.py'
+from plot_stats import plot_latency_pdf  # Ensure this supports num_cycles
 
-def process_experiment(experiment_dir, prefix):
+def process_experiment(experiment_dir, prefix, num_cycles):
     # Paths to input and output CSV files in the experiment directory
     in_csv  = os.path.join(experiment_dir, 'input_request_stats.csv')
     out_csv = os.path.join(experiment_dir, 'output_request_stats.csv')
@@ -37,8 +37,8 @@ def process_experiment(experiment_dir, prefix):
                 - writes_in .iloc[:n_writes]['Cycle_in'].to_numpy())
 
     # Plot and save latency PDFs
-    plot_latency_pdf(lat_reads, 'read', os.path.join(experiment_dir, f"{prefix}_histo_read_latency.pdf"))
-    plot_latency_pdf(lat_writes, 'write', os.path.join(experiment_dir, f"{prefix}_histo_write_latency.pdf"))
+    plot_latency_pdf(lat_reads, 'read', os.path.join(experiment_dir, f"{prefix}_histo_read_latency.pdf"), num_cycles = num_cycles)
+    plot_latency_pdf(lat_writes, 'write', os.path.join(experiment_dir, f"{prefix}_histo_write_latency.pdf"), num_cycles = num_cycles)
 
     print(f"→ Latency histograms saved to {experiment_dir}")
 
@@ -51,6 +51,9 @@ def main():
     p.add_argument('--prefix',
                    help="Filename prefix for the PDFs (default: 'dramsim')",
                    default='dramsim')
+    p.add_argument('--num-cycles', type=int,
+                   help="Total number of simulation cycles to normalize histogram",
+                   required=True)
     args = p.parse_args()
 
     # Load the breadcrumb.json file
@@ -63,7 +66,7 @@ def main():
         experiment_dir = os.path.join(args.experiment_directory, experiment)
         if os.path.isdir(experiment_dir):
             print(f"Processing experiment: {experiment_dir}")
-            process_experiment(experiment_dir, args.prefix)
+            process_experiment(experiment_dir, args.prefix, args.num_cycles)
         else:
             print(f"Warning: Experiment directory not found: {experiment_dir}")
 
