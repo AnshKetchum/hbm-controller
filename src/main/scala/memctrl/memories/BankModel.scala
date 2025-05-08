@@ -5,7 +5,7 @@ import chisel3._
 import chisel3.util._
 
 /** Single HBM2 1T DRAM bank with FSM-based Decoupled processing **/
-class DRAMBank(params: DRAMBankParameters, localConfig: LocalConfigurationParameters) extends PhysicalBankModuleBase {
+class DRAMBank(params: DRAMBankParameters, localConfig: LocalConfigurationParameters, trackPerformance: Boolean = false) extends PhysicalBankModuleBase {
   // Shorthand for IO
   val cmd  = io.memCmd    // Decoupled[BankMemoryCommand]
   val resp = io.phyResp   // Decoupled[BankMemoryResponse]
@@ -54,6 +54,7 @@ class DRAMBank(params: DRAMBankParameters, localConfig: LocalConfigurationParame
   // Default ready/valid
   cmd.ready      := state === sIdle && !refreshInProg
   resp.valid     := false.B
+  resp.bits.request_id := pending.request_id
   resp.bits.addr := pending.addr
   resp.bits.data := pending.data
 
@@ -171,6 +172,15 @@ class DRAMBank(params: DRAMBankParameters, localConfig: LocalConfigurationParame
         printf("[Bank %d,%d] Cycle %d: REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
       }
     }
+  }
+
+  if(trackPerformance) {
+    val perfTracker = Module(new BankPerformanceStatistics(localConfig))
+    perfTracker.io.mem_request_fire := io.memCmd.fire
+    perfTracker.io.mem_request_bits := io.memCmd.bits
+
+    perfTracker.io.mem_response_fire := io.phyResp.fire
+    perfTracker.io.mem_response_bits:= io.phyResp.bits
   }
 
   // Active sub-memory count

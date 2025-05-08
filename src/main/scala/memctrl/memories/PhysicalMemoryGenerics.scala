@@ -12,12 +12,14 @@ class PhysicalMemoryCommand extends Bundle {
   val ras  = Bool()
   val cas  = Bool()
   val we   = Bool()
+  val request_id = UInt(32.W)
 }
 
 /** Physical Memory Response interface **/
 class PhysicalMemoryResponse extends Bundle {
   val addr = UInt(32.W)
   val data = UInt(32.W)
+  val request_id = UInt(32.W)
 }
 
 
@@ -39,6 +41,7 @@ class BankMemoryCommand extends Bundle {
   val ras  = Bool()
   val cas  = Bool()
   val we   = Bool()
+  val request_id = UInt(32.W)
   val lastColBankGroup = UInt(32.W)
   val lastColCycle = UInt(32.W)
 }
@@ -47,6 +50,7 @@ class BankMemoryCommand extends Bundle {
 class BankMemoryResponse extends Bundle {
   val addr = UInt(32.W)
   val data = UInt(32.W)
+  val request_id = UInt(32.W)
 }
 
 /** Physical Memory I/O for DRAMBank: decoupled command in, decoupled response out **/
@@ -100,8 +104,8 @@ case class DRAMBankParameters(
 }
 
 case class MemoryConfigurationParameters(
-  numberOfRanks:      Int = 8,
-  numberOfBankGroups: Int = 8,
+  numberOfRanks:      Int = 2,
+  numberOfBankGroups: Int = 2,
   numberOfBanks:      Int = 8
 )
 

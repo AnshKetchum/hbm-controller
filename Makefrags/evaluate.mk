@@ -11,7 +11,7 @@ TOTAL_SIMULATION_CYCLES := 100000
 
 # DRAMSim3 Configuration
 DRAMSIM_BINARY := /home/nixos/CodingWorkspace/hardware/mem-controller/DRAMsim3/build/dramsim3main
-DRAMSIM_MEMORY_CONFIG := /home/nixos/CodingWorkspace/hardware/mem-controller/DRAMsim3/configs/HBM2_4Gb_x128.ini
+DRAMSIM_MEMORY_CONFIG := HBM2_4Gb_x128.ini
 
 .PHONY: convert-traces evaluate-current evaluate-dramsim3 compare-experiments post-job-cleanup evaluate evaluate-dramsim evaluate-all
 

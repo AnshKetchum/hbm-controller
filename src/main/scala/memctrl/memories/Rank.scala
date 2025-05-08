@@ -3,7 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, localConfig: LocalConfigurationParameters) extends PhysicalMemoryModuleBase {
+class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, localConfig: LocalConfigurationParameters, trackPerformance: Boolean = false) extends PhysicalMemoryModuleBase {
 
   val decoder     = Module(new AddressDecoder(params))
   decoder.io.addr := io.memCmd.bits.addr
@@ -12,7 +12,7 @@ class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters
   // Instantiate BankGroups and per-bank-group queues
   val groups = Seq.tabulate(params.numberOfBankGroups) { i =>
     val groupLocalConfig = localConfig.copy(bankGroupIndex = i)
-    Module(new BankGroup(params, bankParams, groupLocalConfig))
+    Module(new BankGroup(params, bankParams, groupLocalConfig, trackPerformance))
   }
 
   val reqQueues   = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryCommand, 4)))

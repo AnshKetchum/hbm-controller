@@ -7,7 +7,8 @@ import chisel3.util._
 class BankGroup(
     params: MemoryConfigurationParameters,
     bankParams: DRAMBankParameters,
-    localConfig: LocalConfigurationParameters
+    localConfig: LocalConfigurationParameters, 
+    trackPerformance: Boolean = false
 ) extends PhysicalMemoryModuleBase {
 
   val decoder = Module(new AddressDecoder(params))
@@ -21,7 +22,7 @@ class BankGroup(
   // Instantiate banks
   val banks = Seq.tabulate(params.numberOfBanks) { idx =>
     val cfg = localConfig.copy(bankIndex = idx)
-    Module(new DRAMBank(bankParams, cfg))
+    Module(new DRAMBank(bankParams, cfg, trackPerformance))
   }
 
   // Per-bank command queues
@@ -37,6 +38,7 @@ class BankGroup(
     q.io.enq.bits.ras:= io.memCmd.bits.ras
     q.io.enq.bits.cas:= io.memCmd.bits.cas
     q.io.enq.bits.we := io.memCmd.bits.we
+    q.io.enq.bits.request_id := io.memCmd.bits.request_id
     q.io.enq.bits.lastColBankGroup  := lastColBankGroup
     q.io.enq.bits.lastColCycle      := lastColCycle
 
