@@ -3,7 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, channelIndex: Int = 0, trackPerformance: Boolean = false) extends PhysicalMemoryModuleBase {
+class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, channelIndex: Int = 0, trackPerformance: Boolean = false, queueDepth: Int = 256) extends PhysicalMemoryModuleBase {
 
   // Address Decoder
   val addrDecoder = Module(new AddressDecoder(params))
@@ -18,11 +18,11 @@ class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParamet
       bankGroupIndex = 0,
       bankIndex = 0
     )
-    Module(new Rank(params, bankParams, rankConfig, trackPerformance))
+    Module(new Rank(params, bankParams, rankConfig, trackPerformance, queueDepth))
   }
 
-  val reqQueues  = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryCommand, 4)))
-  val respQueues = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryResponse, 4)))
+  val reqQueues  = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryCommand, queueDepth)))
+  val respQueues = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryResponse, queueDepth)))
 
   // Dispatch memCmd to the correct per-rank queue
   for (i <- 0 until params.numberOfRanks) {

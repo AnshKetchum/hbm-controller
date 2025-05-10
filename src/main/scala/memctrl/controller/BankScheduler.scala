@@ -33,6 +33,7 @@ class MemoryControllerFSM(
   val lastReadEnd   = RegInit(0.U(64.W))
   val lastWriteEnd  = RegInit(0.U(64.W))
   val lastRefresh   = RegInit(0.U(64.W))
+  val selfRefreshThreshold = 1000.U
   val activateTimes = Reg(Vec(memoryConfig.numberOfBanks, UInt(64.W)))
   val actPtr        = RegInit(0.U(log2Ceil(memoryConfig.numberOfBanks).W))
 
@@ -50,10 +51,11 @@ class MemoryControllerFSM(
 
   // --------------------------------------------------
   // FSM states
-  val sIdle :: sActivate :: sRead :: sWrite :: sPrecharge :: sDone :: sRefresh :: Nil = Enum(7)
+  val sIdle :: sActivate :: sRead :: sWrite :: sPrecharge :: sDone :: sRefresh :: sSrefEnter :: sSref :: sSrefExit :: Nil = Enum(10)
   val state     = RegInit(sIdle)
   val prevState = RegNext(state)
   val counter   = RegInit(0.U(32.W))
+  val idleCounter = RegInit(0.U(32.W))
   val sentCmd   = RegInit(false.B)
   when (prevState =/= state) { sentCmd := false.B }
   io.stateOut := state
@@ -67,24 +69,29 @@ class MemoryControllerFSM(
 
   // unique refresh ID & address fields
   val refreshReqId = Cat(
+    0.U(columnBitsWidth.W),
     localConfiguration.rankIndex.U(rankBitsWidth.W),
     localConfiguration.bankGroupIndex.U(bankGroupBitsWidth.W),
-    localConfiguration.bankIndex.U(bankBitsWidth.W),
-    0.U(columnBitsWidth.W)
+    localConfiguration.bankIndex.U(bankBitsWidth.W)
   ).asUInt
   val refreshAddr = refreshReqId
 
   // --------------------------------------------------
   // Accept incoming request only in Idle
-  io.req.ready := (state === sIdle) && !requestActive
-  when (io.req.fire && state === sIdle) {
-    reqReg        := io.req.bits
-    reqIsRead     := io.req.bits.rd_en
-    reqIsWrite    := io.req.bits.wr_en
-    reqAddrReg    := io.req.bits.addr
-    reqWdataReg   := io.req.bits.wdata
-    reqIDReg      := io.req.bits.request_id
-    requestActive := true.B
+  io.req.ready := (state === sIdle)
+  when(state =/= sSref) {
+    when(io.req.fire && state === sIdle) {
+      reqReg        := io.req.bits
+      reqIsRead     := io.req.bits.rd_en
+      reqIsWrite    := io.req.bits.wr_en
+      reqAddrReg    := io.req.bits.addr
+      reqWdataReg   := io.req.bits.wdata
+      reqIDReg      := io.req.bits.request_id
+      requestActive := true.B
+      idleCounter   := 0.U
+    } .elsewhen(state === sIdle) {
+      idleCounter := idleCounter + 1.U
+    }
   }
 
   // --------------------------------------------------
@@ -121,13 +128,47 @@ class MemoryControllerFSM(
   // FSM logic
   switch(state) {
     is(sIdle) {
-      when(elapsed(lastRefresh, params.tREFI.U)) {
+       when(idleCounter >= selfRefreshThreshold && elapsed(lastRefresh, params.tREFI.U)) {
+        state := sSrefEnter
+      } .elsewhen(elapsed(lastRefresh, params.tREFI.U)) {
         // issue refresh
         reqIDReg   := refreshReqId
         reqAddrReg := refreshAddr
         state      := sRefresh
       } .elsewhen(requestActive) {
         state := sActivate
+      }
+    }
+
+    is(sSrefEnter) {
+      when(!sentCmd) {
+        cmdReg.cs  := false.B; cmdReg.ras := false.B; cmdReg.cas := false.B; cmdReg.we := false.B
+      }
+      when(io.cmdOut.fire) {
+        sentCmd := true.B
+      }
+      when(sentCmd && io.phyResp.fire) {
+        state := sSref
+        sentCmd := false.B
+      }
+    }
+
+    is(sSref) {
+      when(io.req.valid) {
+        state := sSrefExit
+      }
+    }
+
+    is(sSrefExit) {
+      when(!sentCmd) {
+        cmdReg.cs  := false.B; cmdReg.ras := true.B; cmdReg.cas := true.B; cmdReg.we := true.B
+      }
+      when(io.cmdOut.fire) {
+        sentCmd := true.B
+      }
+      when(sentCmd && io.phyResp.fire) {
+        state := sIdle
+        sentCmd := false.B
       }
     }
 
@@ -234,18 +275,16 @@ class MemoryControllerFSM(
     perf.io.mem_response_bits := io.phyResp.bits
   }
 
-  // --------------------------------------------------
+    // --------------------------------------------------
   // Accept phyResp only with matching ID and decoded indices
   val waitingForResp = WireDefault(false.B)
-  switch(state) {
-    is(sActivate)  { waitingForResp := sentCmd }
-    is(sRead)      { waitingForResp := sentCmd }
-    is(sWrite)     { waitingForResp := sentCmd }
-    is(sPrecharge) { waitingForResp := sentCmd }
-    is(sRefresh)   { waitingForResp := sentCmd }
+  when(state =/= sSref) {
+    waitingForResp := issueStates.map(_ === state).reduce(_ || _) && sentCmd
   }
+
+
   io.phyResp.ready := waitingForResp &&
-    (io.phyResp.bits.request_id === reqIDReg) &&
+    (io.phyResp.bits.request_id === Mux(state === sSrefEnter || state === sSrefExit, refreshReqId, reqIDReg)) &&
     (respDec.io.rankIndex      === localConfiguration.rankIndex.U) &&
     (respDec.io.bankGroupIndex === localConfiguration.bankGroupIndex.U) &&
     (respDec.io.bankIndex      === localConfiguration.bankIndex.U)

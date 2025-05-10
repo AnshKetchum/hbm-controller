@@ -20,6 +20,10 @@ def process_experiment(experiment_dir, prefix, num_cycles):
 
     # Merge the data based on RequestID
     merged = pd.merge(df_in, df_out, on='RequestID', suffixes=('_in', '_out'))
+    merged['latency'] = merged['Cycle_out'] - merged['Cycle_in']
+    merged_out = merged[['RequestID', 'Address_in', 'Read_in', 'Write_in', 'Cycle_in', 'Cycle_out', 'latency']]
+    merged_out = merged_out.sort_values('RequestID')  # sort by RequestID
+    merged_out.to_csv(os.path.join(experiment_dir, 'merged_transactions.csv'), index=False)
 
     # Split the reads and writes
     reads_in   = merged[merged['Read_in']  == 1].sort_values('Cycle_in')

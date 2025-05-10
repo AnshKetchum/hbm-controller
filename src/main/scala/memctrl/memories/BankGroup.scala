@@ -8,7 +8,8 @@ class BankGroup(
     params: MemoryConfigurationParameters,
     bankParams: DRAMBankParameters,
     localConfig: LocalConfigurationParameters, 
-    trackPerformance: Boolean = false
+    trackPerformance: Boolean = false,
+    queueDepth: Int = 256
 ) extends PhysicalMemoryModuleBase {
 
   val decoder = Module(new AddressDecoder(params))
@@ -26,7 +27,7 @@ class BankGroup(
   }
 
   // Per-bank command queues
-  val reqQs = Seq.fill(params.numberOfBanks)(Module(new Queue(new BankMemoryCommand, 4)))
+  val reqQs = Seq.fill(params.numberOfBanks)(Module(new Queue(new BankMemoryCommand, queueDepth)))
 
   for ((q, idx) <- reqQs.zipWithIndex) {
     q.io.enq.valid := io.memCmd.valid && (decodedBankIndex === idx.U)
@@ -56,7 +57,7 @@ class BankGroup(
   }.reduce(_ || _)
 
   // Per-bank response queues
-  val respQs = Seq.fill(params.numberOfBanks)(Module(new Queue(new BankMemoryResponse, 4)))
+  val respQs = Seq.fill(params.numberOfBanks)(Module(new Queue(new BankMemoryResponse, queueDepth)))
 
   for ((bank, q) <- banks.zip(respQs)) {
     q.io.enq <> bank.io.phyResp

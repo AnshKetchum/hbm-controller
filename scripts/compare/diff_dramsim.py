@@ -5,26 +5,41 @@ import pandas as pd
 import numpy as np
 
 def load_latencies(dirpath, prefix='dramsim'):
-    """Load and merge input/output CSVs to compute read/write latency arrays."""
+    """Load and merge input/output CSVs to compute read/write latency arrays.
+       Also dumps a merged_transactions.csv to help inspect merge quality.
+    """
     in_csv  = os.path.join(dirpath, 'input_request_stats.csv')
     out_csv = os.path.join(dirpath, 'output_request_stats.csv')
     df_in  = pd.read_csv(in_csv,  skipinitialspace=True).dropna(subset=['Cycle'])
     df_out = pd.read_csv(out_csv, skipinitialspace=True).dropna(subset=['Cycle'])
+
     # ensure numeric
-    df_in['Cycle']  = pd.to_numeric(df_in['Cycle'],  errors='coerce')
-    df_out['Cycle'] = pd.to_numeric(df_out['Cycle'], errors='coerce')
-    df_in  = df_in.dropna(subset=['Cycle'])
-    df_out = df_out.dropna(subset=['Cycle'])
+    df_in['Cycle']       = pd.to_numeric(df_in['Cycle'],       errors='coerce')
+    df_out['Cycle']      = pd.to_numeric(df_out['Cycle'],      errors='coerce')
+    df_in['RequestID']   = pd.to_numeric(df_in['RequestID'],   errors='coerce')
+    df_out['RequestID']  = pd.to_numeric(df_out['RequestID'],  errors='coerce')
+    df_in  = df_in.dropna(subset=['Cycle', 'RequestID'])
+    df_out = df_out.dropna(subset=['Cycle', 'RequestID'])
+
     # merge
     merged = pd.merge(df_in,
                       df_out,
                       on='RequestID',
                       suffixes=('_in', '_out'))
+
+    # compute latency and save for inspection
+    merged['latency'] = merged['Cycle_out'] - merged['Cycle_in']
+    merged_out = merged[['RequestID', 'Address_in', 'Read_in', 'Write_in', 'Cycle_in', 'Cycle_out', 'latency']]
+    merged_out = merged_out.sort_values('RequestID')  # sort by RequestID
+    merged_out.to_csv(os.path.join(dirpath, 'merged_transactions.csv'), index=False)
+
     # split
     reads_in   = merged[merged['Read_in']   == 1].sort_values('Cycle_in')
     reads_out  = merged[merged['Read_out']  == 1].sort_values('Cycle_out')
+
     writes_in  = merged[merged['Write_in']  == 1].sort_values('Cycle_in')
     writes_out = merged[merged['Write_out'] == 1].sort_values('Cycle_out')
+
     # latencies
     n_reads  = min(len(reads_in),  len(reads_out))
     n_writes = min(len(writes_in), len(writes_out))

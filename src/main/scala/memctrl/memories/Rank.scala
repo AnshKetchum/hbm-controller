@@ -3,7 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, localConfig: LocalConfigurationParameters, trackPerformance: Boolean = false) extends PhysicalMemoryModuleBase {
+class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, localConfig: LocalConfigurationParameters, trackPerformance: Boolean = false, queueDepth: Int = 256) extends PhysicalMemoryModuleBase {
 
   val decoder     = Module(new AddressDecoder(params))
   decoder.io.addr := io.memCmd.bits.addr
@@ -15,8 +15,8 @@ class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters
     Module(new BankGroup(params, bankParams, groupLocalConfig, trackPerformance))
   }
 
-  val reqQueues   = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryCommand, 4)))
-  val respQueues  = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryResponse, 4)))
+  val reqQueues   = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryCommand, queueDepth)))
+  val respQueues  = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryResponse, queueDepth)))
 
   // Demux command to appropriate request queue
   for (i <- 0 until params.numberOfBankGroups) {

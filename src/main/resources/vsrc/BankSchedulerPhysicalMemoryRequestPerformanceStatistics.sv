@@ -43,6 +43,12 @@ module BankSchedulerPhysicalMemoryRequestPerformanceStatistics #(
             else if(cs == 0 && ras == 1 && cas == 0 && we == 0) begin 
                 $fwrite(file, "%d,%d,%s,%d\n", request_id, addr, "WRITE", globalCycle);
             end 
+            else if(cs == 0 && ras == 0 && cas == 0 && we == 0) begin 
+                $fwrite(file, "%d,%d,%s,%d\n", request_id, addr, "SELF REFRESH ENTER", globalCycle);
+            end 
+            else if(cs == 0 && ras == 1 && cas == 1 && we == 1) begin 
+                $fwrite(file, "%d,%d,%s,%d\n", request_id, addr, "SELF REFRESH EXIT", globalCycle);
+            end 
         end
     end
 endmodule
