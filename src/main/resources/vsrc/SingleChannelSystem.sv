@@ -24,6 +24,19 @@ endmodule
   `endif // not def ENABLE_INITIAL_REG_
 `endif // not def SYNTHESIS
 
+
+// Include rmemory initializers in init blocks unless synthesis is set
+`ifndef RANDOMIZE
+  `ifdef RANDOMIZE_MEM_INIT
+    `define RANDOMIZE
+  `endif // RANDOMIZE_MEM_INIT
+`endif // not def RANDOMIZE
+`ifndef SYNTHESIS
+  `ifndef ENABLE_INITIAL_MEM_
+    `define ENABLE_INITIAL_MEM_
+  `endif // not def ENABLE_INITIAL_MEM_
+`endif // not def SYNTHESIS
+
 // Standard header to adapt well known macros for register randomization.
 
 // RANDOM may be set to an expression that produces a 32-bit random unsigned value.
@@ -55,6 +68,607 @@ endmodule
     `define INIT_RANDOM_PROLOG_
   `endif // RANDOMIZE
 `endif // not def INIT_RANDOM_PROLOG_
+// VCS coverage exclude_file
+module ram_256x100(	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  input  [7:0]  R0_addr,
+  input         R0_en,
+                R0_clk,
+  output [99:0] R0_data,
+  input  [7:0]  W0_addr,
+  input         W0_en,
+                W0_clk,
+  input  [99:0] W0_data
+);
+
+  reg [99:0] Memory[0:255];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  always @(posedge W0_clk) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    if (W0_en & 1'h1)	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      Memory[W0_addr] <= W0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  end // always @(posedge)
+  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    reg [127:0] _RANDOM_MEM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        for (logic [8:0] i = 9'h0; i < 9'h100; i += 9'h1) begin
+          for (logic [7:0] j = 8'h0; j < 8'h80; j += 8'h20) begin
+            _RANDOM_MEM[j +: 32] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+          end
+          Memory[i[7:0]] = _RANDOM_MEM[99:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        end
+      `endif // RANDOMIZE_MEM_INIT
+    end // initial
+  `endif // ENABLE_INITIAL_MEM_
+  assign R0_data = R0_en ? Memory[R0_addr] : 100'bx;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+endmodule
+
+module Queue256_PhysicalMemoryCommand(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+  input         clock,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+                reset,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+  output        io_enq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input         io_enq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_enq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input         io_enq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_enq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_enq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_enq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input  [31:0] io_enq_bits_request_id,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  input         io_deq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output        io_deq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output [31:0] io_deq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_deq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output        io_deq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_deq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_deq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+                io_deq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output [31:0] io_deq_bits_request_id	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+);
+
+  wire [99:0] _ram_ext_R0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  reg  [7:0]  enq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg  [7:0]  deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg         maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
+  wire        ptr_match = enq_ptr_value == deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:260:33]
+  wire        empty = ptr_match & ~maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :261:{25,28}]
+  wire        full = ptr_match & maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :262:24]
+  wire        do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :262:24, :286:19]
+  wire        do_deq = io_deq_ready & ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :261:25, :285:19]
+  always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    if (reset) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      enq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      deq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      maybe_full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
+    end
+    else begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        enq_ptr_value <= enq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (do_deq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        deq_ptr_value <= deq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (~(do_enq == do_deq))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
+        maybe_full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
+    end
+  end // always @(posedge)
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    `endif // FIRRTL_BEFORE_INITIAL
+    logic [31:0] _RANDOM[0:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `endif // INIT_RANDOM_PROLOG_
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        _RANDOM[/*Zero width*/ 1'b0] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        enq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][7:0];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        deq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][15:8];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        maybe_full = _RANDOM[/*Zero width*/ 1'b0][16];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
+      `endif // RANDOMIZE_REG_INIT
+    end // initial
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    `endif // FIRRTL_AFTER_INITIAL
+  `endif // ENABLE_INITIAL_REG_
+  ram_256x100 ram_ext (	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    .R0_addr (deq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .R0_en   (1'h1),
+    .R0_clk  (clock),
+    .R0_data (_ram_ext_R0_data),
+    .W0_addr (enq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .W0_en   (do_enq),	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+    .W0_clk  (clock),
+    .W0_data
+      ({io_enq_bits_addr,
+        io_enq_bits_data,
+        io_enq_bits_cs,
+        io_enq_bits_ras,
+        io_enq_bits_cas,
+        io_enq_bits_we,
+        io_enq_bits_request_id})	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  );	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :286:19]
+  assign io_deq_valid = ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :261:25, :285:19]
+  assign io_deq_bits_addr = _ram_ext_R0_data[99:68];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_data = _ram_ext_R0_data[67:36];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_cs = _ram_ext_R0_data[35];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_ras = _ram_ext_R0_data[34];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_cas = _ram_ext_R0_data[33];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_we = _ram_ext_R0_data[32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_request_id = _ram_ext_R0_data[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+endmodule
+
+module MultiRankCmdQueue(	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:7:7]
+  input         clock,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:7:7]
+                reset,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:7:7]
+  output        io_enq_ready,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  input         io_enq_valid,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_enq_bits_data,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  input         io_enq_bits_cs,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_enq_bits_ras,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_enq_bits_cas,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_enq_bits_we,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  input  [31:0] io_enq_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  input         io_deq_0_ready,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output        io_deq_0_valid,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output [31:0] io_deq_0_bits_addr,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_0_bits_data,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output        io_deq_0_bits_cs,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_0_bits_ras,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_0_bits_cas,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_0_bits_we,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output [31:0] io_deq_0_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  input         io_deq_1_ready,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output        io_deq_1_valid,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output [31:0] io_deq_1_bits_addr,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_1_bits_data,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output        io_deq_1_bits_cs,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_1_bits_ras,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_1_bits_cas,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+                io_deq_1_bits_we,	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+  output [31:0] io_deq_1_bits_request_id	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:12:14]
+);
+
+  wire _queues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:25:11]
+  wire _queues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:25:11]
+  wire _addrDec_io_rankIndex;	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:19:25]
+  AddressDecoder addrDec (	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:19:25]
+    .io_addr           (io_enq_bits_addr),
+    .io_bankIndex      (/* unused */),
+    .io_bankGroupIndex (/* unused */),
+    .io_rankIndex      (_addrDec_io_rankIndex)
+  );	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:19:25]
+  Queue256_PhysicalMemoryCommand queues_0 (	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:25:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_0_io_enq_ready),
+    .io_enq_valid           (~_addrDec_io_rankIndex & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:19:25, :36:21, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_0_ready),
+    .io_deq_valid           (io_deq_0_valid),
+    .io_deq_bits_addr       (io_deq_0_bits_addr),
+    .io_deq_bits_data       (io_deq_0_bits_data),
+    .io_deq_bits_cs         (io_deq_0_bits_cs),
+    .io_deq_bits_ras        (io_deq_0_bits_ras),
+    .io_deq_bits_cas        (io_deq_0_bits_cas),
+    .io_deq_bits_we         (io_deq_0_bits_we),
+    .io_deq_bits_request_id (io_deq_0_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:25:11]
+  Queue256_PhysicalMemoryCommand queues_1 (	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:25:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_1_io_enq_ready),
+    .io_enq_valid           (_addrDec_io_rankIndex & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:19:25, :36:21, :41:27, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_1_ready),
+    .io_deq_valid           (io_deq_1_valid),
+    .io_deq_bits_addr       (io_deq_1_bits_addr),
+    .io_deq_bits_data       (io_deq_1_bits_data),
+    .io_deq_bits_cs         (io_deq_1_bits_cs),
+    .io_deq_bits_ras        (io_deq_1_bits_ras),
+    .io_deq_bits_cas        (io_deq_1_bits_cas),
+    .io_deq_bits_we         (io_deq_1_bits_we),
+    .io_deq_bits_request_id (io_deq_1_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:25:11]
+  assign io_enq_ready =
+    ~_addrDec_io_rankIndex & _queues_0_io_enq_ready | _addrDec_io_rankIndex
+    & _queues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiRankCommandQueue.scala:7:7, :19:25, :25:11, :41:18, :49:45, :50:15]
+endmodule
+
+module MultiBankGroupCmdQueue(	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:7:7]
+  input         clock,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:7:7]
+                reset,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:7:7]
+  output        io_enq_ready,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  input         io_enq_valid,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_enq_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  input         io_enq_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_enq_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_enq_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_enq_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  input  [31:0] io_enq_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  input         io_deq_0_ready,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output        io_deq_0_valid,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output [31:0] io_deq_0_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_0_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output        io_deq_0_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_0_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_0_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_0_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output [31:0] io_deq_0_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  input         io_deq_1_ready,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output        io_deq_1_valid,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output [31:0] io_deq_1_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_1_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output        io_deq_1_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_1_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_1_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+                io_deq_1_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+  output [31:0] io_deq_1_bits_request_id	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:12:14]
+);
+
+  wire _queues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:25:11]
+  wire _queues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:25:11]
+  wire _addrDec_io_bankGroupIndex;	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:19:25]
+  AddressDecoder addrDec (	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:19:25]
+    .io_addr           (io_enq_bits_addr),
+    .io_bankIndex      (/* unused */),
+    .io_bankGroupIndex (_addrDec_io_bankGroupIndex),
+    .io_rankIndex      (/* unused */)
+  );	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:19:25]
+  Queue256_PhysicalMemoryCommand queues_0 (	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:25:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_0_io_enq_ready),
+    .io_enq_valid           (~_addrDec_io_bankGroupIndex & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:19:25, :35:21, :40:{16,25}, :41:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_0_ready),
+    .io_deq_valid           (io_deq_0_valid),
+    .io_deq_bits_addr       (io_deq_0_bits_addr),
+    .io_deq_bits_data       (io_deq_0_bits_data),
+    .io_deq_bits_cs         (io_deq_0_bits_cs),
+    .io_deq_bits_ras        (io_deq_0_bits_ras),
+    .io_deq_bits_cas        (io_deq_0_bits_cas),
+    .io_deq_bits_we         (io_deq_0_bits_we),
+    .io_deq_bits_request_id (io_deq_0_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:25:11]
+  Queue256_PhysicalMemoryCommand queues_1 (	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:25:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_1_io_enq_ready),
+    .io_enq_valid           (_addrDec_io_bankGroupIndex & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:19:25, :35:21, :40:25, :41:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_1_ready),
+    .io_deq_valid           (io_deq_1_valid),
+    .io_deq_bits_addr       (io_deq_1_bits_addr),
+    .io_deq_bits_data       (io_deq_1_bits_data),
+    .io_deq_bits_cs         (io_deq_1_bits_cs),
+    .io_deq_bits_ras        (io_deq_1_bits_ras),
+    .io_deq_bits_cas        (io_deq_1_bits_cas),
+    .io_deq_bits_we         (io_deq_1_bits_we),
+    .io_deq_bits_request_id (io_deq_1_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:25:11]
+  assign io_enq_ready =
+    ~_addrDec_io_bankGroupIndex & _queues_0_io_enq_ready | _addrDec_io_bankGroupIndex
+    & _queues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankGroupCommandQueue.scala:7:7, :19:25, :25:11, :40:16, :48:43, :49:15]
+endmodule
+
+module MultiBankCmdQueue(	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:10:7]
+  input         clock,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:10:7]
+                reset,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:10:7]
+  output        io_enq_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_enq_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_enq_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_enq_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_enq_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_enq_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_enq_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input  [31:0] io_enq_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_0_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_0_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_0_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_0_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_0_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_0_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_0_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_0_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_0_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_1_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_1_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_1_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_1_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_1_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_1_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_1_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_1_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_1_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_2_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_2_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_2_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_2_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_2_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_2_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_2_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_2_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_2_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_3_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_3_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_3_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_3_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_3_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_3_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_3_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_3_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_3_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_4_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_4_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_4_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_4_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_4_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_4_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_4_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_4_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_4_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_5_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_5_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_5_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_5_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_5_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_5_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_5_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_5_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_5_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_6_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_6_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_6_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_6_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_6_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_6_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_6_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_6_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_6_bits_request_id,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  input         io_deq_7_ready,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_7_valid,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_7_bits_addr,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_7_bits_data,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output        io_deq_7_bits_cs,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_7_bits_ras,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_7_bits_cas,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+                io_deq_7_bits_we,	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+  output [31:0] io_deq_7_bits_request_id	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:15:14]
+);
+
+  wire       _queues_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire       _queues_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire       _queues_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire       _queues_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire       _queues_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire       _queues_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire       _queues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire       _queues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  wire [2:0] _addrDec_io_bankIndex;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23]
+  wire       _io_enq_ready_T = _addrDec_io_bankIndex == 3'h0;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :41:18]
+  wire       _io_enq_ready_T_2 = _addrDec_io_bankIndex == 3'h1;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :41:18]
+  wire       _io_enq_ready_T_4 = _addrDec_io_bankIndex == 3'h2;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :41:18]
+  wire       _io_enq_ready_T_6 = _addrDec_io_bankIndex == 3'h3;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :41:18]
+  wire       _io_enq_ready_T_8 = _addrDec_io_bankIndex == 3'h4;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :41:18]
+  wire       _io_enq_ready_T_10 = _addrDec_io_bankIndex == 3'h5;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :41:18]
+  wire       _io_enq_ready_T_12 = _addrDec_io_bankIndex == 3'h6;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :41:18]
+  AddressDecoder addrDec (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23]
+    .io_addr           (io_enq_bits_addr),
+    .io_bankIndex      (_addrDec_io_bankIndex),
+    .io_bankGroupIndex (/* unused */),
+    .io_rankIndex      (/* unused */)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23]
+  Queue256_PhysicalMemoryCommand queues_0 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_0_io_enq_ready),
+    .io_enq_valid           (_io_enq_ready_T & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_0_ready),
+    .io_deq_valid           (io_deq_0_valid),
+    .io_deq_bits_addr       (io_deq_0_bits_addr),
+    .io_deq_bits_data       (io_deq_0_bits_data),
+    .io_deq_bits_cs         (io_deq_0_bits_cs),
+    .io_deq_bits_ras        (io_deq_0_bits_ras),
+    .io_deq_bits_cas        (io_deq_0_bits_cas),
+    .io_deq_bits_we         (io_deq_0_bits_we),
+    .io_deq_bits_request_id (io_deq_0_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  Queue256_PhysicalMemoryCommand queues_1 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_1_io_enq_ready),
+    .io_enq_valid           (_io_enq_ready_T_2 & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_1_ready),
+    .io_deq_valid           (io_deq_1_valid),
+    .io_deq_bits_addr       (io_deq_1_bits_addr),
+    .io_deq_bits_data       (io_deq_1_bits_data),
+    .io_deq_bits_cs         (io_deq_1_bits_cs),
+    .io_deq_bits_ras        (io_deq_1_bits_ras),
+    .io_deq_bits_cas        (io_deq_1_bits_cas),
+    .io_deq_bits_we         (io_deq_1_bits_we),
+    .io_deq_bits_request_id (io_deq_1_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  Queue256_PhysicalMemoryCommand queues_2 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_2_io_enq_ready),
+    .io_enq_valid           (_io_enq_ready_T_4 & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_2_ready),
+    .io_deq_valid           (io_deq_2_valid),
+    .io_deq_bits_addr       (io_deq_2_bits_addr),
+    .io_deq_bits_data       (io_deq_2_bits_data),
+    .io_deq_bits_cs         (io_deq_2_bits_cs),
+    .io_deq_bits_ras        (io_deq_2_bits_ras),
+    .io_deq_bits_cas        (io_deq_2_bits_cas),
+    .io_deq_bits_we         (io_deq_2_bits_we),
+    .io_deq_bits_request_id (io_deq_2_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  Queue256_PhysicalMemoryCommand queues_3 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_3_io_enq_ready),
+    .io_enq_valid           (_io_enq_ready_T_6 & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_3_ready),
+    .io_deq_valid           (io_deq_3_valid),
+    .io_deq_bits_addr       (io_deq_3_bits_addr),
+    .io_deq_bits_data       (io_deq_3_bits_data),
+    .io_deq_bits_cs         (io_deq_3_bits_cs),
+    .io_deq_bits_ras        (io_deq_3_bits_ras),
+    .io_deq_bits_cas        (io_deq_3_bits_cas),
+    .io_deq_bits_we         (io_deq_3_bits_we),
+    .io_deq_bits_request_id (io_deq_3_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  Queue256_PhysicalMemoryCommand queues_4 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_4_io_enq_ready),
+    .io_enq_valid           (_io_enq_ready_T_8 & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_4_ready),
+    .io_deq_valid           (io_deq_4_valid),
+    .io_deq_bits_addr       (io_deq_4_bits_addr),
+    .io_deq_bits_data       (io_deq_4_bits_data),
+    .io_deq_bits_cs         (io_deq_4_bits_cs),
+    .io_deq_bits_ras        (io_deq_4_bits_ras),
+    .io_deq_bits_cas        (io_deq_4_bits_cas),
+    .io_deq_bits_we         (io_deq_4_bits_we),
+    .io_deq_bits_request_id (io_deq_4_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  Queue256_PhysicalMemoryCommand queues_5 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_5_io_enq_ready),
+    .io_enq_valid           (_io_enq_ready_T_10 & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_5_ready),
+    .io_deq_valid           (io_deq_5_valid),
+    .io_deq_bits_addr       (io_deq_5_bits_addr),
+    .io_deq_bits_data       (io_deq_5_bits_data),
+    .io_deq_bits_cs         (io_deq_5_bits_cs),
+    .io_deq_bits_ras        (io_deq_5_bits_ras),
+    .io_deq_bits_cas        (io_deq_5_bits_cas),
+    .io_deq_bits_we         (io_deq_5_bits_we),
+    .io_deq_bits_request_id (io_deq_5_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  Queue256_PhysicalMemoryCommand queues_6 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_6_io_enq_ready),
+    .io_enq_valid           (_io_enq_ready_T_12 & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_6_ready),
+    .io_deq_valid           (io_deq_6_valid),
+    .io_deq_bits_addr       (io_deq_6_bits_addr),
+    .io_deq_bits_data       (io_deq_6_bits_data),
+    .io_deq_bits_cs         (io_deq_6_bits_cs),
+    .io_deq_bits_ras        (io_deq_6_bits_ras),
+    .io_deq_bits_cas        (io_deq_6_bits_cas),
+    .io_deq_bits_we         (io_deq_6_bits_we),
+    .io_deq_bits_request_id (io_deq_6_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  Queue256_PhysicalMemoryCommand queues_7 (	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+    .clock                  (clock),
+    .reset                  (reset),
+    .io_enq_ready           (_queues_7_io_enq_ready),
+    .io_enq_valid           ((&_addrDec_io_bankIndex) & io_enq_valid),	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:22:23, :36:20, :41:{18,27}, :42:22]
+    .io_enq_bits_addr       (io_enq_bits_addr),
+    .io_enq_bits_data       (io_enq_bits_data),
+    .io_enq_bits_cs         (io_enq_bits_cs),
+    .io_enq_bits_ras        (io_enq_bits_ras),
+    .io_enq_bits_cas        (io_enq_bits_cas),
+    .io_enq_bits_we         (io_enq_bits_we),
+    .io_enq_bits_request_id (io_enq_bits_request_id),
+    .io_deq_ready           (io_deq_7_ready),
+    .io_deq_valid           (io_deq_7_valid),
+    .io_deq_bits_addr       (io_deq_7_bits_addr),
+    .io_deq_bits_data       (io_deq_7_bits_data),
+    .io_deq_bits_cs         (io_deq_7_bits_cs),
+    .io_deq_bits_ras        (io_deq_7_bits_ras),
+    .io_deq_bits_cas        (io_deq_7_bits_cas),
+    .io_deq_bits_we         (io_deq_7_bits_we),
+    .io_deq_bits_request_id (io_deq_7_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:28:11]
+  assign io_enq_ready =
+    _io_enq_ready_T & _queues_0_io_enq_ready | _io_enq_ready_T_2 & _queues_1_io_enq_ready
+    | _io_enq_ready_T_4 & _queues_2_io_enq_ready | _io_enq_ready_T_6
+    & _queues_3_io_enq_ready | _io_enq_ready_T_8 & _queues_4_io_enq_ready
+    | _io_enq_ready_T_10 & _queues_5_io_enq_ready | _io_enq_ready_T_12
+    & _queues_6_io_enq_ready | (&_addrDec_io_bankIndex) & _queues_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/MultiBankCommandQueue.scala:10:7, :22:23, :28:11, :41:18, :49:45, :50:14]
+endmodule
+
 module BankPerformanceStatistics(	// @[src/main/scala/memctrl/trackers/BankPerformanceStatistics.scala:78:7]
   input        clock,	// @[src/main/scala/memctrl/trackers/BankPerformanceStatistics.scala:78:7]
                reset,	// @[src/main/scala/memctrl/trackers/BankPerformanceStatistics.scala:78:7]
@@ -131,19 +745,6 @@ module BankPerformanceStatistics(	// @[src/main/scala/memctrl/trackers/BankPerfo
   );	// @[src/main/scala/memctrl/trackers/BankPerformanceStatistics.scala:92:32]
 endmodule
 
-
-// Include rmemory initializers in init blocks unless synthesis is set
-`ifndef RANDOMIZE
-  `ifdef RANDOMIZE_MEM_INIT
-    `define RANDOMIZE
-  `endif // RANDOMIZE_MEM_INIT
-`endif // not def RANDOMIZE
-`ifndef SYNTHESIS
-  `ifndef ENABLE_INITIAL_MEM_
-    `define ENABLE_INITIAL_MEM_
-  `endif // not def ENABLE_INITIAL_MEM_
-`endif // not def SYNTHESIS
-
 // VCS coverage exclude_file
 module mem_2097152x32(	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16]
   input  [20:0] R0_addr,
@@ -206,7 +807,6 @@ module DRAMBank(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -224,7 +824,6 @@ module DRAMBank(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -270,22 +869,19 @@ module DRAMBank(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -312,8 +908,7 @@ module DRAMBank(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 1'h0, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 1'h0, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -451,7 +1046,6 @@ module DRAMBank(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -492,7 +1086,6 @@ module DRAMBank(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -635,7 +1228,6 @@ module DRAMBank_1(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -653,7 +1245,6 @@ module DRAMBank_1(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -699,22 +1290,19 @@ module DRAMBank_1(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -741,8 +1329,7 @@ module DRAMBank_1(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 1'h1, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 1'h1, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -880,7 +1467,6 @@ module DRAMBank_1(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -921,7 +1507,6 @@ module DRAMBank_1(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -1064,7 +1649,6 @@ module DRAMBank_2(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -1082,7 +1666,6 @@ module DRAMBank_2(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -1128,22 +1711,19 @@ module DRAMBank_2(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -1170,8 +1750,7 @@ module DRAMBank_2(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 2'h2, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 2'h2, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -1309,7 +1888,6 @@ module DRAMBank_2(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -1350,7 +1928,6 @@ module DRAMBank_2(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -1493,7 +2070,6 @@ module DRAMBank_3(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -1511,7 +2087,6 @@ module DRAMBank_3(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -1557,22 +2132,19 @@ module DRAMBank_3(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -1599,8 +2171,7 @@ module DRAMBank_3(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 2'h3, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 2'h3, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -1738,7 +2309,6 @@ module DRAMBank_3(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -1779,7 +2349,6 @@ module DRAMBank_3(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -1922,7 +2491,6 @@ module DRAMBank_4(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -1940,7 +2508,6 @@ module DRAMBank_4(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -1986,22 +2553,19 @@ module DRAMBank_4(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -2028,8 +2592,7 @@ module DRAMBank_4(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h4, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h4, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -2167,7 +2730,6 @@ module DRAMBank_4(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -2208,7 +2770,6 @@ module DRAMBank_4(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -2351,7 +2912,6 @@ module DRAMBank_5(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -2369,7 +2929,6 @@ module DRAMBank_5(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -2415,22 +2974,19 @@ module DRAMBank_5(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -2457,8 +3013,7 @@ module DRAMBank_5(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h5, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h5, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -2596,7 +3151,6 @@ module DRAMBank_5(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -2637,7 +3191,6 @@ module DRAMBank_5(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -2780,7 +3333,6 @@ module DRAMBank_6(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -2798,7 +3350,6 @@ module DRAMBank_6(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -2844,22 +3395,19 @@ module DRAMBank_6(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -2886,8 +3434,7 @@ module DRAMBank_6(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h6, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h6, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -3025,7 +3572,6 @@ module DRAMBank_6(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -3066,7 +3612,6 @@ module DRAMBank_6(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -3209,7 +3754,6 @@ module DRAMBank_7(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -3227,7 +3771,6 @@ module DRAMBank_7(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -3273,22 +3816,19 @@ module DRAMBank_7(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -3315,8 +3855,7 @@ module DRAMBank_7(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h7, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h7, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -3454,7 +3993,6 @@ module DRAMBank_7(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -3495,7 +4033,6 @@ module DRAMBank_7(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -3548,143 +4085,6 @@ module DRAMBank_7(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   assign io_phyResp_bits_addr = pending_addr;	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
   assign io_phyResp_bits_data = io_phyResp_bits_data_0;	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :64:18, :95:18]
   assign io_phyResp_bits_request_id = pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-endmodule
-
-// VCS coverage exclude_file
-module ram_256x164(	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  input  [7:0]   R0_addr,
-  input          R0_en,
-                 R0_clk,
-  output [163:0] R0_data,
-  input  [7:0]   W0_addr,
-  input          W0_en,
-                 W0_clk,
-  input  [163:0] W0_data
-);
-
-  reg [163:0] Memory[0:255];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  always @(posedge W0_clk) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    if (W0_en & 1'h1)	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-      Memory[W0_addr] <= W0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  end // always @(posedge)
-  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    reg [191:0] _RANDOM_MEM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-      `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-        for (logic [8:0] i = 9'h0; i < 9'h100; i += 9'h1) begin
-          for (logic [7:0] j = 8'h0; j < 8'hC0; j += 8'h20) begin
-            _RANDOM_MEM[j +: 32] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-          end
-          Memory[i[7:0]] = _RANDOM_MEM[163:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-        end
-      `endif // RANDOMIZE_MEM_INIT
-    end // initial
-  `endif // ENABLE_INITIAL_MEM_
-  assign R0_data = R0_en ? Memory[R0_addr] : 164'bx;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-endmodule
-
-module Queue256_BankMemoryCommand(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-  input         clock,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-                reset,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-  output        io_enq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_enq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_enq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input  [31:0] io_enq_bits_request_id,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_lastColBankGroup,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_lastColCycle,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_deq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_deq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output [31:0] io_deq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_deq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output [31:0] io_deq_bits_request_id,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_lastColBankGroup,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_lastColCycle	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-);
-
-  wire [163:0] _ram_ext_R0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  reg  [7:0]   enq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-  reg  [7:0]   deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-  reg          maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-  wire         ptr_match = enq_ptr_value == deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:260:33]
-  wire         empty = ptr_match & ~maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :261:{25,28}]
-  wire         full = ptr_match & maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :262:24]
-  wire         do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :262:24, :286:19]
-  wire         do_deq = io_deq_ready & ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :261:25, :285:19]
-  always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    if (reset) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      enq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-      deq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-      maybe_full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-    end
-    else begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-        enq_ptr_value <= enq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
-      if (do_deq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-        deq_ptr_value <= deq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
-      if (~(do_enq == do_deq))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
-        maybe_full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
-    end
-  end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        _RANDOM[/*Zero width*/ 1'b0] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        enq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][7:0];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        deq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][15:8];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        maybe_full = _RANDOM[/*Zero width*/ 1'b0][16];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-      `endif // RANDOMIZE_REG_INIT
-    end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `endif // FIRRTL_AFTER_INITIAL
-  `endif // ENABLE_INITIAL_REG_
-  ram_256x164 ram_ext (	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    .R0_addr (deq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-    .R0_en   (1'h1),
-    .R0_clk  (clock),
-    .R0_data (_ram_ext_R0_data),
-    .W0_addr (enq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-    .W0_en   (do_enq),	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-    .W0_clk  (clock),
-    .W0_data
-      ({io_enq_bits_addr,
-        io_enq_bits_data,
-        io_enq_bits_cs,
-        io_enq_bits_ras,
-        io_enq_bits_cas,
-        io_enq_bits_we,
-        io_enq_bits_request_id,
-        io_enq_bits_lastColBankGroup,
-        io_enq_bits_lastColCycle})	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  );	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :286:19]
-  assign io_deq_valid = ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :261:25, :285:19]
-  assign io_deq_bits_addr = _ram_ext_R0_data[163:132];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_data = _ram_ext_R0_data[131:100];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_cs = _ram_ext_R0_data[99];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_ras = _ram_ext_R0_data[98];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_cas = _ram_ext_R0_data[97];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_we = _ram_ext_R0_data[96];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_request_id = _ram_ext_R0_data[95:64];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_lastColBankGroup = _ram_ext_R0_data[63:32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_lastColCycle = _ram_ext_R0_data[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
 endmodule
 
 // VCS coverage exclude_file
@@ -4029,9 +4429,9 @@ module RRArbiter(	// @[src/main/scala/chisel3/util/Arbiter.scala:118:7]
   assign io_out_bits_request_id = casez_tmp_2;	// @[src/main/scala/chisel3/util/Arbiter.scala:55:16, :118:7]
 endmodule
 
-module BankGroup(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+module BankGroup(	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
   output        io_memCmd_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input         io_memCmd_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input  [31:0] io_memCmd_bits_addr,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
@@ -4048,842 +4448,589 @@ module BankGroup(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
                 io_phyResp_bits_request_id	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
 );
 
-  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [2:0]  _decoder_io_bankIndex;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-  wire        _io_memCmd_ready_T = _decoder_io_bankIndex == 3'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_0_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_2 = _decoder_io_bankIndex == 3'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_1_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_4 = _decoder_io_bankIndex == 3'h2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_2_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_6 = _decoder_io_bankIndex == 3'h3;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_3_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_8 = _decoder_io_bankIndex == 3'h4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_4_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_8;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_10 = _decoder_io_bankIndex == 3'h5;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_5_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_10;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_12 = _decoder_io_bankIndex == 3'h6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_6_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_12;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        reqQs_7_io_enq_valid = io_memCmd_valid & (&_decoder_io_bankIndex);	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:{39,60}]
-  wire        _GEN = _respQs_0_io_enq_ready & _banks_0_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_0 = _respQs_1_io_enq_ready & _banks_1_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_1 = _respQs_2_io_enq_ready & _banks_2_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_2 = _respQs_3_io_enq_ready & _banks_3_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_3 = _respQs_4_io_enq_ready & _banks_4_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_4 = _respQs_5_io_enq_ready & _banks_5_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_5 = _respQs_6_io_enq_ready & _banks_6_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_6 = _respQs_7_io_enq_ready & _banks_7_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-      if ((`PRINTF_COND_) & _reqQs_0_io_enq_ready & reqQs_0_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 1'h0, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_1_io_enq_ready & reqQs_1_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 1'h1, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_2_io_enq_ready & reqQs_2_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 2'h2, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_3_io_enq_ready & reqQs_3_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 2'h3, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_4_io_enq_ready & reqQs_4_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h4, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_5_io_enq_ready & reqQs_5_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h5, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_6_io_enq_ready & reqQs_6_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h6, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_7_io_enq_ready & reqQs_7_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h7, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _GEN & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_0 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_1 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_2 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_3 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_4 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_5 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_6 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    if (reset)	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    else if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:65:25, :68:24]
-      lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33, :68:24]
+  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _cmdDemux_io_deq_0_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    if (reset)	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    else if (_respQs_7_io_enq_ready & _banks_7_io_phyResp_valid | _respQs_6_io_enq_ready
+             & _banks_6_io_phyResp_valid | _respQs_5_io_enq_ready
+             & _banks_5_io_phyResp_valid | _respQs_4_io_enq_ready
+             & _banks_4_io_phyResp_valid | _respQs_3_io_enq_ready
+             & _banks_3_io_phyResp_valid | _respQs_2_io_enq_ready
+             & _banks_2_io_phyResp_valid | _respQs_1_io_enq_ready
+             & _banks_1_io_phyResp_valid | _respQs_0_io_enq_ready
+             & _banks_0_io_phyResp_valid)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11, :61:25, :63:24]
+      lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33, :63:24]
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
       `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
         for (logic [1:0] i = 2'h0; i < 2'h2; i += 2'h1) begin
-          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33]
+          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7, :18:33]
       `endif // RANDOMIZE_REG_INIT
     end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  AddressDecoder decoder (	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-    .io_addr           (io_memCmd_bits_addr),
-    .io_bankIndex      (_decoder_io_bankIndex),
-    .io_bankGroupIndex (/* unused */),
-    .io_rankIndex      (/* unused */)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  DRAMBank banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_0_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_0_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_0_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_0_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_0_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_0_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_0_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_0_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_0_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_1 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_1_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_1_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_1_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_1_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_1_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_1_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_1_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_1_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_1_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_2 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_2_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_2_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_2_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_2_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_2_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_2_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_2_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_2_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_2_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_3 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_3_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_3_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_3_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_3_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_3_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_3_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_3_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_3_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_3_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_4 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_4_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_4_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_4_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_4_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_4_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_4_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_4_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_4_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_4_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_5 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_5_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_5_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_5_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_5_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_5_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_5_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_5_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_5_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_5_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_6 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_6_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_6_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_6_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_6_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_6_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_6_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_6_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_6_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_6_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_7 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_7_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_7_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_7_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_7_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_7_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_7_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_7_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_7_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_7_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  Queue256_BankMemoryCommand reqQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_0_io_enq_ready),
-    .io_enq_valid                 (reqQs_0_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_0_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_0_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_0_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_0_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_0_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_0_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_0_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_0_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_1_io_enq_ready),
-    .io_enq_valid                 (reqQs_1_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_1_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_1_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_1_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_1_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_1_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_1_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_1_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_1_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_2_io_enq_ready),
-    .io_enq_valid                 (reqQs_2_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_2_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_2_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_2_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_2_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_2_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_2_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_2_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_2_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_3_io_enq_ready),
-    .io_enq_valid                 (reqQs_3_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_3_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_3_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_3_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_3_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_3_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_3_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_3_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_3_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_4_io_enq_ready),
-    .io_enq_valid                 (reqQs_4_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_4_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_4_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_4_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_4_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_4_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_4_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_4_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_4_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_5_io_enq_ready),
-    .io_enq_valid                 (reqQs_5_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_5_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_5_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_5_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_5_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_5_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_5_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_5_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_5_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_6_io_enq_ready),
-    .io_enq_valid                 (reqQs_6_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_6_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_6_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_6_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_6_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_6_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_6_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_6_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_6_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_7_io_enq_ready),
-    .io_enq_valid                 (reqQs_7_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_7_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_7_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_7_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_7_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_7_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_7_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_7_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_7_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  MultiBankCmdQueue cmdDemux (	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .clock                    (clock),
+    .reset                    (reset),
+    .io_enq_ready             (io_memCmd_ready),
+    .io_enq_valid             (io_memCmd_valid),
+    .io_enq_bits_addr         (io_memCmd_bits_addr),
+    .io_enq_bits_data         (io_memCmd_bits_data),
+    .io_enq_bits_cs           (io_memCmd_bits_cs),
+    .io_enq_bits_ras          (io_memCmd_bits_ras),
+    .io_enq_bits_cas          (io_memCmd_bits_cas),
+    .io_enq_bits_we           (io_memCmd_bits_we),
+    .io_enq_bits_request_id   (io_memCmd_bits_request_id),
+    .io_deq_0_ready           (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_0_valid           (_cmdDemux_io_deq_0_valid),
+    .io_deq_0_bits_addr       (_cmdDemux_io_deq_0_bits_addr),
+    .io_deq_0_bits_data       (_cmdDemux_io_deq_0_bits_data),
+    .io_deq_0_bits_cs         (_cmdDemux_io_deq_0_bits_cs),
+    .io_deq_0_bits_ras        (_cmdDemux_io_deq_0_bits_ras),
+    .io_deq_0_bits_cas        (_cmdDemux_io_deq_0_bits_cas),
+    .io_deq_0_bits_we         (_cmdDemux_io_deq_0_bits_we),
+    .io_deq_0_bits_request_id (_cmdDemux_io_deq_0_bits_request_id),
+    .io_deq_1_ready           (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_1_valid           (_cmdDemux_io_deq_1_valid),
+    .io_deq_1_bits_addr       (_cmdDemux_io_deq_1_bits_addr),
+    .io_deq_1_bits_data       (_cmdDemux_io_deq_1_bits_data),
+    .io_deq_1_bits_cs         (_cmdDemux_io_deq_1_bits_cs),
+    .io_deq_1_bits_ras        (_cmdDemux_io_deq_1_bits_ras),
+    .io_deq_1_bits_cas        (_cmdDemux_io_deq_1_bits_cas),
+    .io_deq_1_bits_we         (_cmdDemux_io_deq_1_bits_we),
+    .io_deq_1_bits_request_id (_cmdDemux_io_deq_1_bits_request_id),
+    .io_deq_2_ready           (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_2_valid           (_cmdDemux_io_deq_2_valid),
+    .io_deq_2_bits_addr       (_cmdDemux_io_deq_2_bits_addr),
+    .io_deq_2_bits_data       (_cmdDemux_io_deq_2_bits_data),
+    .io_deq_2_bits_cs         (_cmdDemux_io_deq_2_bits_cs),
+    .io_deq_2_bits_ras        (_cmdDemux_io_deq_2_bits_ras),
+    .io_deq_2_bits_cas        (_cmdDemux_io_deq_2_bits_cas),
+    .io_deq_2_bits_we         (_cmdDemux_io_deq_2_bits_we),
+    .io_deq_2_bits_request_id (_cmdDemux_io_deq_2_bits_request_id),
+    .io_deq_3_ready           (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_3_valid           (_cmdDemux_io_deq_3_valid),
+    .io_deq_3_bits_addr       (_cmdDemux_io_deq_3_bits_addr),
+    .io_deq_3_bits_data       (_cmdDemux_io_deq_3_bits_data),
+    .io_deq_3_bits_cs         (_cmdDemux_io_deq_3_bits_cs),
+    .io_deq_3_bits_ras        (_cmdDemux_io_deq_3_bits_ras),
+    .io_deq_3_bits_cas        (_cmdDemux_io_deq_3_bits_cas),
+    .io_deq_3_bits_we         (_cmdDemux_io_deq_3_bits_we),
+    .io_deq_3_bits_request_id (_cmdDemux_io_deq_3_bits_request_id),
+    .io_deq_4_ready           (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_4_valid           (_cmdDemux_io_deq_4_valid),
+    .io_deq_4_bits_addr       (_cmdDemux_io_deq_4_bits_addr),
+    .io_deq_4_bits_data       (_cmdDemux_io_deq_4_bits_data),
+    .io_deq_4_bits_cs         (_cmdDemux_io_deq_4_bits_cs),
+    .io_deq_4_bits_ras        (_cmdDemux_io_deq_4_bits_ras),
+    .io_deq_4_bits_cas        (_cmdDemux_io_deq_4_bits_cas),
+    .io_deq_4_bits_we         (_cmdDemux_io_deq_4_bits_we),
+    .io_deq_4_bits_request_id (_cmdDemux_io_deq_4_bits_request_id),
+    .io_deq_5_ready           (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_5_valid           (_cmdDemux_io_deq_5_valid),
+    .io_deq_5_bits_addr       (_cmdDemux_io_deq_5_bits_addr),
+    .io_deq_5_bits_data       (_cmdDemux_io_deq_5_bits_data),
+    .io_deq_5_bits_cs         (_cmdDemux_io_deq_5_bits_cs),
+    .io_deq_5_bits_ras        (_cmdDemux_io_deq_5_bits_ras),
+    .io_deq_5_bits_cas        (_cmdDemux_io_deq_5_bits_cas),
+    .io_deq_5_bits_we         (_cmdDemux_io_deq_5_bits_we),
+    .io_deq_5_bits_request_id (_cmdDemux_io_deq_5_bits_request_id),
+    .io_deq_6_ready           (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_6_valid           (_cmdDemux_io_deq_6_valid),
+    .io_deq_6_bits_addr       (_cmdDemux_io_deq_6_bits_addr),
+    .io_deq_6_bits_data       (_cmdDemux_io_deq_6_bits_data),
+    .io_deq_6_bits_cs         (_cmdDemux_io_deq_6_bits_cs),
+    .io_deq_6_bits_ras        (_cmdDemux_io_deq_6_bits_ras),
+    .io_deq_6_bits_cas        (_cmdDemux_io_deq_6_bits_cas),
+    .io_deq_6_bits_we         (_cmdDemux_io_deq_6_bits_we),
+    .io_deq_6_bits_request_id (_cmdDemux_io_deq_6_bits_request_id),
+    .io_deq_7_ready           (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_7_valid           (_cmdDemux_io_deq_7_valid),
+    .io_deq_7_bits_addr       (_cmdDemux_io_deq_7_bits_addr),
+    .io_deq_7_bits_data       (_cmdDemux_io_deq_7_bits_data),
+    .io_deq_7_bits_cs         (_cmdDemux_io_deq_7_bits_cs),
+    .io_deq_7_bits_ras        (_cmdDemux_io_deq_7_bits_ras),
+    .io_deq_7_bits_cas        (_cmdDemux_io_deq_7_bits_cas),
+    .io_deq_7_bits_we         (_cmdDemux_io_deq_7_bits_we),
+    .io_deq_7_bits_request_id (_cmdDemux_io_deq_7_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  DRAMBank banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_0_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_0_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_0_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_0_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_0_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_0_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_0_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_0_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_0_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_0_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_0_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_0_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_0_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_1 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_1_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_1_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_1_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_1_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_1_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_1_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_1_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_1_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_1_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_1_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_1_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_1_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_1_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_2 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_2_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_2_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_2_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_2_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_2_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_2_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_2_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_2_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_2_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_2_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_2_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_2_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_2_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_3 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_3_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_3_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_3_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_3_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_3_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_3_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_3_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_3_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_3_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_3_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_3_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_3_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_3_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_4 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_4_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_4_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_4_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_4_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_4_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_4_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_4_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_4_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_4_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_4_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_4_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_4_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_4_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_5 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_5_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_5_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_5_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_5_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_5_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_5_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_5_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_5_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_5_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_5_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_5_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_5_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_5_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_6 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_6_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_6_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_6_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_6_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_6_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_6_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_6_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_6_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_6_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_6_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_6_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_6_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_6_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_7 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_7_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_7_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_7_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_7_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_7_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_7_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_7_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_7_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_7_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_7_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_7_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_7_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_7_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_0_io_enq_ready),
-    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_0_io_deq_valid),
     .io_deq_bits_addr       (_respQs_0_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_0_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_1_io_enq_ready),
-    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_1_io_deq_valid),
     .io_deq_bits_addr       (_respQs_1_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_1_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_2_io_enq_ready),
-    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_2_io_deq_valid),
     .io_deq_bits_addr       (_respQs_2_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_2_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_2_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_3_io_enq_ready),
-    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_3_io_deq_valid),
     .io_deq_bits_addr       (_respQs_3_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_3_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_3_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_4_io_enq_ready),
-    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_4_io_deq_valid),
     .io_deq_bits_addr       (_respQs_4_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_4_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_4_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_5_io_enq_ready),
-    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_5_io_deq_valid),
     .io_deq_bits_addr       (_respQs_5_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_5_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_5_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_6_io_enq_ready),
-    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_6_io_deq_valid),
     .io_deq_bits_addr       (_respQs_6_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_6_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_6_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_7_io_enq_ready),
-    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_7_io_deq_valid),
     .io_deq_bits_addr       (_respQs_7_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_7_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_7_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .clock                   (clock),
     .io_in_0_ready           (_arb_io_in_0_ready),
-    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_1_ready           (_arb_io_in_1_ready),
-    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_2_ready           (_arb_io_in_2_ready),
-    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_3_ready           (_arb_io_in_3_ready),
-    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_4_ready           (_arb_io_in_4_ready),
-    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_5_ready           (_arb_io_in_5_ready),
-    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_6_ready           (_arb_io_in_6_ready),
-    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_7_ready           (_arb_io_in_7_ready),
-    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_out_ready            (io_phyResp_ready),
     .io_out_valid            (io_phyResp_valid),
     .io_out_bits_addr        (io_phyResp_bits_addr),
     .io_out_bits_data        (io_phyResp_bits_data),
     .io_out_bits_request_id  (io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  assign io_memCmd_ready =
-    _io_memCmd_ready_T & _reqQs_0_io_enq_ready | _io_memCmd_ready_T_2
-    & _reqQs_1_io_enq_ready | _io_memCmd_ready_T_4 & _reqQs_2_io_enq_ready
-    | _io_memCmd_ready_T_6 & _reqQs_3_io_enq_ready | _io_memCmd_ready_T_8
-    & _reqQs_4_io_enq_ready | _io_memCmd_ready_T_10 & _reqQs_5_io_enq_ready
-    | _io_memCmd_ready_T_12 & _reqQs_6_io_enq_ready | (&_decoder_io_bankIndex)
-    & _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :15:23, :30:52, :33:60, :56:8, :57:14]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
 endmodule
 
 module BankPerformanceStatistics_8(	// @[src/main/scala/memctrl/trackers/BankPerformanceStatistics.scala:78:7]
@@ -8318,9 +8465,9 @@ module DRAMBank_15(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   assign io_phyResp_bits_request_id = pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
 endmodule
 
-module BankGroup_1(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+module BankGroup_1(	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
   output        io_memCmd_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input         io_memCmd_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input  [31:0] io_memCmd_bits_addr,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
@@ -8337,979 +8484,606 @@ module BankGroup_1(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
                 io_phyResp_bits_request_id	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
 );
 
-  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [2:0]  _decoder_io_bankIndex;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  reg  [31:0] lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-  wire        _io_memCmd_ready_T = _decoder_io_bankIndex == 3'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_0_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_2 = _decoder_io_bankIndex == 3'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_1_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_4 = _decoder_io_bankIndex == 3'h2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_2_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_6 = _decoder_io_bankIndex == 3'h3;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_3_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_8 = _decoder_io_bankIndex == 3'h4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_4_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_8;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_10 = _decoder_io_bankIndex == 3'h5;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_5_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_10;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_12 = _decoder_io_bankIndex == 3'h6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_6_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_12;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        reqQs_7_io_enq_valid = io_memCmd_valid & (&_decoder_io_bankIndex);	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:{39,60}]
-  wire        _GEN = _respQs_0_io_enq_ready & _banks_0_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_0 = _respQs_1_io_enq_ready & _banks_1_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_1 = _respQs_2_io_enq_ready & _banks_2_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_2 = _respQs_3_io_enq_ready & _banks_3_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_3 = _respQs_4_io_enq_ready & _banks_4_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_4 = _respQs_5_io_enq_ready & _banks_5_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_5 = _respQs_6_io_enq_ready & _banks_6_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_6 = _respQs_7_io_enq_ready & _banks_7_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-      if ((`PRINTF_COND_) & _reqQs_0_io_enq_ready & reqQs_0_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 1'h0, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_1_io_enq_ready & reqQs_1_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 1'h1, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_2_io_enq_ready & reqQs_2_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 2'h2, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_3_io_enq_ready & reqQs_3_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 2'h3, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_4_io_enq_ready & reqQs_4_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h4, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_5_io_enq_ready & reqQs_5_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h5, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_6_io_enq_ready & reqQs_6_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h6, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_7_io_enq_ready & reqQs_7_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h7, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _GEN & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_0 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_1 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_2 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_3 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_4 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_5 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_6 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    if (reset) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      lastColBankGroup <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
+  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _cmdDemux_io_deq_0_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  reg  [31:0] lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+  wire        _GEN = _respQs_0_io_enq_ready & _banks_0_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_0 = _respQs_1_io_enq_ready & _banks_1_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_1 = _respQs_2_io_enq_ready & _banks_2_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_2 = _respQs_3_io_enq_ready & _banks_3_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_3 = _respQs_4_io_enq_ready & _banks_4_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_4 = _respQs_5_io_enq_ready & _banks_5_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_5 = _respQs_6_io_enq_ready & _banks_6_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_6 = _respQs_7_io_enq_ready & _banks_7_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    if (reset) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      lastColBankGroup <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
     end
-    else begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:20:33, :65:25, :67:24]
-        lastColBankGroup <= 32'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:65:25, :68:24]
-        lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33, :68:24]
+    else begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:17:33, :61:25, :62:24]
+        lastColBankGroup <= 32'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:61:25, :63:24]
+        lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33, :63:24]
     end
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
       `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
         for (logic [1:0] i = 2'h0; i < 2'h2; i += 2'h1) begin
-          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        lastColBankGroup = _RANDOM[1'h0];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33]
-        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33]
+          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        lastColBankGroup = _RANDOM[1'h0];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7, :17:33]
+        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7, :18:33]
       `endif // RANDOMIZE_REG_INIT
     end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  AddressDecoder decoder (	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-    .io_addr           (io_memCmd_bits_addr),
-    .io_bankIndex      (_decoder_io_bankIndex),
-    .io_bankGroupIndex (/* unused */),
-    .io_rankIndex      (/* unused */)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  DRAMBank_8 banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  MultiBankCmdQueue cmdDemux (	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .clock                    (clock),
+    .reset                    (reset),
+    .io_enq_ready             (io_memCmd_ready),
+    .io_enq_valid             (io_memCmd_valid),
+    .io_enq_bits_addr         (io_memCmd_bits_addr),
+    .io_enq_bits_data         (io_memCmd_bits_data),
+    .io_enq_bits_cs           (io_memCmd_bits_cs),
+    .io_enq_bits_ras          (io_memCmd_bits_ras),
+    .io_enq_bits_cas          (io_memCmd_bits_cas),
+    .io_enq_bits_we           (io_memCmd_bits_we),
+    .io_enq_bits_request_id   (io_memCmd_bits_request_id),
+    .io_deq_0_ready           (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_0_valid           (_cmdDemux_io_deq_0_valid),
+    .io_deq_0_bits_addr       (_cmdDemux_io_deq_0_bits_addr),
+    .io_deq_0_bits_data       (_cmdDemux_io_deq_0_bits_data),
+    .io_deq_0_bits_cs         (_cmdDemux_io_deq_0_bits_cs),
+    .io_deq_0_bits_ras        (_cmdDemux_io_deq_0_bits_ras),
+    .io_deq_0_bits_cas        (_cmdDemux_io_deq_0_bits_cas),
+    .io_deq_0_bits_we         (_cmdDemux_io_deq_0_bits_we),
+    .io_deq_0_bits_request_id (_cmdDemux_io_deq_0_bits_request_id),
+    .io_deq_1_ready           (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_1_valid           (_cmdDemux_io_deq_1_valid),
+    .io_deq_1_bits_addr       (_cmdDemux_io_deq_1_bits_addr),
+    .io_deq_1_bits_data       (_cmdDemux_io_deq_1_bits_data),
+    .io_deq_1_bits_cs         (_cmdDemux_io_deq_1_bits_cs),
+    .io_deq_1_bits_ras        (_cmdDemux_io_deq_1_bits_ras),
+    .io_deq_1_bits_cas        (_cmdDemux_io_deq_1_bits_cas),
+    .io_deq_1_bits_we         (_cmdDemux_io_deq_1_bits_we),
+    .io_deq_1_bits_request_id (_cmdDemux_io_deq_1_bits_request_id),
+    .io_deq_2_ready           (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_2_valid           (_cmdDemux_io_deq_2_valid),
+    .io_deq_2_bits_addr       (_cmdDemux_io_deq_2_bits_addr),
+    .io_deq_2_bits_data       (_cmdDemux_io_deq_2_bits_data),
+    .io_deq_2_bits_cs         (_cmdDemux_io_deq_2_bits_cs),
+    .io_deq_2_bits_ras        (_cmdDemux_io_deq_2_bits_ras),
+    .io_deq_2_bits_cas        (_cmdDemux_io_deq_2_bits_cas),
+    .io_deq_2_bits_we         (_cmdDemux_io_deq_2_bits_we),
+    .io_deq_2_bits_request_id (_cmdDemux_io_deq_2_bits_request_id),
+    .io_deq_3_ready           (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_3_valid           (_cmdDemux_io_deq_3_valid),
+    .io_deq_3_bits_addr       (_cmdDemux_io_deq_3_bits_addr),
+    .io_deq_3_bits_data       (_cmdDemux_io_deq_3_bits_data),
+    .io_deq_3_bits_cs         (_cmdDemux_io_deq_3_bits_cs),
+    .io_deq_3_bits_ras        (_cmdDemux_io_deq_3_bits_ras),
+    .io_deq_3_bits_cas        (_cmdDemux_io_deq_3_bits_cas),
+    .io_deq_3_bits_we         (_cmdDemux_io_deq_3_bits_we),
+    .io_deq_3_bits_request_id (_cmdDemux_io_deq_3_bits_request_id),
+    .io_deq_4_ready           (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_4_valid           (_cmdDemux_io_deq_4_valid),
+    .io_deq_4_bits_addr       (_cmdDemux_io_deq_4_bits_addr),
+    .io_deq_4_bits_data       (_cmdDemux_io_deq_4_bits_data),
+    .io_deq_4_bits_cs         (_cmdDemux_io_deq_4_bits_cs),
+    .io_deq_4_bits_ras        (_cmdDemux_io_deq_4_bits_ras),
+    .io_deq_4_bits_cas        (_cmdDemux_io_deq_4_bits_cas),
+    .io_deq_4_bits_we         (_cmdDemux_io_deq_4_bits_we),
+    .io_deq_4_bits_request_id (_cmdDemux_io_deq_4_bits_request_id),
+    .io_deq_5_ready           (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_5_valid           (_cmdDemux_io_deq_5_valid),
+    .io_deq_5_bits_addr       (_cmdDemux_io_deq_5_bits_addr),
+    .io_deq_5_bits_data       (_cmdDemux_io_deq_5_bits_data),
+    .io_deq_5_bits_cs         (_cmdDemux_io_deq_5_bits_cs),
+    .io_deq_5_bits_ras        (_cmdDemux_io_deq_5_bits_ras),
+    .io_deq_5_bits_cas        (_cmdDemux_io_deq_5_bits_cas),
+    .io_deq_5_bits_we         (_cmdDemux_io_deq_5_bits_we),
+    .io_deq_5_bits_request_id (_cmdDemux_io_deq_5_bits_request_id),
+    .io_deq_6_ready           (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_6_valid           (_cmdDemux_io_deq_6_valid),
+    .io_deq_6_bits_addr       (_cmdDemux_io_deq_6_bits_addr),
+    .io_deq_6_bits_data       (_cmdDemux_io_deq_6_bits_data),
+    .io_deq_6_bits_cs         (_cmdDemux_io_deq_6_bits_cs),
+    .io_deq_6_bits_ras        (_cmdDemux_io_deq_6_bits_ras),
+    .io_deq_6_bits_cas        (_cmdDemux_io_deq_6_bits_cas),
+    .io_deq_6_bits_we         (_cmdDemux_io_deq_6_bits_we),
+    .io_deq_6_bits_request_id (_cmdDemux_io_deq_6_bits_request_id),
+    .io_deq_7_ready           (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_7_valid           (_cmdDemux_io_deq_7_valid),
+    .io_deq_7_bits_addr       (_cmdDemux_io_deq_7_bits_addr),
+    .io_deq_7_bits_data       (_cmdDemux_io_deq_7_bits_data),
+    .io_deq_7_bits_cs         (_cmdDemux_io_deq_7_bits_cs),
+    .io_deq_7_bits_ras        (_cmdDemux_io_deq_7_bits_ras),
+    .io_deq_7_bits_cas        (_cmdDemux_io_deq_7_bits_cas),
+    .io_deq_7_bits_we         (_cmdDemux_io_deq_7_bits_we),
+    .io_deq_7_bits_request_id (_cmdDemux_io_deq_7_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  DRAMBank_8 banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_0_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_0_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_0_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_0_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_0_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_0_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_0_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_0_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_0_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_0_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_0_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_0_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_0_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_0_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_0_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_0_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_0_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_9 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_9 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_1_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_1_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_1_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_1_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_1_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_1_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_1_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_1_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_1_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_1_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_1_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_1_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_1_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_1_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_1_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_1_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_1_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_10 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_10 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_2_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_2_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_2_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_2_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_2_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_2_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_2_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_2_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_2_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_2_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_2_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_2_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_2_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_2_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_2_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_2_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_2_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_11 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_11 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_3_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_3_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_3_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_3_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_3_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_3_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_3_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_3_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_3_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_3_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_3_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_3_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_3_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_3_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_3_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_3_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_3_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_12 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_12 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_4_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_4_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_4_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_4_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_4_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_4_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_4_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_4_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_4_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_4_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_4_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_4_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_4_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_4_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_4_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_4_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_4_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_13 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_13 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_5_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_5_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_5_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_5_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_5_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_5_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_5_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_5_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_5_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_5_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_5_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_5_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_5_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_5_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_5_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_5_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_5_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_14 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_14 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_6_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_6_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_6_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_6_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_6_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_6_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_6_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_6_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_6_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_6_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_6_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_6_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_6_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_6_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_6_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_6_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_6_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_15 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_15 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_7_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_7_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_7_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_7_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_7_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_7_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_7_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_7_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_7_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_7_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_7_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_7_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_7_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_7_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_7_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_7_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_7_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  Queue256_BankMemoryCommand reqQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_0_io_enq_ready),
-    .io_enq_valid                 (reqQs_0_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_0_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_0_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_0_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_0_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_0_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_0_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_0_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_0_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_1_io_enq_ready),
-    .io_enq_valid                 (reqQs_1_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_1_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_1_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_1_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_1_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_1_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_1_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_1_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_1_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_2_io_enq_ready),
-    .io_enq_valid                 (reqQs_2_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_2_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_2_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_2_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_2_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_2_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_2_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_2_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_2_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_3_io_enq_ready),
-    .io_enq_valid                 (reqQs_3_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_3_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_3_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_3_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_3_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_3_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_3_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_3_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_3_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_4_io_enq_ready),
-    .io_enq_valid                 (reqQs_4_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_4_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_4_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_4_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_4_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_4_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_4_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_4_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_4_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_5_io_enq_ready),
-    .io_enq_valid                 (reqQs_5_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_5_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_5_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_5_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_5_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_5_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_5_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_5_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_5_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_6_io_enq_ready),
-    .io_enq_valid                 (reqQs_6_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_6_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_6_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_6_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_6_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_6_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_6_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_6_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_6_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_7_io_enq_ready),
-    .io_enq_valid                 (reqQs_7_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_7_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_7_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_7_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_7_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_7_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_7_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_7_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_7_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_0_io_enq_ready),
-    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_0_io_deq_valid),
     .io_deq_bits_addr       (_respQs_0_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_0_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_1_io_enq_ready),
-    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_1_io_deq_valid),
     .io_deq_bits_addr       (_respQs_1_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_1_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_2_io_enq_ready),
-    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_2_io_deq_valid),
     .io_deq_bits_addr       (_respQs_2_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_2_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_2_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_3_io_enq_ready),
-    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_3_io_deq_valid),
     .io_deq_bits_addr       (_respQs_3_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_3_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_3_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_4_io_enq_ready),
-    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_4_io_deq_valid),
     .io_deq_bits_addr       (_respQs_4_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_4_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_4_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_5_io_enq_ready),
-    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_5_io_deq_valid),
     .io_deq_bits_addr       (_respQs_5_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_5_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_5_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_6_io_enq_ready),
-    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_6_io_deq_valid),
     .io_deq_bits_addr       (_respQs_6_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_6_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_6_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_7_io_enq_ready),
-    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_7_io_deq_valid),
     .io_deq_bits_addr       (_respQs_7_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_7_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_7_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .clock                   (clock),
     .io_in_0_ready           (_arb_io_in_0_ready),
-    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_1_ready           (_arb_io_in_1_ready),
-    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_2_ready           (_arb_io_in_2_ready),
-    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_3_ready           (_arb_io_in_3_ready),
-    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_4_ready           (_arb_io_in_4_ready),
-    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_5_ready           (_arb_io_in_5_ready),
-    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_6_ready           (_arb_io_in_6_ready),
-    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_7_ready           (_arb_io_in_7_ready),
-    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_out_ready            (io_phyResp_ready),
     .io_out_valid            (io_phyResp_valid),
     .io_out_bits_addr        (io_phyResp_bits_addr),
     .io_out_bits_data        (io_phyResp_bits_data),
     .io_out_bits_request_id  (io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  assign io_memCmd_ready =
-    _io_memCmd_ready_T & _reqQs_0_io_enq_ready | _io_memCmd_ready_T_2
-    & _reqQs_1_io_enq_ready | _io_memCmd_ready_T_4 & _reqQs_2_io_enq_ready
-    | _io_memCmd_ready_T_6 & _reqQs_3_io_enq_ready | _io_memCmd_ready_T_8
-    & _reqQs_4_io_enq_ready | _io_memCmd_ready_T_10 & _reqQs_5_io_enq_ready
-    | _io_memCmd_ready_T_12 & _reqQs_6_io_enq_ready | (&_decoder_io_bankIndex)
-    & _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :15:23, :30:52, :33:60, :56:8, :57:14]
-endmodule
-
-// VCS coverage exclude_file
-module ram_256x100(	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  input  [7:0]  R0_addr,
-  input         R0_en,
-                R0_clk,
-  output [99:0] R0_data,
-  input  [7:0]  W0_addr,
-  input         W0_en,
-                W0_clk,
-  input  [99:0] W0_data
-);
-
-  reg [99:0] Memory[0:255];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  always @(posedge W0_clk) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    if (W0_en & 1'h1)	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-      Memory[W0_addr] <= W0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  end // always @(posedge)
-  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    reg [127:0] _RANDOM_MEM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-      `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-        for (logic [8:0] i = 9'h0; i < 9'h100; i += 9'h1) begin
-          for (logic [7:0] j = 8'h0; j < 8'h80; j += 8'h20) begin
-            _RANDOM_MEM[j +: 32] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-          end
-          Memory[i[7:0]] = _RANDOM_MEM[99:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-        end
-      `endif // RANDOMIZE_MEM_INIT
-    end // initial
-  `endif // ENABLE_INITIAL_MEM_
-  assign R0_data = R0_en ? Memory[R0_addr] : 100'bx;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-endmodule
-
-module Queue256_PhysicalMemoryCommand(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-  input         clock,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-                reset,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-  output        io_enq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_enq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_enq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input  [31:0] io_enq_bits_request_id,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_deq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_deq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output [31:0] io_deq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_deq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output [31:0] io_deq_bits_request_id	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-);
-
-  wire [99:0] _ram_ext_R0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  reg  [7:0]  enq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-  reg  [7:0]  deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-  reg         maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-  wire        ptr_match = enq_ptr_value == deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:260:33]
-  wire        empty = ptr_match & ~maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :261:{25,28}]
-  wire        full = ptr_match & maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :262:24]
-  wire        do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :262:24, :286:19]
-  wire        do_deq = io_deq_ready & ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :261:25, :285:19]
-  always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    if (reset) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      enq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-      deq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-      maybe_full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-    end
-    else begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-        enq_ptr_value <= enq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
-      if (do_deq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-        deq_ptr_value <= deq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
-      if (~(do_enq == do_deq))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
-        maybe_full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
-    end
-  end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        _RANDOM[/*Zero width*/ 1'b0] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        enq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][7:0];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        deq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][15:8];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        maybe_full = _RANDOM[/*Zero width*/ 1'b0][16];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-      `endif // RANDOMIZE_REG_INIT
-    end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `endif // FIRRTL_AFTER_INITIAL
-  `endif // ENABLE_INITIAL_REG_
-  ram_256x100 ram_ext (	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-    .R0_addr (deq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-    .R0_en   (1'h1),
-    .R0_clk  (clock),
-    .R0_data (_ram_ext_R0_data),
-    .W0_addr (enq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
-    .W0_en   (do_enq),	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-    .W0_clk  (clock),
-    .W0_data
-      ({io_enq_bits_addr,
-        io_enq_bits_data,
-        io_enq_bits_cs,
-        io_enq_bits_ras,
-        io_enq_bits_cas,
-        io_enq_bits_we,
-        io_enq_bits_request_id})	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  );	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :286:19]
-  assign io_deq_valid = ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :261:25, :285:19]
-  assign io_deq_bits_addr = _ram_ext_R0_data[99:68];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_data = _ram_ext_R0_data[67:36];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_cs = _ram_ext_R0_data[35];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_ras = _ram_ext_R0_data[34];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_cas = _ram_ext_R0_data[33];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_we = _ram_ext_R0_data[32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_request_id = _ram_ext_R0_data[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
 endmodule
 
 module Queue256_PhysicalMemoryResponse(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
@@ -9464,206 +9238,157 @@ module Rank(	// @[src/main/scala/memctrl/memories/Rank.scala:6:7]
                 io_phyResp_bits_request_id	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
 );
 
-  wire        _arbResp_io_in_0_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
-  wire        _arbResp_io_in_1_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
-  wire        _respQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _respQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _respQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _respQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _reqQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _groups_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _groups_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _groups_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _groups_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _decoder_io_bankGroupIndex;	// @[src/main/scala/memctrl/memories/Rank.scala:8:27]
-  wire        reqQueues_0_io_enq_valid = io_memCmd_valid & ~_decoder_io_bankGroupIndex;	// @[src/main/scala/memctrl/memories/Rank.scala:8:27, :23:{50,62}]
-  wire        reqQueues_1_io_enq_valid = io_memCmd_valid & _decoder_io_bankGroupIndex;	// @[src/main/scala/memctrl/memories/Rank.scala:8:27, :23:50]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-      if ((`PRINTF_COND_) & _reqQueues_0_io_enq_ready & reqQueues_0_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:18:63, :23:50, :27:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Request enqueued to bankGroup 0: addr=0x%x data=0x%x\n",
-                io_memCmd_bits_addr, io_memCmd_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-      if ((`PRINTF_COND_) & _reqQueues_1_io_enq_ready & reqQueues_1_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:18:63, :23:50, :27:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Request enqueued to bankGroup 1: addr=0x%x data=0x%x\n",
-                io_memCmd_bits_addr, io_memCmd_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-      if ((`PRINTF_COND_) & _respQueues_0_io_enq_ready & _groups_0_io_phyResp_valid
-          & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:15:11, :19:63, :27:13, :41:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Response enqueued from bankGroup 0: addr=0x%x data=0x%x\n",
-                _groups_0_io_phyResp_bits_addr, _groups_0_io_phyResp_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:15:11, :41:13]
-      if ((`PRINTF_COND_) & _respQueues_1_io_enq_ready & _groups_1_io_phyResp_valid
-          & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:15:11, :19:63, :27:13, :41:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Response enqueued from bankGroup 1: addr=0x%x data=0x%x\n",
-                _groups_1_io_phyResp_bits_addr, _groups_1_io_phyResp_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:15:11, :41:13]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  AddressDecoder decoder (	// @[src/main/scala/memctrl/memories/Rank.scala:8:27]
-    .io_addr           (io_memCmd_bits_addr),
-    .io_bankIndex      (/* unused */),
-    .io_bankGroupIndex (_decoder_io_bankGroupIndex),
-    .io_rankIndex      (/* unused */)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:8:27]
-  BankGroup groups_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
+  wire        _arbResp_io_in_0_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
+  wire        _arbResp_io_in_1_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
+  wire        _respQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _respQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _respQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _respQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _groups_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _groups_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _groups_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _groups_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _cmdDemux_io_deq_0_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  MultiBankGroupCmdQueue cmdDemux (	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .clock                    (clock),
+    .reset                    (reset),
+    .io_enq_ready             (io_memCmd_ready),
+    .io_enq_valid             (io_memCmd_valid),
+    .io_enq_bits_addr         (io_memCmd_bits_addr),
+    .io_enq_bits_data         (io_memCmd_bits_data),
+    .io_enq_bits_cs           (io_memCmd_bits_cs),
+    .io_enq_bits_ras          (io_memCmd_bits_ras),
+    .io_enq_bits_cas          (io_memCmd_bits_cas),
+    .io_enq_bits_we           (io_memCmd_bits_we),
+    .io_enq_bits_request_id   (io_memCmd_bits_request_id),
+    .io_deq_0_ready           (_groups_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_0_valid           (_cmdDemux_io_deq_0_valid),
+    .io_deq_0_bits_addr       (_cmdDemux_io_deq_0_bits_addr),
+    .io_deq_0_bits_data       (_cmdDemux_io_deq_0_bits_data),
+    .io_deq_0_bits_cs         (_cmdDemux_io_deq_0_bits_cs),
+    .io_deq_0_bits_ras        (_cmdDemux_io_deq_0_bits_ras),
+    .io_deq_0_bits_cas        (_cmdDemux_io_deq_0_bits_cas),
+    .io_deq_0_bits_we         (_cmdDemux_io_deq_0_bits_we),
+    .io_deq_0_bits_request_id (_cmdDemux_io_deq_0_bits_request_id),
+    .io_deq_1_ready           (_groups_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_1_valid           (_cmdDemux_io_deq_1_valid),
+    .io_deq_1_bits_addr       (_cmdDemux_io_deq_1_bits_addr),
+    .io_deq_1_bits_data       (_cmdDemux_io_deq_1_bits_data),
+    .io_deq_1_bits_cs         (_cmdDemux_io_deq_1_bits_cs),
+    .io_deq_1_bits_ras        (_cmdDemux_io_deq_1_bits_ras),
+    .io_deq_1_bits_cas        (_cmdDemux_io_deq_1_bits_cas),
+    .io_deq_1_bits_we         (_cmdDemux_io_deq_1_bits_we),
+    .io_deq_1_bits_request_id (_cmdDemux_io_deq_1_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  BankGroup groups_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
     .clock                      (clock),
     .reset                      (reset),
     .io_memCmd_ready            (_groups_0_io_memCmd_ready),
-    .io_memCmd_valid            (_reqQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_addr        (_reqQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_data        (_reqQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cs          (_reqQueues_0_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_ras         (_reqQueues_0_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cas         (_reqQueues_0_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_we          (_reqQueues_0_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_request_id  (_reqQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_phyResp_ready           (_respQueues_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_memCmd_valid            (_cmdDemux_io_deq_0_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_addr        (_cmdDemux_io_deq_0_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_data        (_cmdDemux_io_deq_0_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cs          (_cmdDemux_io_deq_0_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_ras         (_cmdDemux_io_deq_0_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cas         (_cmdDemux_io_deq_0_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_we          (_cmdDemux_io_deq_0_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_request_id  (_cmdDemux_io_deq_0_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_phyResp_ready           (_respQueues_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_phyResp_valid           (_groups_0_io_phyResp_valid),
     .io_phyResp_bits_addr       (_groups_0_io_phyResp_bits_addr),
     .io_phyResp_bits_data       (_groups_0_io_phyResp_bits_data),
     .io_phyResp_bits_request_id (_groups_0_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  BankGroup_1 groups_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  BankGroup_1 groups_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
     .clock                      (clock),
     .reset                      (reset),
     .io_memCmd_ready            (_groups_1_io_memCmd_ready),
-    .io_memCmd_valid            (_reqQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_addr        (_reqQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_data        (_reqQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cs          (_reqQueues_1_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_ras         (_reqQueues_1_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cas         (_reqQueues_1_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_we          (_reqQueues_1_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_request_id  (_reqQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_phyResp_ready           (_respQueues_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_memCmd_valid            (_cmdDemux_io_deq_1_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_addr        (_cmdDemux_io_deq_1_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_data        (_cmdDemux_io_deq_1_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cs          (_cmdDemux_io_deq_1_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_ras         (_cmdDemux_io_deq_1_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cas         (_cmdDemux_io_deq_1_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_we          (_cmdDemux_io_deq_1_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_request_id  (_cmdDemux_io_deq_1_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_phyResp_ready           (_respQueues_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_phyResp_valid           (_groups_1_io_phyResp_valid),
     .io_phyResp_bits_addr       (_groups_1_io_phyResp_bits_addr),
     .io_phyResp_bits_data       (_groups_1_io_phyResp_bits_data),
     .io_phyResp_bits_request_id (_groups_1_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  Queue256_PhysicalMemoryCommand reqQueues_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .clock                  (clock),
-    .reset                  (reset),
-    .io_enq_ready           (_reqQueues_0_io_enq_ready),
-    .io_enq_valid           (reqQueues_0_io_enq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:23:50]
-    .io_enq_bits_addr       (io_memCmd_bits_addr),
-    .io_enq_bits_data       (io_memCmd_bits_data),
-    .io_enq_bits_cs         (io_memCmd_bits_cs),
-    .io_enq_bits_ras        (io_memCmd_bits_ras),
-    .io_enq_bits_cas        (io_memCmd_bits_cas),
-    .io_enq_bits_we         (io_memCmd_bits_we),
-    .io_enq_bits_request_id (io_memCmd_bits_request_id),
-    .io_deq_ready           (_groups_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_valid           (_reqQueues_0_io_deq_valid),
-    .io_deq_bits_addr       (_reqQueues_0_io_deq_bits_addr),
-    .io_deq_bits_data       (_reqQueues_0_io_deq_bits_data),
-    .io_deq_bits_cs         (_reqQueues_0_io_deq_bits_cs),
-    .io_deq_bits_ras        (_reqQueues_0_io_deq_bits_ras),
-    .io_deq_bits_cas        (_reqQueues_0_io_deq_bits_cas),
-    .io_deq_bits_we         (_reqQueues_0_io_deq_bits_we),
-    .io_deq_bits_request_id (_reqQueues_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  Queue256_PhysicalMemoryCommand reqQueues_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .clock                  (clock),
-    .reset                  (reset),
-    .io_enq_ready           (_reqQueues_1_io_enq_ready),
-    .io_enq_valid           (reqQueues_1_io_enq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:23:50]
-    .io_enq_bits_addr       (io_memCmd_bits_addr),
-    .io_enq_bits_data       (io_memCmd_bits_data),
-    .io_enq_bits_cs         (io_memCmd_bits_cs),
-    .io_enq_bits_ras        (io_memCmd_bits_ras),
-    .io_enq_bits_cas        (io_memCmd_bits_cas),
-    .io_enq_bits_we         (io_memCmd_bits_we),
-    .io_enq_bits_request_id (io_memCmd_bits_request_id),
-    .io_deq_ready           (_groups_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_valid           (_reqQueues_1_io_deq_valid),
-    .io_deq_bits_addr       (_reqQueues_1_io_deq_bits_addr),
-    .io_deq_bits_data       (_reqQueues_1_io_deq_bits_data),
-    .io_deq_bits_cs         (_reqQueues_1_io_deq_bits_cs),
-    .io_deq_bits_ras        (_reqQueues_1_io_deq_bits_ras),
-    .io_deq_bits_cas        (_reqQueues_1_io_deq_bits_cas),
-    .io_deq_bits_we         (_reqQueues_1_io_deq_bits_we),
-    .io_deq_bits_request_id (_reqQueues_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  Queue256_PhysicalMemoryResponse respQueues_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  Queue256_PhysicalMemoryResponse respQueues_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQueues_0_io_enq_ready),
-    .io_enq_valid           (_groups_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_addr       (_groups_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_data       (_groups_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_request_id (_groups_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_ready           (_arbResp_io_in_0_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
+    .io_enq_valid           (_groups_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_addr       (_groups_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_data       (_groups_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_request_id (_groups_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_ready           (_arbResp_io_in_0_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
     .io_deq_valid           (_respQueues_0_io_deq_valid),
     .io_deq_bits_addr       (_respQueues_0_io_deq_bits_addr),
     .io_deq_bits_data       (_respQueues_0_io_deq_bits_data),
     .io_deq_bits_request_id (_respQueues_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  Queue256_PhysicalMemoryResponse respQueues_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  Queue256_PhysicalMemoryResponse respQueues_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQueues_1_io_enq_ready),
-    .io_enq_valid           (_groups_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_addr       (_groups_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_data       (_groups_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_request_id (_groups_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_ready           (_arbResp_io_in_1_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
+    .io_enq_valid           (_groups_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_addr       (_groups_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_data       (_groups_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_request_id (_groups_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_ready           (_arbResp_io_in_1_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
     .io_deq_valid           (_respQueues_1_io_deq_valid),
     .io_deq_bits_addr       (_respQueues_1_io_deq_bits_addr),
     .io_deq_bits_data       (_respQueues_1_io_deq_bits_data),
     .io_deq_bits_request_id (_respQueues_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  RRArbiter_2 arbResp (	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  RRArbiter_2 arbResp (	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
     .clock                   (clock),
     .io_in_0_ready           (_arbResp_io_in_0_ready),
-    .io_in_0_valid           (_respQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_0_bits_addr       (_respQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_0_bits_data       (_respQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_0_bits_request_id (_respQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_in_0_valid           (_respQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_0_bits_addr       (_respQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_0_bits_data       (_respQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_0_bits_request_id (_respQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_in_1_ready           (_arbResp_io_in_1_ready),
-    .io_in_1_valid           (_respQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_1_bits_addr       (_respQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_1_bits_data       (_respQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_1_bits_request_id (_respQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_in_1_valid           (_respQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_1_bits_addr       (_respQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_1_bits_data       (_respQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_1_bits_request_id (_respQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_out_ready            (io_phyResp_ready),
     .io_out_valid            (io_phyResp_valid),
     .io_out_bits_addr        (io_phyResp_bits_addr),
     .io_out_bits_data        (io_phyResp_bits_data),
     .io_out_bits_request_id  (io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
-  assign io_memCmd_ready =
-    ~_decoder_io_bankGroupIndex & _reqQueues_0_io_enq_ready | _decoder_io_bankGroupIndex
-    & _reqQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:6:7, :8:27, :18:63, :23:62, :32:25, :33:14]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
 endmodule
 
 module BankPerformanceStatistics_16(	// @[src/main/scala/memctrl/trackers/BankPerformanceStatistics.scala:78:7]
@@ -9754,7 +9479,6 @@ module DRAMBank_16(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -9772,7 +9496,6 @@ module DRAMBank_16(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -9818,22 +9541,19 @@ module DRAMBank_16(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -9860,8 +9580,7 @@ module DRAMBank_16(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 1'h0, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 1'h0, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -9999,7 +9718,6 @@ module DRAMBank_16(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -10040,7 +9758,6 @@ module DRAMBank_16(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -10183,7 +9900,6 @@ module DRAMBank_17(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -10201,7 +9917,6 @@ module DRAMBank_17(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -10247,22 +9962,19 @@ module DRAMBank_17(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -10289,8 +10001,7 @@ module DRAMBank_17(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 1'h1, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 1'h1, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -10428,7 +10139,6 @@ module DRAMBank_17(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -10469,7 +10179,6 @@ module DRAMBank_17(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -10612,7 +10321,6 @@ module DRAMBank_18(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -10630,7 +10338,6 @@ module DRAMBank_18(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -10676,22 +10383,19 @@ module DRAMBank_18(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -10718,8 +10422,7 @@ module DRAMBank_18(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 2'h2, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 2'h2, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -10857,7 +10560,6 @@ module DRAMBank_18(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -10898,7 +10600,6 @@ module DRAMBank_18(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -11041,7 +10742,6 @@ module DRAMBank_19(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -11059,7 +10759,6 @@ module DRAMBank_19(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -11105,22 +10804,19 @@ module DRAMBank_19(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -11147,8 +10843,7 @@ module DRAMBank_19(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 2'h3, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 2'h3, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -11286,7 +10981,6 @@ module DRAMBank_19(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -11327,7 +11021,6 @@ module DRAMBank_19(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -11470,7 +11163,6 @@ module DRAMBank_20(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -11488,7 +11180,6 @@ module DRAMBank_20(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -11534,22 +11225,19 @@ module DRAMBank_20(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -11576,8 +11264,7 @@ module DRAMBank_20(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h4, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h4, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -11715,7 +11402,6 @@ module DRAMBank_20(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -11756,7 +11442,6 @@ module DRAMBank_20(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -11899,7 +11584,6 @@ module DRAMBank_21(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -11917,7 +11601,6 @@ module DRAMBank_21(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -11963,22 +11646,19 @@ module DRAMBank_21(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -12005,8 +11685,7 @@ module DRAMBank_21(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h5, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h5, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -12144,7 +11823,6 @@ module DRAMBank_21(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -12185,7 +11863,6 @@ module DRAMBank_21(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -12328,7 +12005,6 @@ module DRAMBank_22(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -12346,7 +12022,6 @@ module DRAMBank_22(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -12392,22 +12067,19 @@ module DRAMBank_22(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -12434,8 +12106,7 @@ module DRAMBank_22(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h6, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h6, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -12573,7 +12244,6 @@ module DRAMBank_22(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -12614,7 +12284,6 @@ module DRAMBank_22(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -12757,7 +12426,6 @@ module DRAMBank_23(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 io_memCmd_bits_cas,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_we,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input  [31:0] io_memCmd_bits_request_id,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
-                io_memCmd_bits_lastColBankGroup,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
                 io_memCmd_bits_lastColCycle,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   input         io_phyResp_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
   output        io_phyResp_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:130:14]
@@ -12775,7 +12443,6 @@ module DRAMBank_23(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   reg         pending_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg         pending_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-  reg  [31:0] pending_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [31:0] pending_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
   reg  [63:0] cycleCounter;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29]
   reg  [63:0] lastActivate;	// @[src/main/scala/memctrl/memories/BankModel.scala:33:30]
@@ -12821,22 +12488,19 @@ module DRAMBank_23(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   end // always_comb
   wire        _GEN_9 = cycleCounter - casez_tmp > 64'h1D & _GEN_5 > 64'h5;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :57:{19,28}, :135:46]
   wire        _GEN_10 = _GEN_5 > 64'hD;	// @[src/main/scala/memctrl/memories/BankModel.scala:57:{19,28}]
-  wire        _GEN_11 =
-    cycleCounter
-    - {32'h0,
-       pending_lastColCycle} >= {62'h0, pending_lastColBankGroup == 32'h0 ? 2'h2 : 2'h1};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:{19,28}, :88:22, :89:30]
+  wire [63:0] _GEN_11 = cycleCounter - {32'h0, pending_lastColCycle};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :29:29, :57:19]
   wire [63:0] _GEN_12 = cycleCounter - lastReadEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :35:30, :57:19]
   wire [63:0] _GEN_13 = cycleCounter - lastWriteEnd;	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :36:30, :57:19]
   wire        _GEN_14 =
     ~pending_cs & pending_ras & ~pending_cas & pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_12[63:1])) & (|(_GEN_13[63:3])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :81:{26,36,45}, :146:{25,38,56}, :147:{57,101}, :148:{56,98}]
   wire [20:0] _GEN_15 = {activeRow, 6'h0};	// @[src/main/scala/memctrl/memories/BankModel.scala:49:26, :149:58]
   wire [20:0] _GEN_16 = {15'h0, pending_addr[5:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :86:28, :149:58]
   wire        _GEN_17 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :148:139]
   wire        _GEN_18 = ~(|state) | ~_GEN_0 | _GEN_17 | ~_GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :35:30, :53:16, :60:28, :81:{26,36,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}]
   wire        _GEN_19 =
     ~pending_cs & pending_ras & ~pending_cas & ~pending_we & rowActive & ~refreshInProg
-    & _GEN_10 & _GEN_11 & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
+    & _GEN_10 & (|(_GEN_11[63:1])) & (|(_GEN_13[63:1])) & _GEN_6;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :44:30, :48:26, :57:{19,28}, :60:42, :67:15, :69:15, :70:15, :82:{26,36,45}, :157:{26,39,57}, :158:{57,101}, :159:57]
   wire        _GEN_20 = _GEN_1 | _GEN_2 | _GEN_3 | _GEN_7 | _GEN_8 | _GEN_14;	// @[src/main/scala/memctrl/memories/BankModel.scala:53:16, :74:{35,44}, :79:{35,44}, :80:{35,45}, :81:{26,36,45}, :83:{35,45}, :110:{25,44}, :115:{29,48}, :120:{33,47}, :126:{30,48,88,129}, :133:{29,48}, :146:{25,38,56}, :147:{57,101}, :148:{56,98,139}, :159:98]
   wire [31:0] io_phyResp_bits_data_0 = _GEN_18 ? pending_data : _mem_ext_R0_data;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20, :35:30, :53:16, :64:18, :95:18, :110:44, :115:48, :120:47, :126:129, :133:48, :148:139]
   wire        _GEN_21 = refreshCntr == 32'h1;	// @[src/main/scala/memctrl/memories/BankModel.scala:45:30, :170:27]
@@ -12863,8 +12527,7 @@ module DRAMBank_23(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
                 "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
                 1'h0, 3'h7, cycleCounter, io_memCmd_bits_cs, io_memCmd_bits_ras,
                 io_memCmd_bits_cas, io_memCmd_bits_we, io_memCmd_bits_addr,
-                io_memCmd_bits_data, io_memCmd_bits_lastColBankGroup,
-                io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
+                io_memCmd_bits_data, 32'h0, io_memCmd_bits_lastColCycle);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :100:15]
       if ((`PRINTF_COND_) & _GEN_27 & _GEN_1 & ~reset)	// @[src/main/scala/memctrl/memories/BankModel.scala:74:{35,44}, :95:18, :100:15, :110:{25,44}, :111:15]
         $fwrite(`PRINTF_FD_, "[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", 1'h0,
                 3'h7, cycleCounter);	// @[src/main/scala/memctrl/memories/BankModel.scala:29:29, :111:15]
@@ -13002,7 +12665,6 @@ module DRAMBank_23(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
       pending_cas <= io_memCmd_bits_cas;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_we <= io_memCmd_bits_we;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_request_id <= io_memCmd_bits_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
-      pending_lastColBankGroup <= io_memCmd_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
       pending_lastColCycle <= io_memCmd_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankModel.scala:26:20]
     end
     if (~(|state) | ~_GEN_0 | _GEN_37 | ~(_GEN_8 & _GEN_9 & actPtr == 2'h0)) begin	// @[src/main/scala/memctrl/memories/BankModel.scala:23:22, :34:30, :40:26, :41:30, :49:26, :60:28, :80:{35,45}, :95:18, :110:44, :115:48, :120:47, :126:129, :133:{29,48}, :135:{46,89}, :139:33]
@@ -13043,7 +12705,6 @@ module DRAMBank_23(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
         pending_cas = _RANDOM[5'h2][5];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_we = _RANDOM[5'h2][6];	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_request_id = {_RANDOM[5'h2][31:7], _RANDOM[5'h3][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
-        pending_lastColBankGroup = {_RANDOM[5'h3][31:7], _RANDOM[5'h4][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         pending_lastColCycle = {_RANDOM[5'h4][31:7], _RANDOM[5'h5][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
         cycleCounter = {_RANDOM[5'h5][31:7], _RANDOM[5'h6], _RANDOM[5'h7][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20, :29:29]
         lastActivate = {_RANDOM[5'h7][31:7], _RANDOM[5'h8], _RANDOM[5'h9][6:0]};	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :29:29, :33:30]
@@ -13098,9 +12759,9 @@ module DRAMBank_23(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   assign io_phyResp_bits_request_id = pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
 endmodule
 
-module BankGroup_2(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+module BankGroup_2(	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
   output        io_memCmd_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input         io_memCmd_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input  [31:0] io_memCmd_bits_addr,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
@@ -13117,842 +12778,589 @@ module BankGroup_2(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
                 io_phyResp_bits_request_id	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
 );
 
-  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [2:0]  _decoder_io_bankIndex;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-  wire        _io_memCmd_ready_T = _decoder_io_bankIndex == 3'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_0_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_2 = _decoder_io_bankIndex == 3'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_1_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_4 = _decoder_io_bankIndex == 3'h2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_2_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_6 = _decoder_io_bankIndex == 3'h3;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_3_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_8 = _decoder_io_bankIndex == 3'h4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_4_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_8;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_10 = _decoder_io_bankIndex == 3'h5;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_5_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_10;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_12 = _decoder_io_bankIndex == 3'h6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_6_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_12;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        reqQs_7_io_enq_valid = io_memCmd_valid & (&_decoder_io_bankIndex);	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:{39,60}]
-  wire        _GEN = _respQs_0_io_enq_ready & _banks_0_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_0 = _respQs_1_io_enq_ready & _banks_1_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_1 = _respQs_2_io_enq_ready & _banks_2_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_2 = _respQs_3_io_enq_ready & _banks_3_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_3 = _respQs_4_io_enq_ready & _banks_4_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_4 = _respQs_5_io_enq_ready & _banks_5_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_5 = _respQs_6_io_enq_ready & _banks_6_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_6 = _respQs_7_io_enq_ready & _banks_7_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-      if ((`PRINTF_COND_) & _reqQs_0_io_enq_ready & reqQs_0_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 1'h0, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_1_io_enq_ready & reqQs_1_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 1'h1, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_2_io_enq_ready & reqQs_2_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 2'h2, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_3_io_enq_ready & reqQs_3_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 2'h3, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_4_io_enq_ready & reqQs_4_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h4, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_5_io_enq_ready & reqQs_5_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h5, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_6_io_enq_ready & reqQs_6_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h6, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_7_io_enq_ready & reqQs_7_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 3'h7, io_memCmd_bits_addr, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _GEN & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_0 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_1 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_2 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_3 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_4 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_5 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_6 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h0, clock, 32'h0, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33, :69:13]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    if (reset)	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    else if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:65:25, :68:24]
-      lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33, :68:24]
+  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _cmdDemux_io_deq_0_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    if (reset)	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    else if (_respQs_7_io_enq_ready & _banks_7_io_phyResp_valid | _respQs_6_io_enq_ready
+             & _banks_6_io_phyResp_valid | _respQs_5_io_enq_ready
+             & _banks_5_io_phyResp_valid | _respQs_4_io_enq_ready
+             & _banks_4_io_phyResp_valid | _respQs_3_io_enq_ready
+             & _banks_3_io_phyResp_valid | _respQs_2_io_enq_ready
+             & _banks_2_io_phyResp_valid | _respQs_1_io_enq_ready
+             & _banks_1_io_phyResp_valid | _respQs_0_io_enq_ready
+             & _banks_0_io_phyResp_valid)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11, :61:25, :63:24]
+      lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33, :63:24]
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
       `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
         for (logic [1:0] i = 2'h0; i < 2'h2; i += 2'h1) begin
-          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33]
+          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7, :18:33]
       `endif // RANDOMIZE_REG_INIT
     end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  AddressDecoder decoder (	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-    .io_addr           (io_memCmd_bits_addr),
-    .io_bankIndex      (_decoder_io_bankIndex),
-    .io_bankGroupIndex (/* unused */),
-    .io_rankIndex      (/* unused */)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  DRAMBank_16 banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_0_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_0_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_0_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_0_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_0_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_0_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_0_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_0_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_0_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_17 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_1_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_1_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_1_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_1_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_1_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_1_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_1_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_1_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_1_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_18 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_2_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_2_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_2_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_2_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_2_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_2_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_2_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_2_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_2_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_19 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_3_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_3_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_3_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_3_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_3_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_3_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_3_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_3_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_3_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_20 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_4_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_4_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_4_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_4_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_4_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_4_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_4_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_4_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_4_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_21 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_5_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_5_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_5_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_5_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_5_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_5_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_5_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_5_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_5_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_22 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_6_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_6_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_6_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_6_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_6_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_6_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_6_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_6_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_6_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_23 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .clock                           (clock),
-    .reset                           (reset),
-    .io_memCmd_ready                 (_banks_7_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_7_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_7_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_7_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_7_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_phyResp_valid                (_banks_7_io_phyResp_valid),
-    .io_phyResp_bits_addr            (_banks_7_io_phyResp_bits_addr),
-    .io_phyResp_bits_data            (_banks_7_io_phyResp_bits_data),
-    .io_phyResp_bits_request_id      (_banks_7_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  Queue256_BankMemoryCommand reqQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_0_io_enq_ready),
-    .io_enq_valid                 (reqQs_0_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_0_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_0_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_0_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_0_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_0_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_0_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_0_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_0_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_1_io_enq_ready),
-    .io_enq_valid                 (reqQs_1_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_1_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_1_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_1_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_1_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_1_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_1_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_1_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_1_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_2_io_enq_ready),
-    .io_enq_valid                 (reqQs_2_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_2_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_2_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_2_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_2_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_2_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_2_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_2_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_2_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_3_io_enq_ready),
-    .io_enq_valid                 (reqQs_3_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_3_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_3_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_3_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_3_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_3_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_3_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_3_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_3_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_4_io_enq_ready),
-    .io_enq_valid                 (reqQs_4_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_4_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_4_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_4_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_4_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_4_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_4_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_4_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_4_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_5_io_enq_ready),
-    .io_enq_valid                 (reqQs_5_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_5_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_5_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_5_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_5_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_5_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_5_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_5_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_5_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_6_io_enq_ready),
-    .io_enq_valid                 (reqQs_6_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_6_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_6_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_6_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_6_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_6_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_6_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_6_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_6_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_7_io_enq_ready),
-    .io_enq_valid                 (reqQs_7_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (32'h0),
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_7_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_7_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_7_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_7_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_7_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_7_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_7_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_7_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  MultiBankCmdQueue cmdDemux (	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .clock                    (clock),
+    .reset                    (reset),
+    .io_enq_ready             (io_memCmd_ready),
+    .io_enq_valid             (io_memCmd_valid),
+    .io_enq_bits_addr         (io_memCmd_bits_addr),
+    .io_enq_bits_data         (io_memCmd_bits_data),
+    .io_enq_bits_cs           (io_memCmd_bits_cs),
+    .io_enq_bits_ras          (io_memCmd_bits_ras),
+    .io_enq_bits_cas          (io_memCmd_bits_cas),
+    .io_enq_bits_we           (io_memCmd_bits_we),
+    .io_enq_bits_request_id   (io_memCmd_bits_request_id),
+    .io_deq_0_ready           (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_0_valid           (_cmdDemux_io_deq_0_valid),
+    .io_deq_0_bits_addr       (_cmdDemux_io_deq_0_bits_addr),
+    .io_deq_0_bits_data       (_cmdDemux_io_deq_0_bits_data),
+    .io_deq_0_bits_cs         (_cmdDemux_io_deq_0_bits_cs),
+    .io_deq_0_bits_ras        (_cmdDemux_io_deq_0_bits_ras),
+    .io_deq_0_bits_cas        (_cmdDemux_io_deq_0_bits_cas),
+    .io_deq_0_bits_we         (_cmdDemux_io_deq_0_bits_we),
+    .io_deq_0_bits_request_id (_cmdDemux_io_deq_0_bits_request_id),
+    .io_deq_1_ready           (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_1_valid           (_cmdDemux_io_deq_1_valid),
+    .io_deq_1_bits_addr       (_cmdDemux_io_deq_1_bits_addr),
+    .io_deq_1_bits_data       (_cmdDemux_io_deq_1_bits_data),
+    .io_deq_1_bits_cs         (_cmdDemux_io_deq_1_bits_cs),
+    .io_deq_1_bits_ras        (_cmdDemux_io_deq_1_bits_ras),
+    .io_deq_1_bits_cas        (_cmdDemux_io_deq_1_bits_cas),
+    .io_deq_1_bits_we         (_cmdDemux_io_deq_1_bits_we),
+    .io_deq_1_bits_request_id (_cmdDemux_io_deq_1_bits_request_id),
+    .io_deq_2_ready           (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_2_valid           (_cmdDemux_io_deq_2_valid),
+    .io_deq_2_bits_addr       (_cmdDemux_io_deq_2_bits_addr),
+    .io_deq_2_bits_data       (_cmdDemux_io_deq_2_bits_data),
+    .io_deq_2_bits_cs         (_cmdDemux_io_deq_2_bits_cs),
+    .io_deq_2_bits_ras        (_cmdDemux_io_deq_2_bits_ras),
+    .io_deq_2_bits_cas        (_cmdDemux_io_deq_2_bits_cas),
+    .io_deq_2_bits_we         (_cmdDemux_io_deq_2_bits_we),
+    .io_deq_2_bits_request_id (_cmdDemux_io_deq_2_bits_request_id),
+    .io_deq_3_ready           (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_3_valid           (_cmdDemux_io_deq_3_valid),
+    .io_deq_3_bits_addr       (_cmdDemux_io_deq_3_bits_addr),
+    .io_deq_3_bits_data       (_cmdDemux_io_deq_3_bits_data),
+    .io_deq_3_bits_cs         (_cmdDemux_io_deq_3_bits_cs),
+    .io_deq_3_bits_ras        (_cmdDemux_io_deq_3_bits_ras),
+    .io_deq_3_bits_cas        (_cmdDemux_io_deq_3_bits_cas),
+    .io_deq_3_bits_we         (_cmdDemux_io_deq_3_bits_we),
+    .io_deq_3_bits_request_id (_cmdDemux_io_deq_3_bits_request_id),
+    .io_deq_4_ready           (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_4_valid           (_cmdDemux_io_deq_4_valid),
+    .io_deq_4_bits_addr       (_cmdDemux_io_deq_4_bits_addr),
+    .io_deq_4_bits_data       (_cmdDemux_io_deq_4_bits_data),
+    .io_deq_4_bits_cs         (_cmdDemux_io_deq_4_bits_cs),
+    .io_deq_4_bits_ras        (_cmdDemux_io_deq_4_bits_ras),
+    .io_deq_4_bits_cas        (_cmdDemux_io_deq_4_bits_cas),
+    .io_deq_4_bits_we         (_cmdDemux_io_deq_4_bits_we),
+    .io_deq_4_bits_request_id (_cmdDemux_io_deq_4_bits_request_id),
+    .io_deq_5_ready           (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_5_valid           (_cmdDemux_io_deq_5_valid),
+    .io_deq_5_bits_addr       (_cmdDemux_io_deq_5_bits_addr),
+    .io_deq_5_bits_data       (_cmdDemux_io_deq_5_bits_data),
+    .io_deq_5_bits_cs         (_cmdDemux_io_deq_5_bits_cs),
+    .io_deq_5_bits_ras        (_cmdDemux_io_deq_5_bits_ras),
+    .io_deq_5_bits_cas        (_cmdDemux_io_deq_5_bits_cas),
+    .io_deq_5_bits_we         (_cmdDemux_io_deq_5_bits_we),
+    .io_deq_5_bits_request_id (_cmdDemux_io_deq_5_bits_request_id),
+    .io_deq_6_ready           (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_6_valid           (_cmdDemux_io_deq_6_valid),
+    .io_deq_6_bits_addr       (_cmdDemux_io_deq_6_bits_addr),
+    .io_deq_6_bits_data       (_cmdDemux_io_deq_6_bits_data),
+    .io_deq_6_bits_cs         (_cmdDemux_io_deq_6_bits_cs),
+    .io_deq_6_bits_ras        (_cmdDemux_io_deq_6_bits_ras),
+    .io_deq_6_bits_cas        (_cmdDemux_io_deq_6_bits_cas),
+    .io_deq_6_bits_we         (_cmdDemux_io_deq_6_bits_we),
+    .io_deq_6_bits_request_id (_cmdDemux_io_deq_6_bits_request_id),
+    .io_deq_7_ready           (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_7_valid           (_cmdDemux_io_deq_7_valid),
+    .io_deq_7_bits_addr       (_cmdDemux_io_deq_7_bits_addr),
+    .io_deq_7_bits_data       (_cmdDemux_io_deq_7_bits_data),
+    .io_deq_7_bits_cs         (_cmdDemux_io_deq_7_bits_cs),
+    .io_deq_7_bits_ras        (_cmdDemux_io_deq_7_bits_ras),
+    .io_deq_7_bits_cas        (_cmdDemux_io_deq_7_bits_cas),
+    .io_deq_7_bits_we         (_cmdDemux_io_deq_7_bits_we),
+    .io_deq_7_bits_request_id (_cmdDemux_io_deq_7_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  DRAMBank_16 banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_0_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_0_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_0_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_0_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_0_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_0_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_0_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_0_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_0_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_0_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_0_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_0_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_0_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_17 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_1_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_1_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_1_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_1_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_1_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_1_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_1_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_1_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_1_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_1_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_1_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_1_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_1_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_18 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_2_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_2_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_2_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_2_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_2_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_2_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_2_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_2_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_2_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_2_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_2_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_2_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_2_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_19 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_3_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_3_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_3_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_3_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_3_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_3_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_3_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_3_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_3_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_3_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_3_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_3_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_3_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_20 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_4_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_4_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_4_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_4_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_4_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_4_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_4_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_4_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_4_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_4_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_4_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_4_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_4_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_21 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_5_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_5_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_5_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_5_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_5_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_5_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_5_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_5_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_5_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_5_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_5_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_5_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_5_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_22 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_6_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_6_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_6_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_6_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_6_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_6_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_6_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_6_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_6_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_6_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_6_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_6_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_6_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_23 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .clock                       (clock),
+    .reset                       (reset),
+    .io_memCmd_ready             (_banks_7_io_memCmd_ready),
+    .io_memCmd_valid             (_cmdDemux_io_deq_7_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr         (_cmdDemux_io_deq_7_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data         (_cmdDemux_io_deq_7_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs           (_cmdDemux_io_deq_7_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras          (_cmdDemux_io_deq_7_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas          (_cmdDemux_io_deq_7_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we           (_cmdDemux_io_deq_7_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id   (_cmdDemux_io_deq_7_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColCycle (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready            (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_phyResp_valid            (_banks_7_io_phyResp_valid),
+    .io_phyResp_bits_addr        (_banks_7_io_phyResp_bits_addr),
+    .io_phyResp_bits_data        (_banks_7_io_phyResp_bits_data),
+    .io_phyResp_bits_request_id  (_banks_7_io_phyResp_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_0_io_enq_ready),
-    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_0_io_deq_valid),
     .io_deq_bits_addr       (_respQs_0_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_0_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_1_io_enq_ready),
-    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_1_io_deq_valid),
     .io_deq_bits_addr       (_respQs_1_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_1_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_2_io_enq_ready),
-    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_2_io_deq_valid),
     .io_deq_bits_addr       (_respQs_2_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_2_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_2_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_3_io_enq_ready),
-    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_3_io_deq_valid),
     .io_deq_bits_addr       (_respQs_3_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_3_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_3_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_4_io_enq_ready),
-    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_4_io_deq_valid),
     .io_deq_bits_addr       (_respQs_4_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_4_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_4_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_5_io_enq_ready),
-    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_5_io_deq_valid),
     .io_deq_bits_addr       (_respQs_5_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_5_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_5_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_6_io_enq_ready),
-    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_6_io_deq_valid),
     .io_deq_bits_addr       (_respQs_6_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_6_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_6_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_7_io_enq_ready),
-    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_7_io_deq_valid),
     .io_deq_bits_addr       (_respQs_7_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_7_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_7_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .clock                   (clock),
     .io_in_0_ready           (_arb_io_in_0_ready),
-    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_1_ready           (_arb_io_in_1_ready),
-    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_2_ready           (_arb_io_in_2_ready),
-    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_3_ready           (_arb_io_in_3_ready),
-    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_4_ready           (_arb_io_in_4_ready),
-    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_5_ready           (_arb_io_in_5_ready),
-    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_6_ready           (_arb_io_in_6_ready),
-    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_7_ready           (_arb_io_in_7_ready),
-    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_out_ready            (io_phyResp_ready),
     .io_out_valid            (io_phyResp_valid),
     .io_out_bits_addr        (io_phyResp_bits_addr),
     .io_out_bits_data        (io_phyResp_bits_data),
     .io_out_bits_request_id  (io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  assign io_memCmd_ready =
-    _io_memCmd_ready_T & _reqQs_0_io_enq_ready | _io_memCmd_ready_T_2
-    & _reqQs_1_io_enq_ready | _io_memCmd_ready_T_4 & _reqQs_2_io_enq_ready
-    | _io_memCmd_ready_T_6 & _reqQs_3_io_enq_ready | _io_memCmd_ready_T_8
-    & _reqQs_4_io_enq_ready | _io_memCmd_ready_T_10 & _reqQs_5_io_enq_ready
-    | _io_memCmd_ready_T_12 & _reqQs_6_io_enq_ready | (&_decoder_io_bankIndex)
-    & _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :15:23, :30:52, :33:60, :56:8, :57:14]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
 endmodule
 
 module BankPerformanceStatistics_24(	// @[src/main/scala/memctrl/trackers/BankPerformanceStatistics.scala:78:7]
@@ -17387,9 +16795,9 @@ module DRAMBank_31(	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7]
   assign io_phyResp_bits_request_id = pending_request_id;	// @[src/main/scala/memctrl/memories/BankModel.scala:8:7, :26:20]
 endmodule
 
-module BankGroup_3(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+module BankGroup_3(	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+  input         clock,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+                reset,	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
   output        io_memCmd_ready,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input         io_memCmd_valid,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
   input  [31:0] io_memCmd_bits_addr,	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
@@ -17406,850 +16814,606 @@ module BankGroup_3(	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
                 io_phyResp_bits_request_id	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
 );
 
-  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  wire        _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_7_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_7_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_6_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_6_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_5_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_5_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_4_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_4_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_3_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_3_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_2_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_2_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_1_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_1_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _reqQs_0_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire [31:0] _reqQs_0_io_deq_bits_lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  wire [2:0]  _decoder_io_bankIndex;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  reg  [31:0] lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-  wire        _io_memCmd_ready_T = _decoder_io_bankIndex == 3'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_0_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_2 = _decoder_io_bankIndex == 3'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_1_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_4 = _decoder_io_bankIndex == 3'h2;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_2_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_6 = _decoder_io_bankIndex == 3'h3;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_3_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_8 = _decoder_io_bankIndex == 3'h4;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_4_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_8;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_10 = _decoder_io_bankIndex == 3'h5;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_5_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_10;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        _io_memCmd_ready_T_12 = _decoder_io_bankIndex == 3'h6;	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:60]
-  wire        reqQs_6_io_enq_valid = io_memCmd_valid & _io_memCmd_ready_T_12;	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:{39,60}]
-  wire        reqQs_7_io_enq_valid = io_memCmd_valid & (&_decoder_io_bankIndex);	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23, :33:{39,60}]
-  wire        _GEN = _respQs_0_io_enq_ready & _banks_0_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_0 = _respQs_1_io_enq_ready & _banks_1_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_1 = _respQs_2_io_enq_ready & _banks_2_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_2 = _respQs_3_io_enq_ready & _banks_3_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_3 = _respQs_4_io_enq_ready & _banks_4_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_4 = _respQs_5_io_enq_ready & _banks_5_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_5 = _respQs_6_io_enq_ready & _banks_6_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  wire        _GEN_6 = _respQs_7_io_enq_ready & _banks_7_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:26:11, :60:53]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:47:13]
-      if ((`PRINTF_COND_) & _reqQs_0_io_enq_ready & reqQs_0_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 1'h0, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_1_io_enq_ready & reqQs_1_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 1'h1, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_2_io_enq_ready & reqQs_2_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 2'h2, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_3_io_enq_ready & reqQs_3_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 2'h3, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_4_io_enq_ready & reqQs_4_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h4, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_5_io_enq_ready & reqQs_5_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h5, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_6_io_enq_ready & reqQs_6_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h6, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _reqQs_7_io_enq_ready & reqQs_7_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:30:52, :33:39, :47:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: enqueued cmd to bank %d addr=0x%x lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, 3'h7, io_memCmd_bits_addr, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :47:13]
-      if ((`PRINTF_COND_) & _GEN & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_0 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_1 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_2 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_3 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_4 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_5 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-      if ((`PRINTF_COND_) & _GEN_6 & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:47:13, :69:13]
-        $fwrite(`PRINTF_FD_,
-                "[BankGroup %d] Cycle %d: bank responded, update lastGrp=%d lastCyc=%d\n",
-                1'h1, clock, lastColBankGroup, lastColCycle);	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33, :21:33, :69:13]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    if (reset) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      lastColBankGroup <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
+  wire        _arb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_2_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_3_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_4_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_5_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_6_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _arb_io_in_7_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
+  wire        _respQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_7_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_7_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_6_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_6_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_5_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_5_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_4_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_4_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_3_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_3_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_2_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_2_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _respQs_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire [31:0] _respQs_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  wire        _banks_7_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_7_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_7_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_6_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_6_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_5_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_5_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_4_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_4_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_3_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_3_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_2_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_2_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _banks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire [31:0] _banks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  wire        _cmdDemux_io_deq_0_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_0_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_1_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_2_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_2_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_3_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_3_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_4_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_4_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_5_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_5_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_6_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_6_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_valid;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_addr;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_data;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cs;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_ras;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_cas;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire        _cmdDemux_io_deq_7_bits_we;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  wire [31:0] _cmdDemux_io_deq_7_bits_request_id;	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  reg  [31:0] lastColBankGroup;	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+  reg  [31:0] lastColCycle;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+  wire        _GEN = _respQs_0_io_enq_ready & _banks_0_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_0 = _respQs_1_io_enq_ready & _banks_1_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_1 = _respQs_2_io_enq_ready & _banks_2_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_2 = _respQs_3_io_enq_ready & _banks_3_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_3 = _respQs_4_io_enq_ready & _banks_4_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_4 = _respQs_5_io_enq_ready & _banks_5_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_5 = _respQs_6_io_enq_ready & _banks_6_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  wire        _GEN_6 = _respQs_7_io_enq_ready & _banks_7_io_phyResp_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:27:22, :53:11]
+  always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    if (reset) begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      lastColBankGroup <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+      lastColCycle <= 32'h0;	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
     end
-    else begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:20:33, :65:25, :67:24]
-        lastColBankGroup <= 32'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:65:25, :68:24]
-        lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33, :68:24]
+    else begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:17:33, :61:25, :62:24]
+        lastColBankGroup <= 32'h1;	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+      if (_GEN_6 | _GEN_5 | _GEN_4 | _GEN_3 | _GEN_2 | _GEN_1 | _GEN_0 | _GEN)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/BankGroup.scala:61:25, :63:24]
+        lastColCycle <= {31'h0, clock};	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33, :63:24]
     end
   end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    logic [31:0] _RANDOM[0:1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+    initial begin	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        `INIT_RANDOM_PROLOG_	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
       `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
         for (logic [1:0] i = 2'h0; i < 2'h2; i += 2'h1) begin
-          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-        lastColBankGroup = _RANDOM[1'h0];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :20:33]
-        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :21:33]
+          _RANDOM[i[0]] = `RANDOM;	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        end	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+        lastColBankGroup = _RANDOM[1'h0];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7, :17:33]
+        lastColCycle = _RANDOM[1'h1];	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7, :18:33]
       `endif // RANDOMIZE_REG_INIT
     end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7]
+    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
+      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/memctrl/memories/BankGroup.scala:8:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  AddressDecoder decoder (	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-    .io_addr           (io_memCmd_bits_addr),
-    .io_bankIndex      (_decoder_io_bankIndex),
-    .io_bankGroupIndex (/* unused */),
-    .io_rankIndex      (/* unused */)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:15:23]
-  DRAMBank_24 banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  MultiBankCmdQueue cmdDemux (	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .clock                    (clock),
+    .reset                    (reset),
+    .io_enq_ready             (io_memCmd_ready),
+    .io_enq_valid             (io_memCmd_valid),
+    .io_enq_bits_addr         (io_memCmd_bits_addr),
+    .io_enq_bits_data         (io_memCmd_bits_data),
+    .io_enq_bits_cs           (io_memCmd_bits_cs),
+    .io_enq_bits_ras          (io_memCmd_bits_ras),
+    .io_enq_bits_cas          (io_memCmd_bits_cas),
+    .io_enq_bits_we           (io_memCmd_bits_we),
+    .io_enq_bits_request_id   (io_memCmd_bits_request_id),
+    .io_deq_0_ready           (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_0_valid           (_cmdDemux_io_deq_0_valid),
+    .io_deq_0_bits_addr       (_cmdDemux_io_deq_0_bits_addr),
+    .io_deq_0_bits_data       (_cmdDemux_io_deq_0_bits_data),
+    .io_deq_0_bits_cs         (_cmdDemux_io_deq_0_bits_cs),
+    .io_deq_0_bits_ras        (_cmdDemux_io_deq_0_bits_ras),
+    .io_deq_0_bits_cas        (_cmdDemux_io_deq_0_bits_cas),
+    .io_deq_0_bits_we         (_cmdDemux_io_deq_0_bits_we),
+    .io_deq_0_bits_request_id (_cmdDemux_io_deq_0_bits_request_id),
+    .io_deq_1_ready           (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_1_valid           (_cmdDemux_io_deq_1_valid),
+    .io_deq_1_bits_addr       (_cmdDemux_io_deq_1_bits_addr),
+    .io_deq_1_bits_data       (_cmdDemux_io_deq_1_bits_data),
+    .io_deq_1_bits_cs         (_cmdDemux_io_deq_1_bits_cs),
+    .io_deq_1_bits_ras        (_cmdDemux_io_deq_1_bits_ras),
+    .io_deq_1_bits_cas        (_cmdDemux_io_deq_1_bits_cas),
+    .io_deq_1_bits_we         (_cmdDemux_io_deq_1_bits_we),
+    .io_deq_1_bits_request_id (_cmdDemux_io_deq_1_bits_request_id),
+    .io_deq_2_ready           (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_2_valid           (_cmdDemux_io_deq_2_valid),
+    .io_deq_2_bits_addr       (_cmdDemux_io_deq_2_bits_addr),
+    .io_deq_2_bits_data       (_cmdDemux_io_deq_2_bits_data),
+    .io_deq_2_bits_cs         (_cmdDemux_io_deq_2_bits_cs),
+    .io_deq_2_bits_ras        (_cmdDemux_io_deq_2_bits_ras),
+    .io_deq_2_bits_cas        (_cmdDemux_io_deq_2_bits_cas),
+    .io_deq_2_bits_we         (_cmdDemux_io_deq_2_bits_we),
+    .io_deq_2_bits_request_id (_cmdDemux_io_deq_2_bits_request_id),
+    .io_deq_3_ready           (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_3_valid           (_cmdDemux_io_deq_3_valid),
+    .io_deq_3_bits_addr       (_cmdDemux_io_deq_3_bits_addr),
+    .io_deq_3_bits_data       (_cmdDemux_io_deq_3_bits_data),
+    .io_deq_3_bits_cs         (_cmdDemux_io_deq_3_bits_cs),
+    .io_deq_3_bits_ras        (_cmdDemux_io_deq_3_bits_ras),
+    .io_deq_3_bits_cas        (_cmdDemux_io_deq_3_bits_cas),
+    .io_deq_3_bits_we         (_cmdDemux_io_deq_3_bits_we),
+    .io_deq_3_bits_request_id (_cmdDemux_io_deq_3_bits_request_id),
+    .io_deq_4_ready           (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_4_valid           (_cmdDemux_io_deq_4_valid),
+    .io_deq_4_bits_addr       (_cmdDemux_io_deq_4_bits_addr),
+    .io_deq_4_bits_data       (_cmdDemux_io_deq_4_bits_data),
+    .io_deq_4_bits_cs         (_cmdDemux_io_deq_4_bits_cs),
+    .io_deq_4_bits_ras        (_cmdDemux_io_deq_4_bits_ras),
+    .io_deq_4_bits_cas        (_cmdDemux_io_deq_4_bits_cas),
+    .io_deq_4_bits_we         (_cmdDemux_io_deq_4_bits_we),
+    .io_deq_4_bits_request_id (_cmdDemux_io_deq_4_bits_request_id),
+    .io_deq_5_ready           (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_5_valid           (_cmdDemux_io_deq_5_valid),
+    .io_deq_5_bits_addr       (_cmdDemux_io_deq_5_bits_addr),
+    .io_deq_5_bits_data       (_cmdDemux_io_deq_5_bits_data),
+    .io_deq_5_bits_cs         (_cmdDemux_io_deq_5_bits_cs),
+    .io_deq_5_bits_ras        (_cmdDemux_io_deq_5_bits_ras),
+    .io_deq_5_bits_cas        (_cmdDemux_io_deq_5_bits_cas),
+    .io_deq_5_bits_we         (_cmdDemux_io_deq_5_bits_we),
+    .io_deq_5_bits_request_id (_cmdDemux_io_deq_5_bits_request_id),
+    .io_deq_6_ready           (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_6_valid           (_cmdDemux_io_deq_6_valid),
+    .io_deq_6_bits_addr       (_cmdDemux_io_deq_6_bits_addr),
+    .io_deq_6_bits_data       (_cmdDemux_io_deq_6_bits_data),
+    .io_deq_6_bits_cs         (_cmdDemux_io_deq_6_bits_cs),
+    .io_deq_6_bits_ras        (_cmdDemux_io_deq_6_bits_ras),
+    .io_deq_6_bits_cas        (_cmdDemux_io_deq_6_bits_cas),
+    .io_deq_6_bits_we         (_cmdDemux_io_deq_6_bits_we),
+    .io_deq_6_bits_request_id (_cmdDemux_io_deq_6_bits_request_id),
+    .io_deq_7_ready           (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_7_valid           (_cmdDemux_io_deq_7_valid),
+    .io_deq_7_bits_addr       (_cmdDemux_io_deq_7_bits_addr),
+    .io_deq_7_bits_data       (_cmdDemux_io_deq_7_bits_data),
+    .io_deq_7_bits_cs         (_cmdDemux_io_deq_7_bits_cs),
+    .io_deq_7_bits_ras        (_cmdDemux_io_deq_7_bits_ras),
+    .io_deq_7_bits_cas        (_cmdDemux_io_deq_7_bits_cas),
+    .io_deq_7_bits_we         (_cmdDemux_io_deq_7_bits_we),
+    .io_deq_7_bits_request_id (_cmdDemux_io_deq_7_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+  DRAMBank_24 banks_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_0_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_0_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_0_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_0_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_0_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_0_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_0_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_0_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_0_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_0_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_0_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_0_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_0_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_0_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_0_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_0_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_0_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_25 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_25 banks_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_1_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_1_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_1_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_1_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_1_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_1_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_1_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_1_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_1_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_1_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_1_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_1_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_1_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_1_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_1_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_1_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_1_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_26 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_26 banks_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_2_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_2_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_2_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_2_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_2_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_2_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_2_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_2_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_2_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_2_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_2_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_2_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_2_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_2_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_2_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_2_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_2_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_2_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_27 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_27 banks_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_3_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_3_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_3_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_3_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_3_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_3_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_3_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_3_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_3_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_3_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_3_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_3_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_3_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_3_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_3_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_3_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_3_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_3_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_28 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_28 banks_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_4_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_4_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_4_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_4_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_4_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_4_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_4_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_4_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_4_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_4_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_4_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_4_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_4_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_4_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_4_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_4_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_4_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_4_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_29 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_29 banks_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_5_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_5_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_5_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_5_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_5_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_5_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_5_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_5_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_5_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_5_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_5_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_5_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_5_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_5_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_5_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_5_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_5_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_5_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_30 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_30 banks_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_6_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_6_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_6_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_6_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_6_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_6_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_6_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_6_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_6_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_6_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_6_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_6_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_6_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_6_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_6_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_6_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_6_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_6_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  DRAMBank_31 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  DRAMBank_31 banks_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
     .clock                           (clock),
     .reset                           (reset),
     .io_memCmd_ready                 (_banks_7_io_memCmd_ready),
-    .io_memCmd_valid                 (_reqQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_addr             (_reqQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_data             (_reqQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cs               (_reqQs_7_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_ras              (_reqQs_7_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_cas              (_reqQs_7_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_we               (_reqQs_7_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_request_id       (_reqQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_memCmd_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .io_phyResp_ready                (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_memCmd_valid                 (_cmdDemux_io_deq_7_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_addr             (_cmdDemux_io_deq_7_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_data             (_cmdDemux_io_deq_7_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cs               (_cmdDemux_io_deq_7_bits_cs),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_ras              (_cmdDemux_io_deq_7_bits_ras),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_cas              (_cmdDemux_io_deq_7_bits_cas),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_we               (_cmdDemux_io_deq_7_bits_we),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_request_id       (_cmdDemux_io_deq_7_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:24]
+    .io_memCmd_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:17:33]
+    .io_memCmd_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:18:33]
+    .io_phyResp_ready                (_respQs_7_io_enq_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_phyResp_valid                (_banks_7_io_phyResp_valid),
     .io_phyResp_bits_addr            (_banks_7_io_phyResp_bits_addr),
     .io_phyResp_bits_data            (_banks_7_io_phyResp_bits_data),
     .io_phyResp_bits_request_id      (_banks_7_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-  Queue256_BankMemoryCommand reqQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_0_io_enq_ready),
-    .io_enq_valid                 (reqQs_0_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_0_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_0_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_0_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_0_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_0_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_0_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_0_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_0_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_0_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_0_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_1_io_enq_ready),
-    .io_enq_valid                 (reqQs_1_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_1_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_1_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_1_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_1_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_1_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_1_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_1_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_1_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_1_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_1_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_2_io_enq_ready),
-    .io_enq_valid                 (reqQs_2_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_2_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_2_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_2_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_2_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_2_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_2_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_2_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_2_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_2_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_2_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_2_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_3_io_enq_ready),
-    .io_enq_valid                 (reqQs_3_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_3_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_3_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_3_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_3_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_3_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_3_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_3_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_3_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_3_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_3_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_3_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_4_io_enq_ready),
-    .io_enq_valid                 (reqQs_4_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_4_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_4_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_4_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_4_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_4_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_4_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_4_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_4_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_4_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_4_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_4_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_5_io_enq_ready),
-    .io_enq_valid                 (reqQs_5_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_5_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_5_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_5_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_5_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_5_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_5_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_5_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_5_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_5_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_5_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_5_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_6_io_enq_ready),
-    .io_enq_valid                 (reqQs_6_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_6_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_6_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_6_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_6_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_6_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_6_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_6_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_6_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_6_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_6_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_6_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryCommand reqQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-    .clock                        (clock),
-    .reset                        (reset),
-    .io_enq_ready                 (_reqQs_7_io_enq_ready),
-    .io_enq_valid                 (reqQs_7_io_enq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:33:39]
-    .io_enq_bits_addr             (io_memCmd_bits_addr),
-    .io_enq_bits_data             (io_memCmd_bits_data),
-    .io_enq_bits_cs               (io_memCmd_bits_cs),
-    .io_enq_bits_ras              (io_memCmd_bits_ras),
-    .io_enq_bits_cas              (io_memCmd_bits_cas),
-    .io_enq_bits_we               (io_memCmd_bits_we),
-    .io_enq_bits_request_id       (io_memCmd_bits_request_id),
-    .io_enq_bits_lastColBankGroup (lastColBankGroup),	// @[src/main/scala/memctrl/memories/BankGroup.scala:20:33]
-    .io_enq_bits_lastColCycle     (lastColCycle),	// @[src/main/scala/memctrl/memories/BankGroup.scala:21:33]
-    .io_deq_ready                 (_banks_7_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_valid                 (_reqQs_7_io_deq_valid),
-    .io_deq_bits_addr             (_reqQs_7_io_deq_bits_addr),
-    .io_deq_bits_data             (_reqQs_7_io_deq_bits_data),
-    .io_deq_bits_cs               (_reqQs_7_io_deq_bits_cs),
-    .io_deq_bits_ras              (_reqQs_7_io_deq_bits_ras),
-    .io_deq_bits_cas              (_reqQs_7_io_deq_bits_cas),
-    .io_deq_bits_we               (_reqQs_7_io_deq_bits_we),
-    .io_deq_bits_request_id       (_reqQs_7_io_deq_bits_request_id),
-    .io_deq_bits_lastColBankGroup (_reqQs_7_io_deq_bits_lastColBankGroup),
-    .io_deq_bits_lastColCycle     (_reqQs_7_io_deq_bits_lastColCycle)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:30:52]
-  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+  Queue256_BankMemoryResponse respQs_0 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_0_io_enq_ready),
-    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_0_io_deq_valid),
     .io_deq_bits_addr       (_respQs_0_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_0_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_1 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_1_io_enq_ready),
-    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_1_io_deq_valid),
     .io_deq_bits_addr       (_respQs_1_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_1_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_2 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_2_io_enq_ready),
-    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_2_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_2_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_2_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_2_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_2_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_2_io_deq_valid),
     .io_deq_bits_addr       (_respQs_2_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_2_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_2_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_3 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_3_io_enq_ready),
-    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_3_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_3_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_3_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_3_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_3_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_3_io_deq_valid),
     .io_deq_bits_addr       (_respQs_3_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_3_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_3_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_4 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_4_io_enq_ready),
-    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_4_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_4_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_4_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_4_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_4_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_4_io_deq_valid),
     .io_deq_bits_addr       (_respQs_4_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_4_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_4_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_5 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_5_io_enq_ready),
-    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_5_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_5_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_5_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_5_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_5_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_5_io_deq_valid),
     .io_deq_bits_addr       (_respQs_5_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_5_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_5_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_6 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_6_io_enq_ready),
-    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_6_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_6_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_6_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_6_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_6_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_6_io_deq_valid),
     .io_deq_bits_addr       (_respQs_6_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_6_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_6_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  Queue256_BankMemoryResponse respQs_7 (	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQs_7_io_enq_ready),
-    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:26:11]
-    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+    .io_enq_valid           (_banks_7_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_addr       (_banks_7_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_data       (_banks_7_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_enq_bits_request_id (_banks_7_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:27:22]
+    .io_deq_ready           (_arb_io_in_7_ready),	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .io_deq_valid           (_respQs_7_io_deq_valid),
     .io_deq_bits_addr       (_respQs_7_io_deq_bits_addr),
     .io_deq_bits_data       (_respQs_7_io_deq_bits_data),
     .io_deq_bits_request_id (_respQs_7_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+  RRArbiter arb (	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
     .clock                   (clock),
     .io_in_0_ready           (_arb_io_in_0_ready),
-    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_0_valid           (_respQs_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_addr       (_respQs_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_data       (_respQs_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_0_bits_request_id (_respQs_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_1_ready           (_arb_io_in_1_ready),
-    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_1_valid           (_respQs_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_addr       (_respQs_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_data       (_respQs_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_1_bits_request_id (_respQs_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_2_ready           (_arb_io_in_2_ready),
-    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_2_valid           (_respQs_2_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_addr       (_respQs_2_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_data       (_respQs_2_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_2_bits_request_id (_respQs_2_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_3_ready           (_arb_io_in_3_ready),
-    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_3_valid           (_respQs_3_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_addr       (_respQs_3_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_data       (_respQs_3_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_3_bits_request_id (_respQs_3_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_4_ready           (_arb_io_in_4_ready),
-    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_4_valid           (_respQs_4_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_addr       (_respQs_4_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_data       (_respQs_4_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_4_bits_request_id (_respQs_4_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_5_ready           (_arb_io_in_5_ready),
-    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_5_valid           (_respQs_5_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_addr       (_respQs_5_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_data       (_respQs_5_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_5_bits_request_id (_respQs_5_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_6_ready           (_arb_io_in_6_ready),
-    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_6_valid           (_respQs_6_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_addr       (_respQs_6_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_data       (_respQs_6_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_6_bits_request_id (_respQs_6_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_in_7_ready           (_arb_io_in_7_ready),
-    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
-    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:60:53]
+    .io_in_7_valid           (_respQs_7_io_deq_valid),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_addr       (_respQs_7_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_data       (_respQs_7_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
+    .io_in_7_bits_request_id (_respQs_7_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/BankGroup.scala:53:11]
     .io_out_ready            (io_phyResp_ready),
     .io_out_valid            (io_phyResp_valid),
     .io_out_bits_addr        (io_phyResp_bits_addr),
     .io_out_bits_data        (io_phyResp_bits_data),
     .io_out_bits_request_id  (io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:75:19]
-  assign io_memCmd_ready =
-    _io_memCmd_ready_T & _reqQs_0_io_enq_ready | _io_memCmd_ready_T_2
-    & _reqQs_1_io_enq_ready | _io_memCmd_ready_T_4 & _reqQs_2_io_enq_ready
-    | _io_memCmd_ready_T_6 & _reqQs_3_io_enq_ready | _io_memCmd_ready_T_8
-    & _reqQs_4_io_enq_ready | _io_memCmd_ready_T_10 & _reqQs_5_io_enq_ready
-    | _io_memCmd_ready_T_12 & _reqQs_6_io_enq_ready | (&_decoder_io_bankIndex)
-    & _reqQs_7_io_enq_ready;	// @[src/main/scala/memctrl/memories/BankGroup.scala:7:7, :15:23, :30:52, :33:60, :56:8, :57:14]
+  );	// @[src/main/scala/memctrl/memories/BankGroup.scala:67:19]
 endmodule
 
 module Rank_1(	// @[src/main/scala/memctrl/memories/Rank.scala:6:7]
@@ -18271,206 +17435,157 @@ module Rank_1(	// @[src/main/scala/memctrl/memories/Rank.scala:6:7]
                 io_phyResp_bits_request_id	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
 );
 
-  wire        _arbResp_io_in_0_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
-  wire        _arbResp_io_in_1_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
-  wire        _respQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _respQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _respQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _respQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire [31:0] _respQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  wire        _reqQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_1_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _reqQueues_0_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire [31:0] _reqQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  wire        _groups_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _groups_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _groups_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _groups_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire [31:0] _groups_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  wire        _decoder_io_bankGroupIndex;	// @[src/main/scala/memctrl/memories/Rank.scala:8:27]
-  wire        reqQueues_0_io_enq_valid = io_memCmd_valid & ~_decoder_io_bankGroupIndex;	// @[src/main/scala/memctrl/memories/Rank.scala:8:27, :23:{50,62}]
-  wire        reqQueues_1_io_enq_valid = io_memCmd_valid & _decoder_io_bankGroupIndex;	// @[src/main/scala/memctrl/memories/Rank.scala:8:27, :23:50]
-  `ifndef SYNTHESIS	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-    always @(posedge clock) begin	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-      if ((`PRINTF_COND_) & _reqQueues_0_io_enq_ready & reqQueues_0_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:18:63, :23:50, :27:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Request enqueued to bankGroup 0: addr=0x%x data=0x%x\n",
-                io_memCmd_bits_addr, io_memCmd_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-      if ((`PRINTF_COND_) & _reqQueues_1_io_enq_ready & reqQueues_1_io_enq_valid & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:18:63, :23:50, :27:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Request enqueued to bankGroup 1: addr=0x%x data=0x%x\n",
-                io_memCmd_bits_addr, io_memCmd_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:27:13]
-      if ((`PRINTF_COND_) & _respQueues_0_io_enq_ready & _groups_0_io_phyResp_valid
-          & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:15:11, :19:63, :27:13, :41:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Response enqueued from bankGroup 0: addr=0x%x data=0x%x\n",
-                _groups_0_io_phyResp_bits_addr, _groups_0_io_phyResp_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:15:11, :41:13]
-      if ((`PRINTF_COND_) & _respQueues_1_io_enq_ready & _groups_1_io_phyResp_valid
-          & ~reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, src/main/scala/memctrl/memories/Rank.scala:15:11, :19:63, :27:13, :41:13]
-        $fwrite(`PRINTF_FD_,
-                "[Rank] Response enqueued from bankGroup 1: addr=0x%x data=0x%x\n",
-                _groups_1_io_phyResp_bits_addr, _groups_1_io_phyResp_bits_data);	// @[src/main/scala/memctrl/memories/Rank.scala:15:11, :41:13]
-    end // always @(posedge)
-  `endif // not def SYNTHESIS
-  AddressDecoder decoder (	// @[src/main/scala/memctrl/memories/Rank.scala:8:27]
-    .io_addr           (io_memCmd_bits_addr),
-    .io_bankIndex      (/* unused */),
-    .io_bankGroupIndex (_decoder_io_bankGroupIndex),
-    .io_rankIndex      (/* unused */)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:8:27]
-  BankGroup_2 groups_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
+  wire        _arbResp_io_in_0_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
+  wire        _arbResp_io_in_1_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
+  wire        _respQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _respQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _respQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _respQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  wire        _groups_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _groups_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _groups_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _groups_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire [31:0] _groups_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  wire        _cmdDemux_io_deq_0_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_0_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_valid;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_addr;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_data;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_cs;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_ras;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_cas;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire        _cmdDemux_io_deq_1_bits_we;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_request_id;	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  MultiBankGroupCmdQueue cmdDemux (	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .clock                    (clock),
+    .reset                    (reset),
+    .io_enq_ready             (io_memCmd_ready),
+    .io_enq_valid             (io_memCmd_valid),
+    .io_enq_bits_addr         (io_memCmd_bits_addr),
+    .io_enq_bits_data         (io_memCmd_bits_data),
+    .io_enq_bits_cs           (io_memCmd_bits_cs),
+    .io_enq_bits_ras          (io_memCmd_bits_ras),
+    .io_enq_bits_cas          (io_memCmd_bits_cas),
+    .io_enq_bits_we           (io_memCmd_bits_we),
+    .io_enq_bits_request_id   (io_memCmd_bits_request_id),
+    .io_deq_0_ready           (_groups_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_0_valid           (_cmdDemux_io_deq_0_valid),
+    .io_deq_0_bits_addr       (_cmdDemux_io_deq_0_bits_addr),
+    .io_deq_0_bits_data       (_cmdDemux_io_deq_0_bits_data),
+    .io_deq_0_bits_cs         (_cmdDemux_io_deq_0_bits_cs),
+    .io_deq_0_bits_ras        (_cmdDemux_io_deq_0_bits_ras),
+    .io_deq_0_bits_cas        (_cmdDemux_io_deq_0_bits_cas),
+    .io_deq_0_bits_we         (_cmdDemux_io_deq_0_bits_we),
+    .io_deq_0_bits_request_id (_cmdDemux_io_deq_0_bits_request_id),
+    .io_deq_1_ready           (_groups_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_1_valid           (_cmdDemux_io_deq_1_valid),
+    .io_deq_1_bits_addr       (_cmdDemux_io_deq_1_bits_addr),
+    .io_deq_1_bits_data       (_cmdDemux_io_deq_1_bits_data),
+    .io_deq_1_bits_cs         (_cmdDemux_io_deq_1_bits_cs),
+    .io_deq_1_bits_ras        (_cmdDemux_io_deq_1_bits_ras),
+    .io_deq_1_bits_cas        (_cmdDemux_io_deq_1_bits_cas),
+    .io_deq_1_bits_we         (_cmdDemux_io_deq_1_bits_we),
+    .io_deq_1_bits_request_id (_cmdDemux_io_deq_1_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+  BankGroup_2 groups_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
     .clock                      (clock),
     .reset                      (reset),
     .io_memCmd_ready            (_groups_0_io_memCmd_ready),
-    .io_memCmd_valid            (_reqQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_addr        (_reqQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_data        (_reqQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cs          (_reqQueues_0_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_ras         (_reqQueues_0_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cas         (_reqQueues_0_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_we          (_reqQueues_0_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_request_id  (_reqQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_phyResp_ready           (_respQueues_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_memCmd_valid            (_cmdDemux_io_deq_0_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_addr        (_cmdDemux_io_deq_0_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_data        (_cmdDemux_io_deq_0_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cs          (_cmdDemux_io_deq_0_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_ras         (_cmdDemux_io_deq_0_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cas         (_cmdDemux_io_deq_0_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_we          (_cmdDemux_io_deq_0_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_request_id  (_cmdDemux_io_deq_0_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_phyResp_ready           (_respQueues_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_phyResp_valid           (_groups_0_io_phyResp_valid),
     .io_phyResp_bits_addr       (_groups_0_io_phyResp_bits_addr),
     .io_phyResp_bits_data       (_groups_0_io_phyResp_bits_data),
     .io_phyResp_bits_request_id (_groups_0_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  BankGroup_3 groups_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  BankGroup_3 groups_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
     .clock                      (clock),
     .reset                      (reset),
     .io_memCmd_ready            (_groups_1_io_memCmd_ready),
-    .io_memCmd_valid            (_reqQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_addr        (_reqQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_data        (_reqQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cs          (_reqQueues_1_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_ras         (_reqQueues_1_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_cas         (_reqQueues_1_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_we          (_reqQueues_1_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_memCmd_bits_request_id  (_reqQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .io_phyResp_ready           (_respQueues_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_memCmd_valid            (_cmdDemux_io_deq_1_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_addr        (_cmdDemux_io_deq_1_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_data        (_cmdDemux_io_deq_1_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cs          (_cmdDemux_io_deq_1_bits_cs),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_ras         (_cmdDemux_io_deq_1_bits_ras),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_cas         (_cmdDemux_io_deq_1_bits_cas),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_we          (_cmdDemux_io_deq_1_bits_we),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_memCmd_bits_request_id  (_cmdDemux_io_deq_1_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:24]
+    .io_phyResp_ready           (_respQueues_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_phyResp_valid           (_groups_1_io_phyResp_valid),
     .io_phyResp_bits_addr       (_groups_1_io_phyResp_bits_addr),
     .io_phyResp_bits_data       (_groups_1_io_phyResp_bits_data),
     .io_phyResp_bits_request_id (_groups_1_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-  Queue256_PhysicalMemoryCommand reqQueues_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .clock                  (clock),
-    .reset                  (reset),
-    .io_enq_ready           (_reqQueues_0_io_enq_ready),
-    .io_enq_valid           (reqQueues_0_io_enq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:23:50]
-    .io_enq_bits_addr       (io_memCmd_bits_addr),
-    .io_enq_bits_data       (io_memCmd_bits_data),
-    .io_enq_bits_cs         (io_memCmd_bits_cs),
-    .io_enq_bits_ras        (io_memCmd_bits_ras),
-    .io_enq_bits_cas        (io_memCmd_bits_cas),
-    .io_enq_bits_we         (io_memCmd_bits_we),
-    .io_enq_bits_request_id (io_memCmd_bits_request_id),
-    .io_deq_ready           (_groups_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_valid           (_reqQueues_0_io_deq_valid),
-    .io_deq_bits_addr       (_reqQueues_0_io_deq_bits_addr),
-    .io_deq_bits_data       (_reqQueues_0_io_deq_bits_data),
-    .io_deq_bits_cs         (_reqQueues_0_io_deq_bits_cs),
-    .io_deq_bits_ras        (_reqQueues_0_io_deq_bits_ras),
-    .io_deq_bits_cas        (_reqQueues_0_io_deq_bits_cas),
-    .io_deq_bits_we         (_reqQueues_0_io_deq_bits_we),
-    .io_deq_bits_request_id (_reqQueues_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  Queue256_PhysicalMemoryCommand reqQueues_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-    .clock                  (clock),
-    .reset                  (reset),
-    .io_enq_ready           (_reqQueues_1_io_enq_ready),
-    .io_enq_valid           (reqQueues_1_io_enq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:23:50]
-    .io_enq_bits_addr       (io_memCmd_bits_addr),
-    .io_enq_bits_data       (io_memCmd_bits_data),
-    .io_enq_bits_cs         (io_memCmd_bits_cs),
-    .io_enq_bits_ras        (io_memCmd_bits_ras),
-    .io_enq_bits_cas        (io_memCmd_bits_cas),
-    .io_enq_bits_we         (io_memCmd_bits_we),
-    .io_enq_bits_request_id (io_memCmd_bits_request_id),
-    .io_deq_ready           (_groups_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_valid           (_reqQueues_1_io_deq_valid),
-    .io_deq_bits_addr       (_reqQueues_1_io_deq_bits_addr),
-    .io_deq_bits_data       (_reqQueues_1_io_deq_bits_data),
-    .io_deq_bits_cs         (_reqQueues_1_io_deq_bits_cs),
-    .io_deq_bits_ras        (_reqQueues_1_io_deq_bits_ras),
-    .io_deq_bits_cas        (_reqQueues_1_io_deq_bits_cas),
-    .io_deq_bits_we         (_reqQueues_1_io_deq_bits_we),
-    .io_deq_bits_request_id (_reqQueues_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:18:63]
-  Queue256_PhysicalMemoryResponse respQueues_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+  Queue256_PhysicalMemoryResponse respQueues_0 (	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQueues_0_io_enq_ready),
-    .io_enq_valid           (_groups_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_addr       (_groups_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_data       (_groups_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_request_id (_groups_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_ready           (_arbResp_io_in_0_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
+    .io_enq_valid           (_groups_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_addr       (_groups_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_data       (_groups_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_request_id (_groups_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_ready           (_arbResp_io_in_0_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
     .io_deq_valid           (_respQueues_0_io_deq_valid),
     .io_deq_bits_addr       (_respQueues_0_io_deq_bits_addr),
     .io_deq_bits_data       (_respQueues_0_io_deq_bits_data),
     .io_deq_bits_request_id (_respQueues_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  Queue256_PhysicalMemoryResponse respQueues_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  Queue256_PhysicalMemoryResponse respQueues_1 (	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQueues_1_io_enq_ready),
-    .io_enq_valid           (_groups_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_addr       (_groups_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_data       (_groups_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_enq_bits_request_id (_groups_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:15:11]
-    .io_deq_ready           (_arbResp_io_in_1_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
+    .io_enq_valid           (_groups_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_addr       (_groups_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_data       (_groups_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_enq_bits_request_id (_groups_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:25:21]
+    .io_deq_ready           (_arbResp_io_in_1_ready),	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
     .io_deq_valid           (_respQueues_1_io_deq_valid),
     .io_deq_bits_addr       (_respQueues_1_io_deq_bits_addr),
     .io_deq_bits_data       (_respQueues_1_io_deq_bits_data),
     .io_deq_bits_request_id (_respQueues_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-  RRArbiter_2 arbResp (	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+  RRArbiter_2 arbResp (	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
     .clock                   (clock),
     .io_in_0_ready           (_arbResp_io_in_0_ready),
-    .io_in_0_valid           (_respQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_0_bits_addr       (_respQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_0_bits_data       (_respQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_0_bits_request_id (_respQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_in_0_valid           (_respQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_0_bits_addr       (_respQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_0_bits_data       (_respQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_0_bits_request_id (_respQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_in_1_ready           (_arbResp_io_in_1_ready),
-    .io_in_1_valid           (_respQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_1_bits_addr       (_respQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_1_bits_data       (_respQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
-    .io_in_1_bits_request_id (_respQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:19:63]
+    .io_in_1_valid           (_respQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_1_bits_addr       (_respQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_1_bits_data       (_respQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
+    .io_in_1_bits_request_id (_respQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Rank.scala:33:11]
     .io_out_ready            (io_phyResp_ready),
     .io_out_valid            (io_phyResp_valid),
     .io_out_bits_addr        (io_phyResp_bits_addr),
     .io_out_bits_data        (io_phyResp_bits_data),
     .io_out_bits_request_id  (io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Rank.scala:46:23]
-  assign io_memCmd_ready =
-    ~_decoder_io_bankGroupIndex & _reqQueues_0_io_enq_ready | _decoder_io_bankGroupIndex
-    & _reqQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Rank.scala:6:7, :8:27, :18:63, :23:62, :32:25, :33:14]
+  );	// @[src/main/scala/memctrl/memories/Rank.scala:44:23]
 endmodule
 
 module Channel(	// @[src/main/scala/memctrl/memories/Channel.scala:6:7]
@@ -18491,182 +17606,157 @@ module Channel(	// @[src/main/scala/memctrl/memories/Channel.scala:6:7]
                 io_phyResp_bits_request_id	// @[src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
 );
 
-  wire        _arbResp_io_in_0_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
-  wire        _arbResp_io_in_1_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
-  wire        _respQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire        _respQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire [31:0] _respQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire [31:0] _respQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire [31:0] _respQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire        _respQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire        _respQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire [31:0] _respQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire [31:0] _respQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire [31:0] _respQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  wire        _reqQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire [31:0] _reqQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire [31:0] _reqQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_1_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_1_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_1_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_1_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire [31:0] _reqQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire [31:0] _reqQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire [31:0] _reqQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_0_io_deq_bits_cs;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_0_io_deq_bits_ras;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_0_io_deq_bits_cas;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _reqQueues_0_io_deq_bits_we;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire [31:0] _reqQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  wire        _ranks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire        _ranks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire [31:0] _ranks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire [31:0] _ranks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire [31:0] _ranks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire        _ranks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire        _ranks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire [31:0] _ranks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire [31:0] _ranks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire [31:0] _ranks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  wire        _addrDecoder_io_rankIndex;	// @[src/main/scala/memctrl/memories/Channel.scala:9:27]
-  AddressDecoder addrDecoder (	// @[src/main/scala/memctrl/memories/Channel.scala:9:27]
-    .io_addr           (io_memCmd_bits_addr),
-    .io_bankIndex      (/* unused */),
-    .io_bankGroupIndex (/* unused */),
-    .io_rankIndex      (_addrDecoder_io_rankIndex)
-  );	// @[src/main/scala/memctrl/memories/Channel.scala:9:27]
-  Rank ranks_0 (	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
+  wire        _respArb_io_in_0_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
+  wire        _respArb_io_in_1_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
+  wire        _respQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire        _respQueues_1_io_deq_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire [31:0] _respQueues_1_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire        _respQueues_0_io_enq_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire        _respQueues_0_io_deq_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire [31:0] _respQueues_0_io_deq_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  wire        _ranks_1_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire        _ranks_1_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire [31:0] _ranks_1_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire [31:0] _ranks_1_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire [31:0] _ranks_1_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire        _ranks_0_io_memCmd_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire        _ranks_0_io_phyResp_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire [31:0] _ranks_0_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire [31:0] _ranks_0_io_phyResp_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire [31:0] _ranks_0_io_phyResp_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  wire        _cmdDemux_io_deq_0_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_0_bits_cs;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_0_bits_ras;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_0_bits_cas;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_0_bits_we;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire [31:0] _cmdDemux_io_deq_0_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_1_valid;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_addr;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_data;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_1_bits_cs;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_1_bits_ras;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_1_bits_cas;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire        _cmdDemux_io_deq_1_bits_we;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  wire [31:0] _cmdDemux_io_deq_1_bits_request_id;	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  MultiRankCmdQueue cmdDemux (	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .clock                    (clock),
+    .reset                    (reset),
+    .io_enq_ready             (io_memCmd_ready),
+    .io_enq_valid             (io_memCmd_valid),
+    .io_enq_bits_addr         (io_memCmd_bits_addr),
+    .io_enq_bits_data         (io_memCmd_bits_data),
+    .io_enq_bits_cs           (io_memCmd_bits_cs),
+    .io_enq_bits_ras          (io_memCmd_bits_ras),
+    .io_enq_bits_cas          (io_memCmd_bits_cas),
+    .io_enq_bits_we           (io_memCmd_bits_we),
+    .io_enq_bits_request_id   (io_memCmd_bits_request_id),
+    .io_deq_0_ready           (_ranks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_deq_0_valid           (_cmdDemux_io_deq_0_valid),
+    .io_deq_0_bits_addr       (_cmdDemux_io_deq_0_bits_addr),
+    .io_deq_0_bits_data       (_cmdDemux_io_deq_0_bits_data),
+    .io_deq_0_bits_cs         (_cmdDemux_io_deq_0_bits_cs),
+    .io_deq_0_bits_ras        (_cmdDemux_io_deq_0_bits_ras),
+    .io_deq_0_bits_cas        (_cmdDemux_io_deq_0_bits_cas),
+    .io_deq_0_bits_we         (_cmdDemux_io_deq_0_bits_we),
+    .io_deq_0_bits_request_id (_cmdDemux_io_deq_0_bits_request_id),
+    .io_deq_1_ready           (_ranks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_deq_1_valid           (_cmdDemux_io_deq_1_valid),
+    .io_deq_1_bits_addr       (_cmdDemux_io_deq_1_bits_addr),
+    .io_deq_1_bits_data       (_cmdDemux_io_deq_1_bits_data),
+    .io_deq_1_bits_cs         (_cmdDemux_io_deq_1_bits_cs),
+    .io_deq_1_bits_ras        (_cmdDemux_io_deq_1_bits_ras),
+    .io_deq_1_bits_cas        (_cmdDemux_io_deq_1_bits_cas),
+    .io_deq_1_bits_we         (_cmdDemux_io_deq_1_bits_we),
+    .io_deq_1_bits_request_id (_cmdDemux_io_deq_1_bits_request_id)
+  );	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+  Rank ranks_0 (	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
     .clock                      (clock),
     .reset                      (reset),
     .io_memCmd_ready            (_ranks_0_io_memCmd_ready),
-    .io_memCmd_valid            (_reqQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_addr        (_reqQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_data        (_reqQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_cs          (_reqQueues_0_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_ras         (_reqQueues_0_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_cas         (_reqQueues_0_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_we          (_reqQueues_0_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_request_id  (_reqQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_phyResp_ready           (_respQueues_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
+    .io_memCmd_valid            (_cmdDemux_io_deq_0_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_addr        (_cmdDemux_io_deq_0_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_data        (_cmdDemux_io_deq_0_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_cs          (_cmdDemux_io_deq_0_bits_cs),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_ras         (_cmdDemux_io_deq_0_bits_ras),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_cas         (_cmdDemux_io_deq_0_bits_cas),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_we          (_cmdDemux_io_deq_0_bits_we),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_request_id  (_cmdDemux_io_deq_0_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_phyResp_ready           (_respQueues_0_io_enq_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
     .io_phyResp_valid           (_ranks_0_io_phyResp_valid),
     .io_phyResp_bits_addr       (_ranks_0_io_phyResp_bits_addr),
     .io_phyResp_bits_data       (_ranks_0_io_phyResp_bits_data),
     .io_phyResp_bits_request_id (_ranks_0_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  Rank_1 ranks_1 (	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
+  );	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  Rank_1 ranks_1 (	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
     .clock                      (clock),
     .reset                      (reset),
     .io_memCmd_ready            (_ranks_1_io_memCmd_ready),
-    .io_memCmd_valid            (_reqQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_addr        (_reqQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_data        (_reqQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_cs          (_reqQueues_1_io_deq_bits_cs),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_ras         (_reqQueues_1_io_deq_bits_ras),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_cas         (_reqQueues_1_io_deq_bits_cas),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_we          (_reqQueues_1_io_deq_bits_we),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_memCmd_bits_request_id  (_reqQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .io_phyResp_ready           (_respQueues_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
+    .io_memCmd_valid            (_cmdDemux_io_deq_1_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_addr        (_cmdDemux_io_deq_1_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_data        (_cmdDemux_io_deq_1_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_cs          (_cmdDemux_io_deq_1_bits_cs),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_ras         (_cmdDemux_io_deq_1_bits_ras),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_cas         (_cmdDemux_io_deq_1_bits_cas),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_we          (_cmdDemux_io_deq_1_bits_we),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_memCmd_bits_request_id  (_cmdDemux_io_deq_1_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:16:24]
+    .io_phyResp_ready           (_respQueues_1_io_enq_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
     .io_phyResp_valid           (_ranks_1_io_phyResp_valid),
     .io_phyResp_bits_addr       (_ranks_1_io_phyResp_bits_addr),
     .io_phyResp_bits_data       (_ranks_1_io_phyResp_bits_data),
     .io_phyResp_bits_request_id (_ranks_1_io_phyResp_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-  Queue256_PhysicalMemoryCommand reqQueues_0 (	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .clock                  (clock),
-    .reset                  (reset),
-    .io_enq_ready           (_reqQueues_0_io_enq_ready),
-    .io_enq_valid           (io_memCmd_valid & ~_addrDecoder_io_rankIndex),	// @[src/main/scala/memctrl/memories/Channel.scala:9:27, :29:{50,64}]
-    .io_enq_bits_addr       (io_memCmd_bits_addr),
-    .io_enq_bits_data       (io_memCmd_bits_data),
-    .io_enq_bits_cs         (io_memCmd_bits_cs),
-    .io_enq_bits_ras        (io_memCmd_bits_ras),
-    .io_enq_bits_cas        (io_memCmd_bits_cas),
-    .io_enq_bits_we         (io_memCmd_bits_we),
-    .io_enq_bits_request_id (io_memCmd_bits_request_id),
-    .io_deq_ready           (_ranks_0_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_deq_valid           (_reqQueues_0_io_deq_valid),
-    .io_deq_bits_addr       (_reqQueues_0_io_deq_bits_addr),
-    .io_deq_bits_data       (_reqQueues_0_io_deq_bits_data),
-    .io_deq_bits_cs         (_reqQueues_0_io_deq_bits_cs),
-    .io_deq_bits_ras        (_reqQueues_0_io_deq_bits_ras),
-    .io_deq_bits_cas        (_reqQueues_0_io_deq_bits_cas),
-    .io_deq_bits_we         (_reqQueues_0_io_deq_bits_we),
-    .io_deq_bits_request_id (_reqQueues_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  Queue256_PhysicalMemoryCommand reqQueues_1 (	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-    .clock                  (clock),
-    .reset                  (reset),
-    .io_enq_ready           (_reqQueues_1_io_enq_ready),
-    .io_enq_valid           (io_memCmd_valid & _addrDecoder_io_rankIndex),	// @[src/main/scala/memctrl/memories/Channel.scala:9:27, :29:50]
-    .io_enq_bits_addr       (io_memCmd_bits_addr),
-    .io_enq_bits_data       (io_memCmd_bits_data),
-    .io_enq_bits_cs         (io_memCmd_bits_cs),
-    .io_enq_bits_ras        (io_memCmd_bits_ras),
-    .io_enq_bits_cas        (io_memCmd_bits_cas),
-    .io_enq_bits_we         (io_memCmd_bits_we),
-    .io_enq_bits_request_id (io_memCmd_bits_request_id),
-    .io_deq_ready           (_ranks_1_io_memCmd_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_deq_valid           (_reqQueues_1_io_deq_valid),
-    .io_deq_bits_addr       (_reqQueues_1_io_deq_bits_addr),
-    .io_deq_bits_data       (_reqQueues_1_io_deq_bits_data),
-    .io_deq_bits_cs         (_reqQueues_1_io_deq_bits_cs),
-    .io_deq_bits_ras        (_reqQueues_1_io_deq_bits_ras),
-    .io_deq_bits_cas        (_reqQueues_1_io_deq_bits_cas),
-    .io_deq_bits_we         (_reqQueues_1_io_deq_bits_we),
-    .io_deq_bits_request_id (_reqQueues_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Channel.scala:24:57]
-  Queue256_PhysicalMemoryResponse respQueues_0 (	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
+  );	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+  Queue256_PhysicalMemoryResponse respQueues_0 (	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQueues_0_io_enq_ready),
-    .io_enq_valid           (_ranks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_enq_bits_addr       (_ranks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_enq_bits_data       (_ranks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_enq_bits_request_id (_ranks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_deq_ready           (_arbResp_io_in_0_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
+    .io_enq_valid           (_ranks_0_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_enq_bits_addr       (_ranks_0_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_enq_bits_data       (_ranks_0_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_enq_bits_request_id (_ranks_0_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_deq_ready           (_respArb_io_in_0_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
     .io_deq_valid           (_respQueues_0_io_deq_valid),
     .io_deq_bits_addr       (_respQueues_0_io_deq_bits_addr),
     .io_deq_bits_data       (_respQueues_0_io_deq_bits_data),
     .io_deq_bits_request_id (_respQueues_0_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  Queue256_PhysicalMemoryResponse respQueues_1 (	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
+  );	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  Queue256_PhysicalMemoryResponse respQueues_1 (	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQueues_1_io_enq_ready),
-    .io_enq_valid           (_ranks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_enq_bits_addr       (_ranks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_enq_bits_data       (_ranks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_enq_bits_request_id (_ranks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:21:11]
-    .io_deq_ready           (_arbResp_io_in_1_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
+    .io_enq_valid           (_ranks_1_io_phyResp_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_enq_bits_addr       (_ranks_1_io_phyResp_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_enq_bits_data       (_ranks_1_io_phyResp_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_enq_bits_request_id (_ranks_1_io_phyResp_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:22:23]
+    .io_deq_ready           (_respArb_io_in_1_ready),	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
     .io_deq_valid           (_respQueues_1_io_deq_valid),
     .io_deq_bits_addr       (_respQueues_1_io_deq_bits_addr),
     .io_deq_bits_data       (_respQueues_1_io_deq_bits_data),
     .io_deq_bits_request_id (_respQueues_1_io_deq_bits_request_id)
-  );	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-  RRArbiter_2 arbResp (	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
+  );	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+  RRArbiter_2 respArb (	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
     .clock                   (clock),
-    .io_in_0_ready           (_arbResp_io_in_0_ready),
-    .io_in_0_valid           (_respQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-    .io_in_0_bits_addr       (_respQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-    .io_in_0_bits_data       (_respQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-    .io_in_0_bits_request_id (_respQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-    .io_in_1_ready           (_arbResp_io_in_1_ready),
-    .io_in_1_valid           (_respQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-    .io_in_1_bits_addr       (_respQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-    .io_in_1_bits_data       (_respQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
-    .io_in_1_bits_request_id (_respQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:25:57]
+    .io_in_0_ready           (_respArb_io_in_0_ready),
+    .io_in_0_valid           (_respQueues_0_io_deq_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+    .io_in_0_bits_addr       (_respQueues_0_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+    .io_in_0_bits_data       (_respQueues_0_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+    .io_in_0_bits_request_id (_respQueues_0_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+    .io_in_1_ready           (_respArb_io_in_1_ready),
+    .io_in_1_valid           (_respQueues_1_io_deq_valid),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+    .io_in_1_bits_addr       (_respQueues_1_io_deq_bits_addr),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+    .io_in_1_bits_data       (_respQueues_1_io_deq_bits_data),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
+    .io_in_1_bits_request_id (_respQueues_1_io_deq_bits_request_id),	// @[src/main/scala/memctrl/memories/Channel.scala:33:11]
     .io_out_ready            (1'h1),	// @[src/main/scala/memctrl/memories/Channel.scala:44:23, src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala:123:14]
     .io_out_valid            (io_phyResp_valid),
     .io_out_bits_addr        (io_phyResp_bits_addr),
     .io_out_bits_data        (io_phyResp_bits_data),
     .io_out_bits_request_id  (io_phyResp_bits_request_id)
   );	// @[src/main/scala/memctrl/memories/Channel.scala:44:23]
-  assign io_memCmd_ready =
-    ~_addrDecoder_io_rankIndex & _reqQueues_0_io_enq_ready | _addrDecoder_io_rankIndex
-    & _reqQueues_1_io_enq_ready;	// @[src/main/scala/memctrl/memories/Channel.scala:6:7, :9:27, :24:57, :29:64, :34:25, :35:14]
 endmodule
 
 // VCS coverage exclude_file

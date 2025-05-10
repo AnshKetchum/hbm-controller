@@ -3,54 +3,53 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Rank(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, localConfig: LocalConfigurationParameters, trackPerformance: Boolean = false, queueDepth: Int = 256) extends PhysicalMemoryModuleBase {
+class Rank(
+  params: MemoryConfigurationParameters,
+  bankParams: DRAMBankParameters,
+  localConfig: LocalConfigurationParameters,
+  trackPerformance: Boolean = false,
+  queueDepth: Int = 256
+) extends PhysicalMemoryModuleBase {
 
-  val decoder     = Module(new AddressDecoder(params))
-  decoder.io.addr := io.memCmd.bits.addr
-  val bgIndex     = decoder.io.bankGroupIndex
+  // --- Command side: per–bank-group demux queue ---
+  val cmdDemux = Module(new MultiBankGroupCmdQueue(
+    params,
+    numGroups = params.numberOfBankGroups,
+    depth     = queueDepth
+  ))
+  cmdDemux.io.enq <> io.memCmd
 
-  // Instantiate BankGroups and per-bank-group queues
+  // Instantiate each BankGroup and hook up its memCmd port
   val groups = Seq.tabulate(params.numberOfBankGroups) { i =>
-    val groupLocalConfig = localConfig.copy(bankGroupIndex = i)
-    Module(new BankGroup(params, bankParams, groupLocalConfig, trackPerformance))
+    val cfg = localConfig.copy(bankGroupIndex = i)
+    val bg  = Module(new BankGroup(params, bankParams, cfg, trackPerformance))
+    bg.io.memCmd <> cmdDemux.io.deq(i)
+    bg
   }
 
-  val reqQueues   = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryCommand, queueDepth)))
-  val respQueues  = Seq.fill(params.numberOfBankGroups)(Module(new Queue(new PhysicalMemoryResponse, queueDepth)))
-
-  // Demux command to appropriate request queue
-  for (i <- 0 until params.numberOfBankGroups) {
-    reqQueues(i).io.enq.valid := io.memCmd.valid && (bgIndex === i.U)
-    reqQueues(i).io.enq.bits  := io.memCmd.bits
-
-    when(reqQueues(i).io.enq.fire) {
-      printf(p"[Rank] Request enqueued to bankGroup $i: addr=0x${Hexadecimal(io.memCmd.bits.addr)} data=0x${Hexadecimal(io.memCmd.bits.data)}\n")
-    }
+  // --- Response side: original RR-arbiter logic ---
+  // Per-group resp queue
+  val respQueues = Seq.fill(params.numberOfBankGroups) {
+    Module(new Queue(new PhysicalMemoryResponse, entries = queueDepth))
   }
 
-  io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
-    case (rdy, i) => Mux(bgIndex === i.U, rdy, false.B)
-  }.reduce(_ || _)
-
-  // Connect queues to bank groups
-  for (i <- 0 until params.numberOfBankGroups) {
-    groups(i).io.memCmd <> reqQueues(i).io.deq
-    respQueues(i).io.enq <> groups(i).io.phyResp
-
-    when(respQueues(i).io.enq.fire) {
-      printf(p"[Rank] Response enqueued from bankGroup $i: addr=0x${Hexadecimal(groups(i).io.phyResp.bits.addr)} data=0x${Hexadecimal(groups(i).io.phyResp.bits.data)}\n")
-    }
+  for ((bg, i) <- groups.zipWithIndex) {
+    // enqueue each group's response into its queue
+    respQueues(i).io.enq.bits  := bg.io.phyResp.bits
+    respQueues(i).io.enq.valid := bg.io.phyResp.valid
+    bg.io.phyResp.ready        := respQueues(i).io.enq.ready
   }
 
-  // Arbiter to choose one response to send out
+  // round-robin across bank groups
   val arbResp = Module(new RRArbiter(new PhysicalMemoryResponse, params.numberOfBankGroups))
   for (i <- 0 until params.numberOfBankGroups) {
     arbResp.io.in(i) <> respQueues(i).io.deq
   }
 
+  // drive Rank’s phyResp from arbiter
   io.phyResp <> arbResp.io.out
 
-  // Active sub-memories: sum across all bank groups
-  val activeSubMemoriesVec = VecInit(groups.map(_.io.activeSubMemories))
-  io.activeSubMemories := activeSubMemoriesVec.reduce(_ +& _)
+  // --- Active-submemory aggregation ---
+  val activeVec = VecInit(groups.map(_.io.activeSubMemories))
+  io.activeSubMemories := activeVec.reduce(_ +& _)
 }

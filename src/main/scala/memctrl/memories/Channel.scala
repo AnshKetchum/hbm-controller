@@ -3,52 +3,53 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParameters, channelIndex: Int = 0, trackPerformance: Boolean = false, queueDepth: Int = 256) extends PhysicalMemoryModuleBase {
+class Channel(
+  params: MemoryConfigurationParameters,
+  bankParams: DRAMBankParameters,
+  channelIndex: Int = 0,
+  trackPerformance: Boolean = false,
+  queueDepth: Int = 256
+) extends PhysicalMemoryModuleBase {
 
-  // Address Decoder
-  val addrDecoder = Module(new AddressDecoder(params))
-  addrDecoder.io.addr := io.memCmd.bits.addr
-  val rankIndex = addrDecoder.io.rankIndex
+  // ---- Command side: multi‐rank demux ----
+  // Steer incoming commands into per‐rank FIFOs
+  val cmdDemux = Module(new MultiRankCmdQueue(params, params.numberOfRanks, queueDepth))
+  cmdDemux.io.enq <> io.memCmd          // global enqueue
 
-  // Instantiate ranks and per-rank queues
-  val ranks = Seq.tabulate(params.numberOfRanks) { i => 
-    val rankConfig = LocalConfigurationParameters(
-      channelIndex = channelIndex,
-      rankIndex = i,
-      bankGroupIndex = 0,
-      bankIndex = 0
-    )
-    Module(new Rank(params, bankParams, rankConfig, trackPerformance, queueDepth))
+  // Instantiate each Rank and hook up its memCmd port
+  val ranks = Seq.tabulate(params.numberOfRanks) { i =>
+    val loc   = LocalConfigurationParameters(channelIndex, i, 0, 0)
+    val rankM = Module(new Rank(params, bankParams, loc, trackPerformance, queueDepth))
+    rankM.io.memCmd <> cmdDemux.io.deq(i)
+    rankM
   }
 
-  val reqQueues  = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryCommand, queueDepth)))
-  val respQueues = Seq.fill(params.numberOfRanks)(Module(new Queue(new PhysicalMemoryResponse, queueDepth)))
+  // Expose per-rank queue depths if desired (optional port)
+  // io.reqQueueCounts := cmdDemux.io.counts
 
-  // Dispatch memCmd to the correct per-rank queue
+  // ---- Response side: original RR‐arbiter logic ----
+  // Gather each rank’s responses into a per-rank queue
+  val respQueues = Seq.fill(params.numberOfRanks) {
+    Module(new Queue(new PhysicalMemoryResponse, entries = queueDepth))
+  }
+
+  for ((rankM, i) <- ranks.zipWithIndex) {
+    // plug the rank’s phyResp into respQueues(i)
+    respQueues(i).io.enq.bits  := rankM.io.phyResp.bits
+    respQueues(i).io.enq.valid := rankM.io.phyResp.valid
+    rankM.io.phyResp.ready     := respQueues(i).io.enq.ready
+  }
+
+  // Round-robin across all ranks’ respQueues
+  val respArb = Module(new RRArbiter(new PhysicalMemoryResponse, params.numberOfRanks))
   for (i <- 0 until params.numberOfRanks) {
-    reqQueues(i).io.enq.valid := io.memCmd.valid && (rankIndex === i.U)
-    reqQueues(i).io.enq.bits  := io.memCmd.bits
+    respArb.io.in(i) <> respQueues(i).io.deq
   }
 
-  io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
-    case (rdy, i) => Mux(rankIndex === i.U, rdy, false.B)
-  }.reduce(_ || _)
+  // Drive the channel’s phyResp port from the arbiter
+  io.phyResp <> respArb.io.out
 
-  // Connect rank <-> queues
-  for (i <- 0 until params.numberOfRanks) {
-    ranks(i).io.memCmd <> reqQueues(i).io.deq
-    respQueues(i).io.enq <> ranks(i).io.phyResp
-  }
-
-  // Response arbiter
-  val arbResp = Module(new RRArbiter(new PhysicalMemoryResponse, params.numberOfRanks))
-  for (i <- 0 until params.numberOfRanks) {
-    arbResp.io.in(i) <> respQueues(i).io.deq
-  }
-
-  io.phyResp <> arbResp.io.out
-
-  // Active sub-memories: sum from each rank
-  val activeSubMemoriesVec = VecInit(ranks.map(_.io.activeSubMemories))
-  io.activeSubMemories := activeSubMemoriesVec.reduce(_ +& _)
+  // ---- Active‐submemory aggregation ----
+  val activeVec = VecInit(ranks.map(_.io.activeSubMemories))
+  io.activeSubMemories := activeVec.reduce(_ +& _)
 }
