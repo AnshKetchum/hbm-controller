@@ -7,6 +7,7 @@ import numpy as np
 import json
 
 def plot_latency_pdf(latencies, label, outpath, num_cycles):
+    print(latencies, outpath)
     average_latency = np.mean(latencies)
     p99_latency     = np.percentile(latencies, 99)
     max_latency     = np.max(latencies)

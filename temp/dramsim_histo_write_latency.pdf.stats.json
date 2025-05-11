@@ -1,0 +1,9 @@
+{
+  "write_latency": {
+    "average": 265.6746031746032,
+    "p99": 1361.0,
+    "max": 1371.0
+  },
+  "num_cycles": 100000,
+  "bandwidth": 0.00126
+}

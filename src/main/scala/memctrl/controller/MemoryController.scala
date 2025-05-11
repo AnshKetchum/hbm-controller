@@ -3,16 +3,14 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/**
- * Memory controller with one FSM per physical bank (across ranks, bank groups, and banks),
- * now using MultiDeqQueue to burst-demux requests.
- */
 class MultiRankMemoryController(
   params: MemoryConfigurationParameters,
   bankParams: DRAMBankParameters,
   trackPerformance: Boolean = false,
   channelIndex: Int = 0,
-  queueSize: Int = 128
+  queueSize: Int = 2,
+  memoryCommandQueueSize: Int = 4,
+  optBufSize: Int = 32
 ) extends Module {
   val io = IO(new Bundle {
     val in      = Flipped(Decoupled(new ControllerRequest))
@@ -21,29 +19,27 @@ class MultiRankMemoryController(
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
 
     // Monitoring
-    val rankState        = Output(Vec(params.numberOfRanks, UInt(3.W)))
-    val reqQueueCount    = Output(UInt(log2Ceil(queueSize+1).W))
-    val respQueueCount   = Output(UInt(4.W))
-    val fsmReqQueueCounts= Output(Vec(params.numberOfRanks * params.numberOfBankGroups * params.numberOfBanks, UInt(log2Ceil(queueSize+1).W)))
+    val rankState         = Output(Vec(params.numberOfRanks, UInt(3.W)))
+    val reqQueueCount     = Output(UInt(log2Ceil(queueSize + 1).W))
+    val respQueueCount    = Output(UInt(4.W))
+    val fsmReqQueueCounts = Output(Vec(params.numberOfRanks * params.numberOfBankGroups * params.numberOfBanks, UInt(log2Ceil(optBufSize + 1).W)))
   })
 
-  // ------ Global request & response FIFOs ------
+  // ------ Global FIFOs ------
   val reqQueue  = Module(new Queue(new ControllerRequest, entries = queueSize))
-  val respQueue = Module(new Queue(new ControllerResponse, entries = 128))
+  val respQueue = Module(new Queue(new ControllerResponse, entries = queueSize))
   reqQueue.io.enq <> io.in
-  io.out          <> respQueue.io.deq
-  io.reqQueueCount:= reqQueue.io.count
+  io.out        <> respQueue.io.deq
+  io.reqQueueCount := reqQueue.io.count
   io.respQueueCount:= respQueue.io.count
 
-  // ------ Physical command queue ------
-  val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = 2048))
+  // ------ DRAM command queue ------
+  val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = memoryCommandQueueSize))
   io.memCmd    <> cmdQueue.io.deq
 
-  // ------ Bank/FSM setup ------
+  // ------ Instantiate FSMs ------
   val banksPerRank  = params.numberOfBankGroups * params.numberOfBanks
   val totalBankFSMs = params.numberOfRanks * banksPerRank
-
-  // Instantiate one FSM per bank
   val fsmVec = VecInit(Seq.tabulate(totalBankFSMs) { i =>
     val r   = i / banksPerRank
     val rem = i % banksPerRank
@@ -53,14 +49,20 @@ class MultiRankMemoryController(
     Module(new MemoryControllerFSM(bankParams, loc, params, trackPerformance)).io
   })
 
-  // ------ Multi-dequeue demux into per-FSM queues ------
+  // ------ Demux incoming requests into optimizers ------
   val multiDeq = Module(new MultiDeqQueue(params, banksPerRank, totalBankFSMs, queueSize))
   multiDeq.io.enq <> reqQueue.io.deq
 
-  // hook up demux outputs directly into FSM request ports
-  for (i <- 0 until totalBankFSMs) {
-    fsmVec(i).req <> multiDeq.io.deq(i)
-    io.fsmReqQueueCounts(i) := multiDeq.io.counts(i)
+  // Instantiate one optimizer per FSM
+  val optimizers = Seq.tabulate(totalBankFSMs) { i =>
+    val opt = Module(new FsmRequestOptimizer(optBufSize))
+    // feed optimizer from the demux
+    opt.io.in <> multiDeq.io.deq(i)
+    // forward optimized requests into the FSM
+    fsmVec(i).req <> opt.io.outReq
+    // monitor buffer occupancy
+    io.fsmReqQueueCounts(i) := opt.io.bufCount
+    opt
   }
 
   // ------ Command arbitration from FSMs ------
@@ -70,13 +72,12 @@ class MultiRankMemoryController(
   }
   cmdQueue.io.enq <> cmdArb.io.out
 
-  // ------ Response routing back to FSMs ------
+  // ------ Response routing from DRAM back into FSMs ------
   val respDecoder = Module(new AddressDecoder(params))
   respDecoder.io.addr := io.phyResp.bits.addr
   val respFlat = respDecoder.io.rankIndex   * banksPerRank.U +
                  respDecoder.io.bankGroupIndex * params.numberOfBanks.U +
                  respDecoder.io.bankIndex
-
   for (i <- 0 until totalBankFSMs) {
     val isTgt = respFlat === i.U
     fsmVec(i).phyResp.valid := io.phyResp.valid && isTgt
@@ -85,14 +86,26 @@ class MultiRankMemoryController(
   }
   io.phyResp.ready := fsmVec(respFlat).phyResp.ready
 
-  // ------ Collect responses from FSMs ------
-  val respArb = Module(new RRArbiter(new ControllerResponse, totalBankFSMs))
+  // ------ Two separate RRArbiters for responses ------
+  // 1) FSM responses
+  val fsmRespArb = Module(new RRArbiter(new ControllerResponse, totalBankFSMs))
   for (i <- 0 until totalBankFSMs) {
-    respArb.io.in(i) <> fsmVec(i).resp
+    fsmRespArb.io.in(i) <> fsmVec(i).resp
   }
-  respQueue.io.enq.valid := respArb.io.out.valid
-  respQueue.io.enq.bits  := respArb.io.out.bits
-  respArb.io.out.ready   := respQueue.io.enq.ready
+  // 2) Optimizer short-circuit responses
+  val optRespArb = Module(new RRArbiter(new ControllerResponse, totalBankFSMs))
+  for (i <- 0 until totalBankFSMs) {
+    optRespArb.io.in(i) <> optimizers(i).io.outResp
+  }
+
+  // ------ Final priority arbiter: opt > FSM ------
+  val finalArb = Module(new Arbiter(new ControllerResponse, 2))
+  // index 0 has highest priority
+  finalArb.io.in(0) <> optRespArb.io.out
+  finalArb.io.in(1) <> fsmRespArb.io.out
+
+  // enqueue into the global response queue
+  respQueue.io.enq <> finalArb.io.out
 
   // ------ Optional performance tracker ------
   if (trackPerformance) {
@@ -105,7 +118,7 @@ class MultiRankMemoryController(
 
   // ------ Rank-state aggregation ------
   for (r <- 0 until params.numberOfRanks) {
-    val slice = fsmVec.slice(r*banksPerRank, (r+1)*banksPerRank)
+    val slice = fsmVec.slice(r * banksPerRank, (r + 1) * banksPerRank)
     io.rankState(r) := slice.map(_.stateOut).reduce(_ max _)
   }
 }

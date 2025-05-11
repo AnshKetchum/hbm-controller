@@ -41,7 +41,10 @@ def process_experiment(experiment_dir, prefix, num_cycles):
                 - writes_in .iloc[:n_writes]['Cycle_in'].to_numpy())
 
     # Plot and save latency PDFs
+    print("Plotting read latencies")
     plot_latency_pdf(lat_reads, 'read', os.path.join(experiment_dir, f"{prefix}_histo_read_latency.pdf"), num_cycles = num_cycles)
+
+    print("Plotting write latencies", lat_writes)
     plot_latency_pdf(lat_writes, 'write', os.path.join(experiment_dir, f"{prefix}_histo_write_latency.pdf"), num_cycles = num_cycles)
 
     print(f"→ Latency histograms saved to {experiment_dir}")
