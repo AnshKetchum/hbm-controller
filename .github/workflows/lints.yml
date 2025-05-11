@@ -1,4 +1,4 @@
-name: Nix powered Chisel CI
+name: Code Formatting Tests
 
 on:
   push:
