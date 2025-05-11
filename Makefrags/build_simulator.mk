@@ -57,3 +57,5 @@ clean:
 	rm -f *.csv
 	rm -f *.log
 	rm -f *.png
+	rm -f *.json
+	rm -rf exps
