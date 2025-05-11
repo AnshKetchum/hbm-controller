@@ -22,8 +22,22 @@ TARGET       := obj_dir/V$(TOP_MODULE)
 verilog:
 	@echo "Generating Verilog from Chisel..."
 	$(SBT_CMD)
-	sed -i '/PerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
-	sed -i '/PerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+
+	sed -i '/SystemQueuePerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/SystemQueuePerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+
+	sed -i '/CommandQueuePerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/CommandQueuePerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+
+	sed -i '/BankSchedulerPerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/BankSchedulerPerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/BankSchedulerPhysicalMemoryRequestPerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/BankSchedulerPhysicalMemoryResponsePerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+
+	sed -i '/BankPhysicalMemoryRequestPerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/BankPhysicalMemoryResponsePerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	
+
 
 verilator-random: 
 	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/SingleChannelSystem.sv ./sims/sim_random.cpp
