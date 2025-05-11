@@ -8,8 +8,7 @@ import chisel3.simulator.EphemeralSimulator._
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
-/**
-  * Test suite for the MultiRankMemoryController with decoupled interfaces.
+/** Test suite for the MultiRankMemoryController with decoupled interfaces.
   *
   * For a read transaction:
   *   - Enqueues a read request on the 'in' interface.
@@ -24,10 +23,12 @@ import org.scalatest.matchers.must.Matchers
 class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
 
   "MultiRankMemoryController should complete a read transaction correctly" in {
-    simulate(new MultiRankMemoryController(
-      MemoryConfigurationParameters(),
-      DRAMBankParameters()
-    )) { dut =>
+    simulate(
+      new MultiRankMemoryController(
+        MemoryConfigurationParameters(),
+        DRAMBankParameters()
+      )
+    ) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
       dut.clock.step()
@@ -38,7 +39,7 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
       dut.io.in.valid.poke(true.B)
       dut.io.in.bits.rd_en.poke(true.B)
       dut.io.in.bits.wr_en.poke(false.B)
-      dut.io.in.bits.addr.poke("h1000".U)  // Example address
+      dut.io.in.bits.addr.poke("h1000".U) // Example address
       // For a read, wdata is don't care (set to 0)
       dut.io.in.bits.wdata.poke(0.U)
       dut.clock.step()
@@ -67,10 +68,12 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
   }
 
   "MultiRankMemoryController should complete a write transaction correctly" in {
-    simulate(new MultiRankMemoryController(
-      MemoryConfigurationParameters(),
-      DRAMBankParameters()
-    )) { dut =>
+    simulate(
+      new MultiRankMemoryController(
+        MemoryConfigurationParameters(),
+        DRAMBankParameters()
+      )
+    ) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
       dut.clock.step()

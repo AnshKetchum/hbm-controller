@@ -5,12 +5,12 @@ import chisel3.util._
 
 class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   val io = IO(new Bundle {
-    val req     = Flipped(Decoupled(new ControllerRequest))
-    val resp    = Decoupled(new ControllerResponse)
-    val cmdOut  = Decoupled(new PhysicalMemoryCommand)
-    val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
+    val req      = Flipped(Decoupled(new ControllerRequest))
+    val resp     = Decoupled(new ControllerResponse)
+    val cmdOut   = Decoupled(new PhysicalMemoryCommand)
+    val phyResp  = Flipped(Decoupled(new PhysicalMemoryResponse))
     val stateOut = Output(UInt(3.W))
-    
+
   })
 
   // --------------------------------------------------
@@ -26,13 +26,13 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   val actPtr        = RegInit(0.U(2.W))
 
   // capture the incoming request…
-  val reqReg         = Reg(new ControllerRequest)
-  val reqIsRead      = RegInit(false.B)
-  val reqIsWrite     = RegInit(false.B)
-  val reqAddrReg     = RegInit(0.U(32.W))  // newly added
-  val reqWdataReg    = RegInit(0.U(32.W))  // newly added
-  val requestActive  = RegInit(false.B)
-  val issuedAddrReg  = RegInit(0.U(32.W))
+  val reqReg          = Reg(new ControllerRequest)
+  val reqIsRead       = RegInit(false.B)
+  val reqIsWrite      = RegInit(false.B)
+  val reqAddrReg      = RegInit(0.U(32.W)) // newly added
+  val reqWdataReg     = RegInit(0.U(32.W)) // newly added
+  val requestActive   = RegInit(false.B)
+  val issuedAddrReg   = RegInit(0.U(32.W))
   val responseDataReg = RegInit(0.U(32.W))
 
   // Single Read/Write states
@@ -43,7 +43,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   val sentCmd   = RegInit(false.B)
   val prevState = RegNext(state)
   when(prevState =/= state) { sentCmd := false.B }
-  io.stateOut  := state
+  io.stateOut := state
 
   // Request acceptance
   io.req.ready := (state === sIdle) && !requestActive
@@ -51,19 +51,19 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
     reqReg        := io.req.bits
     reqIsRead     := io.req.bits.rd_en
     reqIsWrite    := io.req.bits.wr_en
-    reqAddrReg    := io.req.bits.addr       // latch address
-    reqWdataReg   := io.req.bits.wdata     // latch write-data
+    reqAddrReg    := io.req.bits.addr  // latch address
+    reqWdataReg   := io.req.bits.wdata // latch write-data
     requestActive := true.B
   }
 
   // Command register defaults
   val cmdReg = Wire(new PhysicalMemoryCommand)
-  cmdReg.addr := reqAddrReg                 // use latched addr
-  cmdReg.data := reqWdataReg                // use latched wdata
-  cmdReg.cs   := true.B
-  cmdReg.ras  := false.B
-  cmdReg.cas  := false.B
-  cmdReg.we   := false.B
+  cmdReg.addr    := reqAddrReg  // use latched addr
+  cmdReg.data    := reqWdataReg // use latched wdata
+  cmdReg.cs      := true.B
+  cmdReg.ras     := false.B
+  cmdReg.cas     := false.B
+  cmdReg.we      := false.B
   io.cmdOut.bits := cmdReg
 
   val issuingCmdState = Seq(sActivate, sRead, sWrite, sPrecharge, sRefresh)
@@ -71,10 +71,10 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
 
   // Response register
   val respReg = Wire(new ControllerResponse)
-  respReg.addr  := reqAddrReg             // use latched addr
+  respReg.addr  := reqAddrReg  // use latched addr
   respReg.wr_en := reqIsWrite
   respReg.rd_en := reqIsRead
-  respReg.wdata := reqWdataReg           // use latched write-data
+  respReg.wdata := reqWdataReg // use latched write-data
   respReg.data  := responseDataReg
   io.resp.bits  := respReg
   io.resp.valid := (state === sDone)
@@ -86,7 +86,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
     is(sIdle) {
       when(elapsed(lastRefresh, params.tREFI.U)) {
         state := sRefresh
-      } .elsewhen(requestActive) {
+      }.elsewhen(requestActive) {
         state := sActivate
       }
     }
@@ -100,10 +100,10 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
       }
       when(io.cmdOut.fire) { sentCmd := true.B }
 
-      val canFAW  = elapsed(activateTimes(actPtr), params.tFAW.U)
-      val canRRD  = elapsed(lastActivate, params.tRRD_L.U)
-      val canRP   = elapsed(lastPrecharge, params.tRP.U)
-      val canRFC  = elapsed(lastRefresh, params.tRFC.U)
+      val canFAW = elapsed(activateTimes(actPtr), params.tFAW.U)
+      val canRRD = elapsed(lastActivate, params.tRRD_L.U)
+      val canRP  = elapsed(lastPrecharge, params.tRP.U)
+      val canRFC = elapsed(lastRefresh, params.tRFC.U)
       when((sentCmd && io.phyResp.fire)) {
         lastActivate          := cycleCounter
         activateTimes(actPtr) := cycleCounter
@@ -128,14 +128,22 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
       }
 
       when(sentCmd) {
-        printf("[CONTROLLER] %d Complete read ... %d %d %d %d %d\n", reqAddrReg, counter, io.phyResp.fire, io.phyResp.bits.addr, issuedAddrReg, io.phyResp.bits.data)
+        printf(
+          "[CONTROLLER] %d Complete read ... %d %d %d %d %d\n",
+          reqAddrReg,
+          counter,
+          io.phyResp.fire,
+          io.phyResp.bits.addr,
+          issuedAddrReg,
+          io.phyResp.bits.data
+        )
         when((io.phyResp.fire) && io.phyResp.bits.addr === issuedAddrReg) {
           responseDataReg := io.phyResp.bits.data
           printf("[CONTROLLER] %d In READ here, receiving %d ... \n", reqAddrReg, io.phyResp.bits.data)
           lastReadEnd     := cycleCounter
           sentCmd         := false.B
           state           := sPrecharge
-        } .otherwise {
+        }.otherwise {
           printf("[CONTROLLER] %d In READ otherwise ... \n", reqAddrReg)
           counter := counter - 1.U
         }
@@ -157,8 +165,8 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
 
       when(sentCmd && (io.phyResp.fire)) {
         printf("[CONTROLLER]  %d Received Write Ack\n", reqAddrReg)
-        sentCmd          := false.B
-        state            := sPrecharge
+        sentCmd         := false.B
+        state           := sPrecharge
         responseDataReg := io.phyResp.bits.data
       }
     }
@@ -183,8 +191,7 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
     }
 
     is(sDone) {
-      printf("DONE resp rdy %d valid %d rd_en %d wr_en %d\n",
-             io.resp.ready, io.resp.valid, reqIsRead, reqIsWrite)
+      printf("DONE resp rdy %d valid %d rd_en %d wr_en %d\n", io.resp.ready, io.resp.valid, reqIsRead, reqIsWrite)
       when(io.resp.fire) {
         requestActive := false.B
         state         := sIdle
@@ -209,8 +216,8 @@ class MemoryControllerFSM(params: DRAMBankParameters) extends Module {
   }
 
   when(state =/= sIdle) {
-      // printf("State %d %d addr=%d wdata=%d mem data = %d\n", state, sDone, reqAddrReg, reqWdataReg, responseDataReg)
-      // printf("External Memory Interface: rdy (controller) =%d valid (mem)=%d", io.phyResp.ready, io.phyResp.valid)
+    // printf("State %d %d addr=%d wdata=%d mem data = %d\n", state, sDone, reqAddrReg, reqWdataReg, responseDataReg)
+    // printf("External Memory Interface: rdy (controller) =%d valid (mem)=%d", io.phyResp.ready, io.phyResp.valid)
   }
 
   io.phyResp.ready := true.B

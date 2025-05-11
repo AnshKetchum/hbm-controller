@@ -22,9 +22,13 @@ class Channel(params: MemoryConfigurationParameters, bankParams: DRAMBankParamet
     reqQueues(i).io.enq.bits  := io.memCmd.bits
   }
 
-  io.memCmd.ready := reqQueues.map(_.io.enq.ready).zipWithIndex.map {
-    case (rdy, i) => Mux(rankIndex === i.U, rdy, false.B)
-  }.reduce(_ || _)
+  io.memCmd.ready := reqQueues
+    .map(_.io.enq.ready)
+    .zipWithIndex
+    .map { case (rdy, i) =>
+      Mux(rankIndex === i.U, rdy, false.B)
+    }
+    .reduce(_ || _)
 
   // Connect rank <-> queues
   for (i <- 0 until params.numberOfRanks) {

@@ -17,5 +17,9 @@ object Elaborate extends App {
   // Generate SystemVerilog file from the Chisel design.
   // This will elaborate MemoryTestSystem and place the generated files
   // in the specified target directory.
-  ChiselStage.emitSystemVerilogFile(new SingleChannelSystem(SingleChannelMemoryConfigurationParams()), args, firtoolOptions)
+  ChiselStage.emitSystemVerilogFile(
+    new SingleChannelSystem(SingleChannelMemoryConfigurationParams()),
+    args,
+    firtoolOptions
+  )
 }

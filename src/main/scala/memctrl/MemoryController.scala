@@ -11,20 +11,20 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
     val memCmd  = Decoupled(new PhysicalMemoryCommand)
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
 
-    val rankState        = Output(Vec(params.numberOfRanks, UInt(3.W)))
-    val reqQueueCount    = Output(UInt(4.W))
-    val respQueueCount   = Output(UInt(4.W))
+    val rankState         = Output(Vec(params.numberOfRanks, UInt(3.W)))
+    val reqQueueCount     = Output(UInt(4.W))
+    val respQueueCount    = Output(UInt(4.W))
     val fsmReqQueueCounts = Output(Vec(params.numberOfRanks, UInt(3.W)))
   })
 
   // Request and response queues
-  val reqQueue  = Module(new Queue(new ControllerRequest, entries = 8))
+  val reqQueue = Module(new Queue(new ControllerRequest, entries = 8))
   reqQueue.io.enq <> io.in
 
   val respQueue = Module(new Queue(new ControllerResponse, entries = 8))
   io.out <> respQueue.io.deq
 
-  val cmdQueue  = Module(new Queue(new PhysicalMemoryCommand, entries = 16))
+  val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = 16))
   io.memCmd <> cmdQueue.io.deq
 
   // FSM instantiation
@@ -52,17 +52,17 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
   for (i <- 0 until params.numberOfRanks) {
     fsmReqQueues(i).enq.valid := false.B
     fsmReqQueues(i).enq.bits  := 0.U.asTypeOf(new ControllerRequest)
-    enqReadyVec(i) := false.B
+    enqReadyVec(i)            := false.B
   }
 
-  when (reqQueue.io.deq.valid) {
+  when(reqQueue.io.deq.valid) {
     val targetRank = extractRank(reqQueue.io.deq.bits.addr)
     for (i <- 0 until params.numberOfRanks) {
-      when (targetRank === i.U) {
+      when(targetRank === i.U) {
         printf("Enqueuing request to queue %d\n", targetRank)
         fsmReqQueues(i).enq.valid := true.B
         fsmReqQueues(i).enq.bits  := reqQueue.io.deq.bits
-        enqReadyVec(i) := fsmReqQueues(i).enq.ready
+        enqReadyVec(i)            := fsmReqQueues(i).enq.ready
       }
     }
   }
@@ -117,12 +117,12 @@ class MultiRankMemoryController(params: MemoryConfigurationParameters, bankParam
   respQueue.io.enq.bits  := arbResp.io.out.bits
   arbResp.io.out.ready   := respQueue.io.enq.ready
 
-  when (respQueue.io.enq.fire) {
+  when(respQueue.io.enq.fire) {
     printf("[MultiRankMC] Response enqueued, addr=0x%x\n", respQueue.io.enq.bits.addr)
   }
 
   // Queue counts
-  io.reqQueueCount := reqQueue.io.count
+  io.reqQueueCount  := reqQueue.io.count
   io.respQueueCount := respQueue.io.count
   for (i <- 0 until params.numberOfRanks) {
     io.fsmReqQueueCounts(i) := fsmReqQueues(i).count

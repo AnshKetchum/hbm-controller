@@ -10,7 +10,7 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
     val numRanks      = 4
     val writesToIssue = numRanks / 2
     val customParams  = SingleChannelMemoryConfigurationParams(
-      memConfiguration  = MemoryConfigurationParameters(numberOfRanks = numRanks),
+      memConfiguration = MemoryConfigurationParameters(numberOfRanks = numRanks),
       bankConfiguration = DRAMBankParameters()
     )
 
@@ -32,7 +32,7 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       for (i <- 0 until writesToIssue) {
 
         val addr = ((i << rankShift) | 0x100).U
-        val data = (0xA0000000L + i).U(32.W)
+        val data = (0xa0000000L + i).U(32.W)
         expected += ((addr.litValue, data.litValue))
 
         println(f"[WRITE] Rank $i: addr = 0x${addr.litValue}%08X, data = 0x${data.litValue}%08X")
@@ -56,8 +56,8 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
         activeCount mustBe (i + 1)
       }
 
-      var prevActive = writesToIssue
-      var cycles     = 0
+      var prevActive  = writesToIssue
+      var cycles      = 0
       var reachedZero = false
 
       while (cycles < 1500 && !reachedZero) {
@@ -68,10 +68,14 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
           dut.io.rankState(j).peek().litValue.toInt != 0
         }
 
-        assert(currActive <= prevActive,
-          s"Active rank count increased from $prevActive to $currActive at cycle $cycles")
-        assert((prevActive - currActive) <= 1,
-          s"Active rank count dropped too fast: $prevActive → $currActive at cycle $cycles")
+        assert(
+          currActive <= prevActive,
+          s"Active rank count increased from $prevActive to $currActive at cycle $cycles"
+        )
+        assert(
+          (prevActive - currActive) <= 1,
+          s"Active rank count dropped too fast: $prevActive → $currActive at cycle $cycles"
+        )
 
         prevActive = currActive
         if (currActive == 0) reachedZero = true
@@ -104,8 +108,11 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       }
 
       // Ensure received responses match expected, order does not matter
-      assert(receivedSet == expectedSet,
-        s"[WRITE RESP] Mismatch in received responses.\nExpected: ${expectedSet.mkString(", ")}\nReceived: ${receivedSet.mkString(", ")}")
+      assert(
+        receivedSet == expectedSet,
+        s"[WRITE RESP] Mismatch in received responses.\nExpected: ${expectedSet.mkString(", ")}\nReceived: ${receivedSet
+            .mkString(", ")}"
+      )
 
       // ⬇️ READBACK PHASE
       dut.io.in.bits.rd_en.poke(true.B)
@@ -145,8 +152,11 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       }
 
       // Check if the readback responses match the expected ones
-      assert(receivedReadSet == expectedReadSet,
-        s"[READBACK] Mismatch in received responses.\nExpected: ${expectedReadSet.mkString(", ")}\nReceived: ${receivedReadSet.mkString(", ")}")
+      assert(
+        receivedReadSet == expectedReadSet,
+        s"[READBACK] Mismatch in received responses.\nExpected: ${expectedReadSet
+            .mkString(", ")}\nReceived: ${receivedReadSet.mkString(", ")}"
+      )
     }
   }
 }
