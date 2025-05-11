@@ -10,7 +10,7 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
     val numRanks      = 4
     val writesToIssue = numRanks / 2
     val customParams  = SingleChannelMemoryConfigurationParams(
-      memConfiguration  = MemoryConfigurationParameters(numberOfRanks = numRanks),
+      memConfiguration  = MemoryConfigurationParameters(numberOfRanks = numRanks, numberOfBanks = 4),
       bankConfiguration = DRAMBankParameters()
     )
 
