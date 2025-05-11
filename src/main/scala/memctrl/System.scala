@@ -4,8 +4,8 @@ import chisel3._
 import chisel3.util._
 
 case class SingleChannelMemoryConfigurationParams(
-  memConfiguration: MemoryConfigurationParameters = MemoryConfigurationParameters(),
-  bankConfiguration: DRAMBankParameters = DRAMBankParameters(),
+  memConfiguration: MemoryConfigurationParameters,
+  bankConfiguration: DRAMBankParameters,
   trackPerformance: Boolean = true
 )
 

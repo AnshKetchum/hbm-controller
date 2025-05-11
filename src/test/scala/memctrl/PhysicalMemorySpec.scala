@@ -86,17 +86,25 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
     s"MemControllerFSM + $name" - {
       "should perform write/read/write/read sequences" in {
         simulate(new Module {
-          val io = IO(new Bundle {
-            val req  = Flipped(Decoupled(new ControllerRequest))
-            val resp =     Decoupled(new ControllerResponse)
-          })
-          val params = DRAMBankParameters()
-          val controller = Module(new MemoryControllerFSM(params))
-          val phys = Module(instantiateMem)
-          controller.io.req     <> io.req
-          controller.io.resp    <> io.resp
-          controller.io.cmdOut  <> phys.io.memCmd
-          controller.io.phyResp <> phys.io.phyResp
+            val io = IO(new Bundle {
+                val req  = Flipped(Decoupled(new ControllerRequest))
+                val resp =     Decoupled(new ControllerResponse)
+            })
+            val params = DRAMBankParameters()
+            val localConfig = LocalConfigurationParameters(
+                channelIndex = 0,
+                rankIndex = 0,
+                bankGroupIndex = 0, 
+                bankIndex = 0
+            )
+            val memConfig = MemoryConfigurationParameters()
+
+            val controller = Module(new MemoryControllerFSM(params, localConfig, memConfig))
+            val phys = Module(instantiateMem)
+            controller.io.req     <> io.req
+            controller.io.resp    <> io.resp
+            controller.io.cmdOut  <> phys.io.memCmd
+            controller.io.phyResp <> phys.io.phyResp
         }) { dut =>
           // release reset
           dut.reset.poke(true.B)
