@@ -34,4 +34,4 @@ jobs:
         run: nix develop --command make verilog
 
       - name: Run Verilator binary construction to ensure it works
-        run: nix develop --command make verilator
+        run: nix develop --command make verilator-trace
