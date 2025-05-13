@@ -106,7 +106,9 @@ case class DRAMBankParameters(
 case class MemoryConfigurationParameters(
   numberOfRanks:      Int = 2,
   numberOfBankGroups: Int = 2,
-  numberOfBanks:      Int = 8
+  numberOfBanks:      Int = 8,
+  controllerQueueSize: Int = 256,
+  memoryQueueSize: Int = 256
 )
 
 case class LocalConfigurationParameters(

@@ -20,11 +20,13 @@ convert-traces:
 	rm -rf $(TRACES_DIR)
 	$(PYTHON) scripts/preprocess/convert_c_to_traces.py $(EXAMPLES_DIR) -o $(TRACES_DIR)
 
-# Evaluate custom Chisel-based simulator
-# verilator-trace and verilog should be a job in build_simulator that elaborates our Chisel + builds our sim exe
-evaluate-current: convert-traces verilog verilator-trace
+evaluate-current-no-rebuild: 
 	rm -rf $(EXPERIMENT_DIR)
 	$(PYTHON) scripts/evaluate/evaluate_trace_current.py --sim $(TARGET) --traces $(TRACES_DIR) --outdir $(EXPERIMENT_DIR) --csv_dir . --cycles $(TOTAL_SIMULATION_CYCLES)
+
+# Evaluate custom Chisel-based simulator
+# verilator-trace and verilog should be a job in build_simulator that elaborates our Chisel + builds our sim exe
+evaluate-current: convert-traces verilog verilator-trace evaluate-current-no-rebuild
 
 visualize-current:
 	$(PYTHON) scripts/visualize/visualize_experiments.py $(EXPERIMENT_DIR) --num-cycles $(TOTAL_SIMULATION_CYCLES) --prefix current

@@ -29,8 +29,8 @@ class SingleChannelSystem(
 ) extends Module {
   val io = IO(new MemorySystemIO(params.memConfiguration))
 
-  val channel = Module(new Channel(params.memConfiguration, params.bankConfiguration, 0, params.trackPerformance))
-  val memory_controller = Module(new MultiRankMemoryController(params.memConfiguration, params.bankConfiguration, params.trackPerformance))
+  val channel = Module(new Channel(params.memConfiguration, params.bankConfiguration, 0, params.trackPerformance, params.memConfiguration.memoryQueueSize))
+  val memory_controller = Module(new MultiRankMemoryController(params.memConfiguration, params.bankConfiguration, params.trackPerformance, 0, params.memConfiguration.controllerQueueSize))
 
   // Connect the controller's memory command output to the channel's command input.
   channel.io.memCmd <> memory_controller.io.memCmd

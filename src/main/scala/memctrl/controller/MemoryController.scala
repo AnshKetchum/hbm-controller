@@ -12,7 +12,7 @@ class MultiRankMemoryController(
   bankParams: DRAMBankParameters,
   trackPerformance: Boolean = false,
   channelIndex: Int = 0,
-  queueSize: Int = 128
+  queueSize: Int = 256
 ) extends Module {
   val io = IO(new Bundle {
     val in      = Flipped(Decoupled(new ControllerRequest))
@@ -29,14 +29,14 @@ class MultiRankMemoryController(
 
   // ------ Global request & response FIFOs ------
   val reqQueue  = Module(new Queue(new ControllerRequest, entries = queueSize))
-  val respQueue = Module(new Queue(new ControllerResponse, entries = 128))
+  val respQueue = Module(new Queue(new ControllerResponse, entries = queueSize))
   reqQueue.io.enq <> io.in
   io.out          <> respQueue.io.deq
   io.reqQueueCount:= reqQueue.io.count
   io.respQueueCount:= respQueue.io.count
 
   // ------ Physical command queue ------
-  val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = 2048))
+  val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = queueSize))
   io.memCmd    <> cmdQueue.io.deq
 
   // ------ Bank/FSM setup ------
