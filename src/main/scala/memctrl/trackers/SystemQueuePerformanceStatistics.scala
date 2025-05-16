@@ -13,14 +13,14 @@ import chisel3.util._
   */
 class SystemQueuePerformanceStatisticsInput extends BlackBox with HasBlackBoxResource {
   val io = IO(new Bundle {
-    val clk          = Input(Clock())
-    val reset        = Input(Bool())
-    val req_fire     = Input(Bool())
-    val rd_en        = Input(Bool())
-    val wr_en        = Input(Bool())
-    val addr         = Input(UInt(32.W))
-    val globalCycle  = Input(UInt(64.W))
-    val request_id = Input(UInt(32.W))
+    val clk         = Input(Clock())
+    val reset       = Input(Bool())
+    val req_fire    = Input(Bool())
+    val rd_en       = Input(Bool())
+    val wr_en       = Input(Bool())
+    val addr        = Input(UInt(32.W))
+    val globalCycle = Input(UInt(64.W))
+    val request_id  = Input(UInt(32.W))
   })
 
   println("Hi IN")
@@ -36,14 +36,14 @@ class SystemQueuePerformanceStatisticsInput extends BlackBox with HasBlackBoxRes
   */
 class SystemQueuePerformanceStatisticsOutput extends BlackBox with HasBlackBoxResource {
   val io = IO(new Bundle {
-    val clk          = Input(Clock())
-    val reset        = Input(Bool())
-    val resp_fire    = Input(Bool())
-    val rd_en        = Input(Bool())
-    val wr_en        = Input(Bool())
-    val addr         = Input(UInt(32.W))
-    val globalCycle  = Input(UInt(64.W))
-    val request_id = Input(UInt(32.W))
+    val clk         = Input(Clock())
+    val reset       = Input(Bool())
+    val resp_fire   = Input(Bool())
+    val rd_en       = Input(Bool())
+    val wr_en       = Input(Bool())
+    val addr        = Input(UInt(32.W))
+    val globalCycle = Input(UInt(64.W))
+    val request_id  = Input(UInt(32.W))
   })
 
   println("Hi OUT")
@@ -79,18 +79,18 @@ class SystemQueuePerformanceStatistics extends Module {
   perfOut.io.reset := reset.asBool
 
   // Connect input request logging
-  perfIn.io.req_fire := io.in_fire
-  perfIn.io.rd_en := io.in_bits.rd_en
-  perfIn.io.wr_en := io.in_bits.wr_en
-  perfIn.io.addr := io.in_bits.addr
-  perfIn.io.request_id := io.in_bits.request_id
+  perfIn.io.req_fire    := io.in_fire
+  perfIn.io.rd_en       := io.in_bits.rd_en
+  perfIn.io.wr_en       := io.in_bits.wr_en
+  perfIn.io.addr        := io.in_bits.addr
+  perfIn.io.request_id  := io.in_bits.request_id
   perfIn.io.globalCycle := cycleCounter
 
   // Connect output response logging
-  perfOut.io.resp_fire := io.out_fire
-  perfOut.io.rd_en := io.out_bits.rd_en
-  perfOut.io.wr_en := io.out_bits.wr_en
-  perfOut.io.addr := io.out_bits.addr
-  perfOut.io.request_id := io.out_bits.request_id
+  perfOut.io.resp_fire   := io.out_fire
+  perfOut.io.rd_en       := io.out_bits.rd_en
+  perfOut.io.wr_en       := io.out_bits.wr_en
+  perfOut.io.addr        := io.out_bits.addr
+  perfOut.io.request_id  := io.out_bits.request_id
   perfOut.io.globalCycle := cycleCounter
 }

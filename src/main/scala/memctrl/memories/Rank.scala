@@ -4,19 +4,21 @@ import chisel3._
 import chisel3.util._
 
 class Rank(
-  params: MemoryConfigurationParameters,
-  bankParams: DRAMBankParameters,
-  localConfig: LocalConfigurationParameters,
+  params:           MemoryConfigurationParameters,
+  bankParams:       DRAMBankParameters,
+  localConfig:      LocalConfigurationParameters,
   trackPerformance: Boolean = false,
-  queueDepth: Int = 256
-) extends PhysicalMemoryModuleBase {
+  queueDepth:       Int = 256)
+    extends PhysicalMemoryModuleBase {
 
   // --- Command side: per–bank-group demux queue ---
-  val cmdDemux = Module(new MultiBankGroupCmdQueue(
-    params,
-    numGroups = params.numberOfBankGroups,
-    depth     = queueDepth
-  ))
+  val cmdDemux = Module(
+    new MultiBankGroupCmdQueue(
+      params,
+      numGroups = params.numberOfBankGroups,
+      depth = queueDepth
+    )
+  )
   cmdDemux.io.enq <> io.memCmd
 
   // Instantiate each BankGroup and hook up its memCmd port
@@ -41,10 +43,7 @@ class Rank(
 
     when(respQueues(i).io.enq.fire) {
       printf("[Rank] Response enqueued from BankGroup %d at cycle\n", i.U)
-      printf("  -> request_id = %d, data = 0x%x\n",
-        bg.io.phyResp.bits.request_id,
-        bg.io.phyResp.bits.data
-      )
+      printf("  -> request_id = %d, data = 0x%x\n", bg.io.phyResp.bits.request_id, bg.io.phyResp.bits.data)
     }
 
   }

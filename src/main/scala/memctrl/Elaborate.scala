@@ -9,14 +9,13 @@ case class Config(queueSize: Int)
 
 object Elaborate extends App {
   // Load queueSize from a JSON file (e.g., "config.json")
-  val jsonPath = "src/main/config/config.json"
-  val jsonString = new String(Files.readAllBytes(Paths.get(jsonPath)))
+  val jsonPath     = "src/main/config/config.json"
+  val jsonString   = new String(Files.readAllBytes(Paths.get(jsonPath)))
   val parsedConfig = decode[Config](jsonString) match {
     case Right(config) => config
-    case Left(error) =>
+    case Left(error)   =>
       throw new RuntimeException(s"Failed to parse config.json: $error")
   }
-
 
   val queueSize = parsedConfig.queueSize
   printf("Found config value of queueSize = %d\n", queueSize)

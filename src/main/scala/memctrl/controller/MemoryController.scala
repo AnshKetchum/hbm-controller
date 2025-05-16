@@ -3,17 +3,16 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/**
- * Memory controller with one FSM per physical bank (across ranks, bank groups, and banks),
- * now using MultiDeqQueue to burst-demux requests.
- */
+/** Memory controller with one FSM per physical bank (across ranks, bank groups, and banks), now using MultiDeqQueue to
+  * burst-demux requests.
+  */
 class MultiRankMemoryController(
-  params: MemoryConfigurationParameters,
-  bankParams: DRAMBankParameters,
+  params:           MemoryConfigurationParameters,
+  bankParams:       DRAMBankParameters,
   trackPerformance: Boolean = false,
-  channelIndex: Int = 0,
-  queueSize: Int = 256
-) extends Module {
+  channelIndex:     Int = 0,
+  queueSize:        Int = 256)
+    extends Module {
   val io = IO(new Bundle {
     val in      = Flipped(Decoupled(new ControllerRequest))
     val out     = Decoupled(new ControllerResponse)
@@ -21,23 +20,25 @@ class MultiRankMemoryController(
     val phyResp = Flipped(Decoupled(new PhysicalMemoryResponse))
 
     // Monitoring
-    val rankState        = Output(Vec(params.numberOfRanks, UInt(3.W)))
-    val reqQueueCount    = Output(UInt(log2Ceil(queueSize+1).W))
-    val respQueueCount   = Output(UInt(4.W))
-    val fsmReqQueueCounts= Output(Vec(params.numberOfRanks * params.numberOfBankGroups * params.numberOfBanks, UInt(log2Ceil(queueSize+1).W)))
+    val rankState         = Output(Vec(params.numberOfRanks, UInt(3.W)))
+    val reqQueueCount     = Output(UInt(log2Ceil(queueSize + 1).W))
+    val respQueueCount    = Output(UInt(4.W))
+    val fsmReqQueueCounts = Output(
+      Vec(params.numberOfRanks * params.numberOfBankGroups * params.numberOfBanks, UInt(log2Ceil(queueSize + 1).W))
+    )
   })
 
   // ------ Global request & response FIFOs ------
   val reqQueue  = Module(new Queue(new ControllerRequest, entries = queueSize))
   val respQueue = Module(new Queue(new ControllerResponse, entries = queueSize))
   reqQueue.io.enq <> io.in
-  io.out          <> respQueue.io.deq
-  io.reqQueueCount:= reqQueue.io.count
-  io.respQueueCount:= respQueue.io.count
+  io.out <> respQueue.io.deq
+  io.reqQueueCount  := reqQueue.io.count
+  io.respQueueCount := respQueue.io.count
 
   // ------ Physical command queue ------
   val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = queueSize))
-  io.memCmd    <> cmdQueue.io.deq
+  io.memCmd <> cmdQueue.io.deq
 
   // ------ Bank/FSM setup ------
   val banksPerRank  = params.numberOfBankGroups * params.numberOfBanks
@@ -46,7 +47,7 @@ class MultiRankMemoryController(
   // Instantiate one FSM per bank
   val fsmVec = VecInit(Seq.tabulate(totalBankFSMs) { i =>
     val r   = i / banksPerRank
-    val rem = i % banksPerRank
+    val rem = i   % banksPerRank
     val g   = rem / params.numberOfBanks
     val b   = rem % params.numberOfBanks
     val loc = LocalConfigurationParameters(channelIndex, r, g, b)
@@ -73,25 +74,27 @@ class MultiRankMemoryController(
   // ------ Response routing back to FSMs ------
   val respDecoder = Module(new AddressDecoder(params))
   respDecoder.io.addr := io.phyResp.bits.addr
-  val respFlat = respDecoder.io.rankIndex   * banksPerRank.U +
-                 respDecoder.io.bankGroupIndex * params.numberOfBanks.U +
-                 respDecoder.io.bankIndex
+  val respFlat = respDecoder.io.rankIndex * banksPerRank.U +
+    respDecoder.io.bankGroupIndex * params.numberOfBanks.U +
+    respDecoder.io.bankIndex
 
   for (i <- 0 until totalBankFSMs) {
-    val isTgt = respFlat === i.U
+    val isTgt  = respFlat === i.U
     val doFire = io.phyResp.valid && fsmVec(i).phyResp.ready && isTgt
 
     fsmVec(i).phyResp.valid := io.phyResp.valid && isTgt
     fsmVec(i).phyResp.bits  := io.phyResp.bits
 
-    when (doFire) {
-      printf("[Controller] Response routed to FSM %d (rank %d, group %d, bank %d) at cycle\n",
+    when(doFire) {
+      printf(
+        "[Controller] Response routed to FSM %d (rank %d, group %d, bank %d) at cycle\n",
         i.U,
-        (i / banksPerRank).U,                     // Rank index
-        ((i % banksPerRank) / params.numberOfBanks).U,  // Bank Group index
-        ((i % banksPerRank) % params.numberOfBanks).U,  // Bank index
+        (i / banksPerRank).U, // Rank index
+        ((i % banksPerRank) / params.numberOfBanks).U, // Bank Group index
+        ((i % banksPerRank) % params.numberOfBanks).U // Bank index
       )
-      printf("  -> request_id = %d, data = 0x%x, addr = 0x%x\n",
+      printf(
+        "  -> request_id = %d, data = 0x%x, addr = 0x%x\n",
         io.phyResp.bits.request_id,
         io.phyResp.bits.data,
         io.phyResp.bits.addr
@@ -121,7 +124,7 @@ class MultiRankMemoryController(
 
   // ------ Rank-state aggregation ------
   for (r <- 0 until params.numberOfRanks) {
-    val slice = fsmVec.slice(r*banksPerRank, (r+1)*banksPerRank)
+    val slice = fsmVec.slice(r * banksPerRank, (r + 1) * banksPerRank)
     io.rankState(r) := slice.map(_.stateOut).reduce(_ max _)
   }
 }

@@ -4,17 +4,17 @@ import chisel3._
 import chisel3.util._
 
 class Channel(
-  params: MemoryConfigurationParameters,
-  bankParams: DRAMBankParameters,
-  channelIndex: Int = 0,
+  params:           MemoryConfigurationParameters,
+  bankParams:       DRAMBankParameters,
+  channelIndex:     Int = 0,
   trackPerformance: Boolean = false,
-  queueDepth: Int = 256
-) extends PhysicalMemoryModuleBase {
+  queueDepth:       Int = 256)
+    extends PhysicalMemoryModuleBase {
 
   // ---- Command side: multi‐rank demux ----
   // Steer incoming commands into per‐rank FIFOs
   val cmdDemux = Module(new MultiRankCmdQueue(params, params.numberOfRanks, queueDepth))
-  cmdDemux.io.enq <> io.memCmd          // global enqueue
+  cmdDemux.io.enq <> io.memCmd // global enqueue
 
   // Instantiate each Rank and hook up its memCmd port
   val ranks = Seq.tabulate(params.numberOfRanks) { i =>
@@ -38,10 +38,11 @@ class Channel(
     respQueues(i).io.enq.bits  := rankM.io.phyResp.bits
     respQueues(i).io.enq.valid := rankM.io.phyResp.valid
     rankM.io.phyResp.ready     := respQueues(i).io.enq.ready
-    
+
     when(respQueues(i).io.enq.fire) {
       printf("[Channel] Response enqueued from Rank %d\n", i.U)
-      printf(" [Channel]  -> request_id = %d, data = 0x%x\n",
+      printf(
+        " [Channel]  -> request_id = %d, data = 0x%x\n",
         rankM.io.phyResp.bits.request_id,
         rankM.io.phyResp.bits.data
       )

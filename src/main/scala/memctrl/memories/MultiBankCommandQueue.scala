@@ -3,19 +3,17 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/**
- * Demultiplexes a PhysicalMemoryCommand into per-bank subqueues
- * based on AddressDecoder.io.bankIndex.
- */
+/** Demultiplexes a PhysicalMemoryCommand into per-bank subqueues based on AddressDecoder.io.bankIndex.
+  */
 class MultiBankCmdQueue(
-  params: MemoryConfigurationParameters,
+  params:   MemoryConfigurationParameters,
   numBanks: Int,
-  depth: Int
-) extends Module {
+  depth:    Int)
+    extends Module {
   val io = IO(new Bundle {
     val enq    = Flipped(Decoupled(new PhysicalMemoryCommand))
     val deq    = Vec(numBanks, Decoupled(new PhysicalMemoryCommand))
-    val counts = Output(Vec(numBanks, UInt(log2Ceil(depth+1).W)))
+    val counts = Output(Vec(numBanks, UInt(log2Ceil(depth + 1).W)))
   })
 
   // Decode bank index
@@ -30,7 +28,7 @@ class MultiBankCmdQueue(
 
   // Default wiring: hook up dequeues & counts, hold off enq
   for ((q, i) <- queues.zipWithIndex) {
-    io.deq(i)      <> q.io.deq
+    io.deq(i) <> q.io.deq
     io.counts(i)   := q.io.count
     q.io.enq.bits  := io.enq.bits
     q.io.enq.valid := false.B
@@ -44,8 +42,6 @@ class MultiBankCmdQueue(
   }
 
   // Ready when selected queue ready
-  io.enq.ready := queues
-    .zipWithIndex
-    .map { case (q, i) => (bankIdx === i.U) && q.io.enq.ready }
-    .reduce(_||_)
+  io.enq.ready := queues.zipWithIndex.map { case (q, i) => (bankIdx === i.U) && q.io.enq.ready }
+    .reduce(_ || _)
 }

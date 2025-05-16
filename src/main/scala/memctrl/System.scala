@@ -14,22 +14,40 @@ class MemorySystemIO(params: MemoryConfigurationParameters) extends Bundle {
   val out = Decoupled(new ControllerResponse)
 
   // Internals-Monitoring Signals
-  val rankState = Output(Vec(params.numberOfRanks, UInt(3.W)))
-  val reqQueueCount = Output(UInt(4.W))
-  val respQueueCount = Output(UInt(4.W))
-  val fsmReqQueueCounts  = Output(Vec(params.numberOfRanks * params.numberOfBankGroups * params.numberOfBanks, UInt(3.W)))
+  val rankState         = Output(Vec(params.numberOfRanks, UInt(3.W)))
+  val reqQueueCount     = Output(UInt(4.W))
+  val respQueueCount    = Output(UInt(4.W))
+  val fsmReqQueueCounts = Output(
+    Vec(params.numberOfRanks * params.numberOfBankGroups * params.numberOfBanks, UInt(3.W))
+  )
 
   // New signal to expose active ranks count
   val activeRanks = Output(UInt(log2Ceil(params.numberOfRanks + 1).W))
 }
 
 class SingleChannelSystem(
-  params: SingleChannelMemoryConfigurationParams
-) extends Module {
+  params: SingleChannelMemoryConfigurationParams)
+    extends Module {
   val io = IO(new MemorySystemIO(params.memConfiguration))
 
-  val channel = Module(new Channel(params.memConfiguration, params.bankConfiguration, 0, params.trackPerformance, params.memConfiguration.memoryQueueSize))
-  val memory_controller = Module(new MultiRankMemoryController(params.memConfiguration, params.bankConfiguration, params.trackPerformance, 0, params.memConfiguration.controllerQueueSize))
+  val channel           = Module(
+    new Channel(
+      params.memConfiguration,
+      params.bankConfiguration,
+      0,
+      params.trackPerformance,
+      params.memConfiguration.memoryQueueSize
+    )
+  )
+  val memory_controller = Module(
+    new MultiRankMemoryController(
+      params.memConfiguration,
+      params.bankConfiguration,
+      params.trackPerformance,
+      0,
+      params.memConfiguration.controllerQueueSize
+    )
+  )
 
   // Connect the controller's memory command output to the channel's command input.
   channel.io.memCmd <> memory_controller.io.memCmd
@@ -39,7 +57,6 @@ class SingleChannelSystem(
 
   // Internal request ID register
   val requestId = RegInit(0.U(32.W))
-
 
   // Assume io.in and io.out are Decoupled interfaces.
   val inputFire  = io.in.valid && io.in.ready
@@ -52,19 +69,19 @@ class SingleChannelSystem(
 
   // Wire input to memory controller, appending request_id
   memory_controller.io.in.valid := io.in.valid
-  io.in.ready := memory_controller.io.in.ready
+  io.in.ready                   := memory_controller.io.in.ready
 
   val ctrlReq = Wire(new ControllerRequest)
-  ctrlReq.rd_en := io.in.bits.rd_en
-  ctrlReq.wr_en := io.in.bits.wr_en
-  ctrlReq.addr  := io.in.bits.addr
-  ctrlReq.wdata := io.in.bits.wdata
+  ctrlReq.rd_en      := io.in.bits.rd_en
+  ctrlReq.wr_en      := io.in.bits.wr_en
+  ctrlReq.addr       := io.in.bits.addr
+  ctrlReq.wdata      := io.in.bits.wdata
   ctrlReq.request_id := requestId
 
   memory_controller.io.in.bits := ctrlReq
 
   // Connect the user interface to the memory controller.
-  io.out                  <> memory_controller.io.out
+  io.out <> memory_controller.io.out
 
   // If performance tracking is enabled:
   if (params.trackPerformance) {

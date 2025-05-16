@@ -5,20 +5,20 @@ import chisel3.util._
 
 // Demultiplexes a PhysicalMemoryCommand into per-bank-group subqueues
 class MultiBankGroupCmdQueue(
-  params: MemoryConfigurationParameters,
+  params:    MemoryConfigurationParameters,
   numGroups: Int,
-  depth: Int
-) extends Module {
+  depth:     Int)
+    extends Module {
   val io = IO(new Bundle {
     val enq    = Flipped(Decoupled(new PhysicalMemoryCommand))
     val deq    = Vec(numGroups, Decoupled(new PhysicalMemoryCommand))
-    val counts = Output(Vec(numGroups, UInt(log2Ceil(depth+1).W)))
+    val counts = Output(Vec(numGroups, UInt(log2Ceil(depth + 1).W)))
   })
 
   // 1) Decode bank-group index
-  val addrDec   = Module(new AddressDecoder(params))
+  val addrDec = Module(new AddressDecoder(params))
   addrDec.io.addr := io.enq.bits.addr
-  val bgIdx     = addrDec.io.bankGroupIndex
+  val bgIdx = addrDec.io.bankGroupIndex
 
   // 2) Instantiate one Queue per bank group
   val queues = Seq.fill(numGroups) {
@@ -27,12 +27,12 @@ class MultiBankGroupCmdQueue(
 
   // 3) Default: hook up dequeues and expose counts
   for ((q, i) <- queues.zipWithIndex) {
-    io.deq(i)       <> q.io.deq
-    io.counts(i)    := q.io.count
+    io.deq(i) <> q.io.deq
+    io.counts(i) := q.io.count
 
     // prevent unwanted enq
-    q.io.enq.bits   := io.enq.bits
-    q.io.enq.valid  := false.B
+    q.io.enq.bits  := io.enq.bits
+    q.io.enq.valid := false.B
   }
 
   // 4) Only enqueue into the matching bank-group queue
@@ -43,8 +43,6 @@ class MultiBankGroupCmdQueue(
   }
 
   // 5) Input ready when the selected subqueue can accept
-  io.enq.ready := queues
-    .zipWithIndex
-    .map { case (q, i) => (bgIdx === i.U) && q.io.enq.ready }
+  io.enq.ready := queues.zipWithIndex.map { case (q, i) => (bgIdx === i.U) && q.io.enq.ready }
     .reduce(_ || _)
 }
