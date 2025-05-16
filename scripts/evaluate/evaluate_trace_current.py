@@ -8,7 +8,9 @@ import json
 def run_simulation(sim_exe, trace_path, out_dir, csv_dir, cycles, exp_dirs):
     trace_name = trace_path.stem
     exp_dir = out_dir / f"exp_{trace_name}"
+    meta_dir = exp_dir / "meta"
     exp_dir.mkdir(parents=True, exist_ok=True)
+    meta_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"🧪 Running simulation for {trace_name}...")
 
@@ -19,16 +21,19 @@ def run_simulation(sim_exe, trace_path, out_dir, csv_dir, cycles, exp_dirs):
         print(f"❌ Error while running simulation on {trace_path}")
         return
 
-    # Copy trace and CSV stats files
+    # Copy trace file
     shutil.copy(trace_path, exp_dir / trace_path.name)
-    for fname in ["input_request_stats.csv", "output_request_stats.csv"]:
-        fpath = csv_dir / fname
-        if fpath.exists():
-            shutil.copy(fpath, exp_dir / fname)
-        else:
-            print(f"⚠️  Warning: {fname} not found in {csv_dir} after simulating {trace_name}")
+
+    # Move all CSV files into the meta directory
+    for csv_file in csv_dir.glob("*.csv"):
+        shutil.copy(csv_file, meta_dir / csv_file.name)
+
+    # Move all CSV files into the exp directory for backward compatibility
+    for csv_file in csv_dir.glob("*.csv"):
+        shutil.copy(csv_file, exp_dir / csv_file.name)
 
     exp_dirs.append(str(exp_dir.resolve()))
+
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate traces using a simulator.")

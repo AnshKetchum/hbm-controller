@@ -357,6 +357,7 @@ exp*
 exp_dramsim
 traces
 dramsim3.json
+dramsim3epoch.json
 dramsim3.txt
 *cmd.trace
 out.txt

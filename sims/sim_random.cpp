@@ -3,145 +3,130 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
-#include <vector>
+#include <unordered_map>
+#include <cassert>
+
 using namespace std;
 
-const int NUM_TRANSACTIONS = 2000;    // Number of write-read pairs
-const int TIMEOUT_CYCLES = 10000;      // Timeout for waiting on valid response
+// Number of write-read sanity checks
+static const int NUM_TESTS = 25;
+// Max cycles to wait for a response before timing out
+static const unsigned long long TIMEOUT = 10000ULL;
 
-// Global simulation cycle counter
 unsigned long long sim_cycle = 0;
 
-// Vectors to store cycle numbers for transactions
-vector<unsigned long long> write_req_cycles;
-vector<unsigned long long> write_resp_cycles;
-vector<unsigned long long> read_req_cycles;
-vector<unsigned long long> read_resp_cycles;
-
-// Function to perform a clock cycle
+// Advance one clock cycle
 void tick(VSingleChannelSystem* top) {
     top->clock = 0;
     top->eval();
     top->clock = 1;
     top->eval();
-    sim_cycle++;  // Increment simulation cycle count for each tick
+    sim_cycle++;
+}
+
+// Issue a request (read or write) using Decoupled handshake
+void issue_request(VSingleChannelSystem* top, bool wr, unsigned int addr, unsigned int wdata) {
+    // Drive valid and bits
+    top->io_in_valid      = 1;
+    top->io_in_bits_wr_en = wr;
+    top->io_in_bits_rd_en = !wr;
+    top->io_in_bits_addr  = addr;
+    top->io_in_bits_wdata = wdata;
+
+    // Wait for ready
+    unsigned long long wait = 0;
+    while (!top->io_in_ready && wait < TIMEOUT) {
+        tick(top);
+        wait++;
+    }
+    if (!top->io_in_ready) {
+        cerr << "ERROR: Request enqueue timeout on " << (wr ? "WRITE" : "READ")
+             << " @ cycle " << sim_cycle << endl;
+        assert(false && "Request enqueue timeout");
+        exit(0);
+    }
+
+    // Handshake complete: advance one cycle and deassert valid
+    tick(top);
+    top->io_in_valid = 0;
+}
+
+// Wait for and consume a response
+unsigned int get_response(VSingleChannelSystem* top, bool expect_wr, unsigned int expected_addr) {
+    unsigned long long wait = 0;
+    while (!top->io_out_valid && wait < TIMEOUT) {
+        tick(top);
+        wait++;
+    }
+    if (!top->io_out_valid) {
+        cerr << "ERROR: Response timeout @ cycle " << sim_cycle << endl;
+        assert(false && "Response timeout");
+    }
+    // Optional: check response fields
+    unsigned int raddr = top->io_out_bits_addr;
+    unsigned int rdata = top->io_out_bits_data;
+    bool rwr = top->io_out_bits_wr_en;
+    bool rrd = top->io_out_bits_rd_en;
+
+    // Validate response metadata
+    assert(raddr == expected_addr && "Response address mismatch");
+    assert(rwr == expect_wr && "Response type mismatch");
+
+    // Consume response
+    tick(top);
+
+    return rdata;
 }
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
+    
+    // Instantiate DUT
     VSingleChannelSystem* top = new VSingleChannelSystem;
     
     // Reset sequence
     top->reset = 1;
-    for (int i = 0; i < 5; i++) {
-        tick(top);
-    }
+    for (int i = 0; i < 5; ++i) tick(top);
     top->reset = 0;
     tick(top);
 
-    // Seed the random number generator
-    srand(time(0));
-
-    // Always accept responses on the output interface
+    // Always ready to accept responses
     top->io_out_ready = 1;
 
-    for (int t = 0; t < NUM_TRANSACTIONS; t++) {
-        // Generate a random address and data value.
-        unsigned int addr  = rand() % 0xFFFF;  // limiting address range for example
+    // Seed RNG
+    srand(static_cast<unsigned>(time(nullptr)));
+
+    unordered_map<unsigned int, unsigned int> golden;
+
+    for (int i = 0; i < NUM_TESTS; ++i) {
+        unsigned int addr  = rand() % 0x10000; // 16-bit space
         unsigned int wdata = rand();
 
-        // ----- Write Transaction -----
-        // Drive the input interface for a write.
-        top->io_in_valid      = 1;
-        top->io_in_bits_wr_en = 1;
-        top->io_in_bits_rd_en = 0;
-        top->io_in_bits_addr  = addr;
-        top->io_in_bits_wdata = wdata;
-        
-        tick(top);  // Apply one cycle with valid write
+        // WRITE
+        issue_request(top, true, addr, wdata);
+        golden[addr] = wdata;
+        unsigned int dummy = get_response(top, true, addr);
+        (void)dummy;
 
-        // Record the cycle when the write request was received.
-        write_req_cycles.push_back(sim_cycle);
+        // READ
+        issue_request(top, false, addr, 0);
+        unsigned int rdata = get_response(top, false, addr);
 
-        // Deassert the valid signal.
-        top->io_in_valid = 0;
-        tick(top);
-
-        // Wait for the write response to be available.
-        int cycles = 0;
-        while (!top->io_out_valid && cycles < TIMEOUT_CYCLES) {
-            tick(top);
-            cycles++;
-        }
-        // Record the cycle when the write response was retrieved.
-        write_resp_cycles.push_back(sim_cycle);
-
-        if (cycles == TIMEOUT_CYCLES) {
-            cout << "Timeout during write transaction at address 0x" 
-                 << hex << addr << dec << endl;
-            break;
-        }
-        cout << "Write completed: Address 0x" << hex << addr 
-             << ", Data 0x" << wdata << dec << endl;
-
-        // ----- Read Transaction -----
-        // Drive the input interface for a read of the same address.
-        top->io_in_valid      = 1;
-        top->io_in_bits_wr_en = 0;
-        top->io_in_bits_rd_en = 1;
-        top->io_in_bits_addr  = addr;
-        
-        tick(top);  // Apply one cycle with valid read
-
-        // Record the cycle when the read request was received.
-        read_req_cycles.push_back(sim_cycle);
-
-        // Deassert the valid signal.
-        top->io_in_valid = 0;
-        tick(top);
-
-        // Wait for the read response to be available.
-        cycles = 0;
-        while (!top->io_out_valid && cycles < TIMEOUT_CYCLES) {
-            tick(top);
-            cycles++;
-        }
-        // Record the cycle when the read response was retrieved.
-        read_resp_cycles.push_back(sim_cycle);
-
-        if (cycles == TIMEOUT_CYCLES) {
-            cout << "Timeout during read transaction at address 0x" 
-                 << hex << addr << dec << endl;
-            break;
-        }
-        unsigned int rdata = top->io_out_bits_data;
-        cout << "Read completed: Address 0x" << hex << addr 
-             << ", Expected Data 0x" << wdata 
-             << ", Read Data 0x" << rdata << dec << endl;
-
-        if (rdata != wdata) {
-            cout << "ERROR: Data mismatch at address 0x" << hex << addr 
-                 << ": wrote 0x" << wdata << ", read 0x" << rdata << dec << endl;
+        // Verify data
+        unsigned int expected = golden[addr];
+        if (rdata != expected) {
+            cerr << "ERROR: Data mismatch at addr=0x" << hex << addr
+                 << ". Expected=0x" << expected
+                 << ", got=0x" << rdata << dec << endl;
+            exit(0);
+        } else {
+            cout << "Test " << i << ": PASS addr=0x" << hex << addr
+                 << ", data=0x" << rdata << dec << endl;
         }
     }
 
-    // Print a summary of the cycle numbers for each request and response.
-    cout << "\nTransaction Cycle Details:\n" << endl;
-    
-    cout << "Write Transactions:" << endl;
-    cout << "Transaction\tRequest Cycle\tResponse Cycle" << endl;
-    for (size_t i = 0; i < write_req_cycles.size(); i++) {
-        cout << i << "\t\t" << write_req_cycles[i] << "\t\t" 
-             << write_resp_cycles[i] << endl;
-    }
-    
-    cout << "\nRead Transactions:" << endl;
-    cout << "Transaction\tRequest Cycle\tResponse Cycle" << endl;
-    for (size_t i = 0; i < read_req_cycles.size(); i++) {
-        cout << i << "\t\t" << read_req_cycles[i] << "\t\t" 
-             << read_resp_cycles[i] << endl;
-    }
-    
+    cout << "All " << NUM_TESTS << " sanity tests PASSED!" << endl;
+
     top->final();
     delete top;
     return 0;

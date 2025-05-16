@@ -1,0 +1,35 @@
+name: Simulation-Level Verifications
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Setup development environment
+        run: nix develop 
+
+      - name: List current directory
+        run: pwd
+      
+      - name: Elaborate verilog
+        run: nix develop --command make verilog
+        
+      - name: Run verilator sanity test
+        run: nix develop --command make verilator-sanity-test
+
+      - name: Clean 
+        run: nix develop --command make clean

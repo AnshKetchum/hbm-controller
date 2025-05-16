@@ -1,8 +1,7 @@
 /** Verification Spec Target:
   *
   * \- Verify, at the functional (input / output) level that Physical memory modules work as desired (i.e, we can issue
-  * reads and writes)
-  * \- Verify that the FSM can drive ANY and ALL Physical DRAM Memory Instances
+  * reads and writes) \- Verify that the FSM can drive ANY and ALL Physical DRAM Memory Instances
   */
 
 package memctrl
@@ -59,6 +58,8 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
           dut.io.phyResp.ready.poke(true.B)
           val base = 0x10.U; val pat = "hABCD".U
           // init read
+
+          println("IN DRAM FLOW SPEC")
           sendCmd(dut, base, 0.U, cs = false, ras = false, cas = true, we = true)
           expectResp(dut, base, 0.U)
           sendCmd(dut, base, 0.U, cs = false, ras = true, cas = false, we = true)
@@ -90,12 +91,21 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
     s"MemControllerFSM + $name" - {
       "should perform write/read/write/read sequences" in {
         simulate(new Module {
-          val io         = IO(new Bundle {
+          val io     = IO(new Bundle {
             val req  = Flipped(Decoupled(new ControllerRequest))
             val resp = Decoupled(new ControllerResponse)
           })
-          val params     = DRAMBankParameters()
-          val controller = Module(new MemoryControllerFSM(params))
+          val params = DRAMBankParameters()
+
+          val localConfig = LocalConfigurationParameters(
+            channelIndex = 0,
+            rankIndex = 0,
+            bankGroupIndex = 0,
+            bankIndex = 0
+          )
+          val memParams   = MemoryConfigurationParameters()
+
+          val controller = Module(new MemoryControllerFSM(params, localConfig, memParams))
           val phys       = Module(instantiateMem)
           controller.io.req <> io.req
           controller.io.resp <> io.resp
@@ -137,9 +147,9 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
             dut.clock.step()
           }
 
-          // Test sequence with fixed literals
-          val addr0 = "h20".U
-          val addr1 = "h24".U
+          // Test sequence with valid addresses for rank 0, bg 0, bank 0
+          val addr0 = "h00".U
+          val addr1 = "h40".U
           val d0    = "hAAAA".U
           val d1    = "h5555".U
 
@@ -170,14 +180,22 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
   // ----------------
   // Test Invocation
   // DRAM flow tests
-  dramFlowSpec("Channel", new Channel(MemoryConfigurationParameters(), DRAMBankParameters()))
-  dramFlowSpec("Rank", new Rank(MemoryConfigurationParameters(), DRAMBankParameters()))
-  dramFlowSpec("BankGroup", new BankGroup(MemoryConfigurationParameters(), DRAMBankParameters()))
-  dramFlowSpec("DRAMBank", new DRAMBank(DRAMBankParameters()))
+  val memParams   = MemoryConfigurationParameters()
+  val bankParams  = DRAMBankParameters()
+  val localConfig = LocalConfigurationParameters(
+    channelIndex = 0,
+    rankIndex = 0,
+    bankGroupIndex = 0,
+    bankIndex = 0
+  )
+
+  println("[PhysicalMemorySpec] In here. ")
+  dramFlowSpec("Channel", new Channel(memParams, bankParams))
+  dramFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
+  dramFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
 
   // Controller integration tests
-  controllerFlowSpec("Channel", new Channel(MemoryConfigurationParameters(), DRAMBankParameters()))
-  controllerFlowSpec("Rank", new Rank(MemoryConfigurationParameters(), DRAMBankParameters()))
-  controllerFlowSpec("BankGroup", new BankGroup(MemoryConfigurationParameters(), DRAMBankParameters()))
-  controllerFlowSpec("DRAMBank", new DRAMBank(DRAMBankParameters()))
+  controllerFlowSpec("Channel", new Channel(memParams, bankParams))
+  controllerFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
+  controllerFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
 }

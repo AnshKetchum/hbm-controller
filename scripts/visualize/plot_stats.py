@@ -4,11 +4,14 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
-def plot_latency_pdf(latencies, label, outpath):
+def plot_latency_pdf(latencies, label, outpath, num_cycles):
     average_latency = np.mean(latencies)
     p99_latency     = np.percentile(latencies, 99)
     max_latency     = np.max(latencies)
+    total_requests  = len(latencies)
+    stats_path      = outpath + ".stats.json"
 
     plt.figure(figsize=(8, 6))
     plt.hist(latencies,
@@ -27,7 +30,7 @@ def plot_latency_pdf(latencies, label, outpath):
                 color='red',
                 linestyle='dashdot',
                 linewidth=2,
-                label=f'99th Percentile: {p99_latency:.1f}')
+                label=f'99th Percentile: {p99_latency:.1f}')
 
     plt.title(f"{label.capitalize()} Latency Distribution")
     plt.xlabel(f"{label}_latency [max: {max_latency} cycles]")
@@ -36,6 +39,30 @@ def plot_latency_pdf(latencies, label, outpath):
     plt.tight_layout()
     plt.savefig(outpath)
     plt.close()
+
+    stats_dict = {
+        f'{label}_latency': {
+            'average': float(average_latency),
+            'p99': float(p99_latency),
+            'max': float(max_latency)
+        },
+        'num_cycles': num_cycles,
+        'bandwidth': total_requests / num_cycles if num_cycles else 0.0,
+    }
+
+    # Try computing utilization from *_trace.txt
+    dir_path = os.path.dirname(outpath)
+    trace_file = next((f for f in os.listdir(dir_path) if f.endswith('_trace.txt')), None)
+    if trace_file:
+        trace_path = os.path.join(dir_path, trace_file)
+        with open(trace_path, 'r') as f:
+            total_trace_requests = sum(1 for _ in f)
+            if total_trace_requests > 0:
+                stats_dict['utilization'] = total_requests / total_trace_requests
+
+    print("Stats", stats_dict)
+    with open(stats_path, 'w') as f:
+        json.dump(stats_dict, f, indent=2)
 
 def main():
     p = argparse.ArgumentParser(
@@ -52,6 +79,9 @@ def main():
     p.add_argument('--prefix',
                    help="Filename prefix for the PDFs (default: 'dramsim')",
                    default='dramsim')
+    p.add_argument('--num-cycles', type=int, required=True,
+                   help="Total number of simulation cycles")
+
     args = p.parse_args()
 
     in_csv  = os.path.join(args.dir, args.input)
@@ -70,6 +100,10 @@ def main():
                       df_out,
                       on='RequestID',
                       suffixes=('_in', '_out'))
+    merged['latency'] = merged['Cycle_out'] - merged['Cycle_in']
+    merged_out = merged[['RequestID', 'Address_in', 'Read_in', 'Write_in', 'Cycle_in', 'Cycle_out', 'latency']]
+    merged_out = merged_out.sort_values('RequestID')  # sort by RequestID
+    merged_out.to_csv(os.path.join('merged_transactions.csv'), index=False)
 
     # split reads/writes
     reads_in   = merged[merged['Read_in']  == 1].sort_values('Cycle_in')
@@ -86,17 +120,20 @@ def main():
     lat_writes = (writes_out.iloc[:n_writes]['Cycle_out'].to_numpy()
                 - writes_in .iloc[:n_writes]['Cycle_in'].to_numpy())
 
-    # plot & save
-    plot_latency_pdf(lat_reads,
-                     'read',
-                     os.path.join(args.dir,
-                                  f"{args.prefix}_histo_read_latency.pdf"))
-    plot_latency_pdf(lat_writes,
-                     'write',
-                     os.path.join(args.dir,
-                                  f"{args.prefix}_histo_write_latency.pdf"))
+    stats_path = os.path.join(args.dir, 'stats.json')
 
-    print(f"→ Read/write latency PDFs written to {args.dir}")
+    # plot and store stats
+    plot_latency_pdf(lat_reads,
+                 'read',
+                 os.path.join(args.dir, f"{args.prefix}_histo_read_latency.pdf"),
+                 num_cycles=args.num_cycles)
+
+    plot_latency_pdf(lat_writes,
+                 'write',
+                 os.path.join(args.dir, f"{args.prefix}_histo_write_latency.pdf"),
+                 num_cycles=args.num_cycles)
+
+    print(f"→ Read/write latency PDFs and stats.json written to {args.dir}")
 
 if __name__ == '__main__':
     main()
