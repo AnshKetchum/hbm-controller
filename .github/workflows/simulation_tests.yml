@@ -32,4 +32,4 @@ jobs:
         run: nix develop --command make verilator-sanity-test
 
       - name: Clean 
-        run: make clean
+        run: nix develop --command make clean
