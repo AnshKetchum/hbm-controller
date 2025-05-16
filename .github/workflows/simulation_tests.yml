@@ -19,8 +19,14 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v27
 
-      - name: Run integration sanity tests to verify system is receiving and sending the correct data
-        run: nix develop --command make verilog && make verilator-sanity-test
+      - name: Setup development environment
+        run: nix develop 
+
+      - name: List current directory
+        run: pwd
+      
+      - name: Run simulation level tests
+        run: make verilog && make verilator-sanity-test
 
       - name: Clean 
-        run: nix develop --command make clean
+        run: make clean
