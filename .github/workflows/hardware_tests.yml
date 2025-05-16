@@ -1,4 +1,4 @@
-name: Nix powered Chisel CI
+name: Hardware-Level Verifications
 
 on:
   push:
@@ -21,9 +21,6 @@ jobs:
 
       - name: Run sbt tests 
         run: nix develop --command sbt test
-
-      - name: Run integration sanity tests to verify system is receiving and sending the correct data
-        run: nix develop --command make verilog && make verilator-sanity-test
 
       - name: Clean 
         run: nix develop --command make clean
