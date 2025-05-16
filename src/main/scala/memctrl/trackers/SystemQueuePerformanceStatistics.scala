@@ -13,7 +13,6 @@ import chisel3.util._
   */
 class SystemQueuePerformanceStatisticsInput extends BlackBox with HasBlackBoxResource {
   val io = IO(new Bundle {
-<<<<<<< HEAD:src/main/scala/memctrl/trackers/SystemQueuePerformanceStatistics.scala
     val clk          = Input(Clock())
     val reset        = Input(Bool())
     val req_fire     = Input(Bool())
@@ -22,15 +21,6 @@ class SystemQueuePerformanceStatisticsInput extends BlackBox with HasBlackBoxRes
     val addr         = Input(UInt(32.W))
     val globalCycle  = Input(UInt(64.W))
     val request_id = Input(UInt(32.W))
-=======
-    val clk         = Input(Clock())
-    val reset       = Input(Bool())
-    val req_fire    = Input(Bool())
-    val rd_en       = Input(Bool())
-    val wr_en       = Input(Bool())
-    val addr        = Input(UInt(32.W))
-    val globalCycle = Input(UInt(64.W))
->>>>>>> 3e27e31b1f26fddc64410e4b3cde2b77da8646a6:src/main/scala/memctrl/PerformanceStatistics.scala
   })
 
   println("Hi IN")
@@ -46,7 +36,6 @@ class SystemQueuePerformanceStatisticsInput extends BlackBox with HasBlackBoxRes
   */
 class SystemQueuePerformanceStatisticsOutput extends BlackBox with HasBlackBoxResource {
   val io = IO(new Bundle {
-<<<<<<< HEAD:src/main/scala/memctrl/trackers/SystemQueuePerformanceStatistics.scala
     val clk          = Input(Clock())
     val reset        = Input(Bool())
     val resp_fire    = Input(Bool())
@@ -55,15 +44,6 @@ class SystemQueuePerformanceStatisticsOutput extends BlackBox with HasBlackBoxRe
     val addr         = Input(UInt(32.W))
     val globalCycle  = Input(UInt(64.W))
     val request_id = Input(UInt(32.W))
-=======
-    val clk         = Input(Clock())
-    val reset       = Input(Bool())
-    val resp_fire   = Input(Bool())
-    val rd_en       = Input(Bool())
-    val wr_en       = Input(Bool())
-    val addr        = Input(UInt(32.W))
-    val globalCycle = Input(UInt(64.W))
->>>>>>> 3e27e31b1f26fddc64410e4b3cde2b77da8646a6:src/main/scala/memctrl/PerformanceStatistics.scala
   })
 
   println("Hi OUT")

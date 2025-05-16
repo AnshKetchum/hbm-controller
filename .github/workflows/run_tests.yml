@@ -32,3 +32,6 @@ jobs:
 
       - name: Run integration sanity tests to verify system is receiving and sending the correct data
         run: nix develop --command make verilog && make verilator-sanity-test
+
+      - name: Clean 
+        run: nix develop --command make clean

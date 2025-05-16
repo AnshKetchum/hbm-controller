@@ -107,7 +107,6 @@ case class DRAMBankParameters(
 }
 
 case class MemoryConfigurationParameters(
-<<<<<<< HEAD:src/main/scala/memctrl/memories/PhysicalMemoryGenerics.scala
   numberOfRanks:      Int = 2,
   numberOfBankGroups: Int = 2,
   numberOfBanks:      Int = 8,
@@ -135,14 +134,3 @@ abstract class PhysicalMemoryModuleBase extends Module {
 abstract class PhysicalBankModuleBase extends Module {
   val io = IO(new PhysicalBankIO)
 }
-=======
-  numberOfRanks:      Int = 8,
-  numberOfBankGroups: Int = 8,
-  numberOfBanks:      Int = 8)
-
-/** Base class for any module exposing a PhysicalMemoryIO interface
-  */
-abstract class PhysicalMemoryModuleBase extends Module {
-  val io = IO(new PhysicalMemoryIO)
-}
->>>>>>> 3e27e31b1f26fddc64410e4b3cde2b77da8646a6:src/main/scala/memctrl/PhysicalMemoryGenerics.scala
