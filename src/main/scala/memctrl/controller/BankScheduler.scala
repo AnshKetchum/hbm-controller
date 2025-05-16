@@ -38,6 +38,14 @@ class MemoryControllerFSM(
   val actPtr               = RegInit(0.U(log2Ceil(memoryConfig.numberOfBanks).W))
 
   // --------------------------------------------------
+  // Track currently open row for this bank
+  val rowBits    = 32 - (log2Ceil(memoryConfig.numberOfRanks) + log2Ceil(memoryConfig.numberOfBankGroups) + log2Ceil(
+    memoryConfig.numberOfBanks
+  ))
+  val invalidRow = Fill(rowBits, 1.U)
+  val openRow    = RegInit(invalidRow)
+
+  // --------------------------------------------------
   // Latch incoming request fields
   val reqReg          = Reg(new ControllerRequest)
   val reqIsRead       = RegInit(false.B)
@@ -48,55 +56,45 @@ class MemoryControllerFSM(
   val requestActive   = RegInit(false.B)
   val issuedAddrReg   = RegInit(0.U(32.W))
   val responseDataReg = RegInit(0.U(32.W))
+  val idleCounter     = RegInit(0.U(32.W))
 
   // --------------------------------------------------
   // FSM states
-  val sIdle :: sActivate :: sRead :: sWrite :: sPrecharge :: sDone :: sRefresh :: sSrefEnter :: sSref :: sSrefExit :: Nil =
+  val sIdle :: sActivate :: sRead :: sWrite :: sDone :: sPrecharge :: sRefresh :: sSrefEnter :: sSref :: sSrefExit :: Nil =
     Enum(10)
   val state                                                                                                               = RegInit(sIdle)
   val prevState                                                                                                           = RegNext(state)
-  val counter                                                                                                             = RegInit(0.U(32.W))
-  val idleCounter                                                                                                         = RegInit(0.U(32.W))
   val sentCmd                                                                                                             = RegInit(false.B)
   when(prevState =/= state) { sentCmd := false.B }
   io.stateOut := state
 
   // --------------------------------------------------
-  // Calculate bit widths for refresh ID composition
+  // Calculate bit widths for refresh ID
   val rankBitsWidth      = log2Ceil(memoryConfig.numberOfRanks)
   val bankGroupBitsWidth = log2Ceil(memoryConfig.numberOfBankGroups)
   val bankBitsWidth      = log2Ceil(memoryConfig.numberOfBanks)
   val columnBitsWidth    = 32 - (rankBitsWidth + bankGroupBitsWidth + bankBitsWidth)
 
-  // unique refresh ID & address fields
+  // unique refresh ID & address
   val refreshReqId = Cat(
     0.U(columnBitsWidth.W),
     localConfiguration.rankIndex.U(rankBitsWidth.W),
     localConfiguration.bankGroupIndex.U(bankGroupBitsWidth.W),
     localConfiguration.bankIndex.U(bankBitsWidth.W)
-  ).asUInt
+  )
   val refreshAddr  = refreshReqId
 
   // --------------------------------------------------
-  // Accept incoming request only in Idle
-  io.req.ready := (state === sIdle)
-  when(state =/= sSref) {
-    when(io.req.fire && state === sIdle) {
-      reqReg        := io.req.bits
-      reqIsRead     := io.req.bits.rd_en
-      reqIsWrite    := io.req.bits.wr_en
-      reqAddrReg    := io.req.bits.addr
-      reqWdataReg   := io.req.bits.wdata
-      reqIDReg      := io.req.bits.request_id
-      requestActive := true.B
-      idleCounter   := 0.U
-    }.elsewhen(state === sIdle) {
-      idleCounter := idleCounter + 1.U
-    }
+  // Extract row from an address
+  def rowField(addr: UInt): UInt = {
+    addr(addr.getWidth - 1, bankBitsWidth + bankGroupBitsWidth + rankBitsWidth)
   }
+  val reqRow = Wire(UInt(rowBits.W))
+  reqRow := rowField(reqAddrReg)
 
   // --------------------------------------------------
-  // Command register default
+  // Default I/O
+  io.req.ready := (state === sIdle)
   val cmdReg = Wire(new PhysicalMemoryCommand)
   cmdReg.addr       := reqAddrReg
   cmdReg.data       := reqWdataReg
@@ -107,11 +105,9 @@ class MemoryControllerFSM(
   cmdReg.request_id := reqIDReg
   io.cmdOut.bits    := cmdReg
 
-  val issueStates = Seq(sActivate, sRead, sWrite, sPrecharge, sRefresh)
+  val issueStates = Seq(sActivate, sRead, sWrite, sRefresh)
   io.cmdOut.valid := issueStates.map(_ === state).reduce(_ || _) && !sentCmd && !cmdReg.cs
 
-  // --------------------------------------------------
-  // Response register
   val respReg = Wire(new ControllerResponse)
   respReg.addr       := reqAddrReg
   respReg.wr_en      := reqIsWrite
@@ -129,53 +125,32 @@ class MemoryControllerFSM(
   // FSM logic
   switch(state) {
     is(sIdle) {
-      when(idleCounter >= selfRefreshThreshold && elapsed(lastRefresh, params.tREFI.U)) {
-        state := sSrefEnter
-      }.elsewhen(elapsed(lastRefresh, params.tREFI.U)) {
-        // issue refresh
-        reqIDReg   := refreshReqId
-        reqAddrReg := refreshAddr
-        state      := sRefresh
-      }.elsewhen(requestActive) {
-        state := sActivate
+      when(io.req.fire && state === sIdle) {
+        reqReg        := io.req.bits
+        reqIsRead     := io.req.bits.rd_en
+        reqIsWrite    := io.req.bits.wr_en
+        reqAddrReg    := io.req.bits.addr
+        reqWdataReg   := io.req.bits.wdata
+        reqIDReg      := io.req.bits.request_id
+        requestActive := true.B
+        idleCounter   := 0.U
+      }.elsewhen(state === sIdle) {
+        idleCounter := idleCounter + 1.U
       }
-    }
-
-    is(sSrefEnter) {
-      when(!sentCmd) {
-        cmdReg.cs := false.B; cmdReg.ras := false.B; cmdReg.cas := false.B; cmdReg.we := false.B
-      }
-      when(io.cmdOut.fire) {
-        sentCmd := true.B
-      }
-      when(sentCmd && io.phyResp.fire) {
-        state   := sSref
-        sentCmd := false.B
-        printf(
-          p"[Cycle $cycleCounter] CMD FIRE: SREF_ENTER -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
-        )
-      }
-    }
-
-    is(sSref) {
-      when(io.req.valid) {
-        state := sSrefExit
-      }
-    }
-
-    is(sSrefExit) {
-      when(!sentCmd) {
-        cmdReg.cs := false.B; cmdReg.ras := true.B; cmdReg.cas := true.B; cmdReg.we := true.B
-      }
-      when(io.cmdOut.fire) {
-        sentCmd := true.B
-      }
-      when(sentCmd && io.phyResp.fire) {
-        state   := sIdle
-        sentCmd := false.B
-        printf(
-          p"[Cycle $cycleCounter] CMD FIRE: SREF_EXIT -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
-        )
+      when(requestActive) {
+        when(idleCounter >= selfRefreshThreshold && elapsed(lastRefresh, params.tREFI.U)) {
+          state := sSrefEnter
+        }.elsewhen(elapsed(lastRefresh, params.tREFI.U)) {
+          reqIDReg   := refreshReqId
+          reqAddrReg := refreshAddr
+          state      := sRefresh
+        }.elsewhen(openRow =/= reqRow) {
+          state := sActivate
+        }.elsewhen(reqIsRead) {
+          state := sRead
+        }.otherwise {
+          state := sWrite
+        }
       }
     }
 
@@ -187,37 +162,12 @@ class MemoryControllerFSM(
         sentCmd := true.B
         printf("Issued activate.\n")
       }
-      when(sentCmd && !io.phyResp.fire) {
-        printf(
-          "[Cycle %d]; rdy=%d valid=%d  waiting for ACTIVATE response; addr=%d reqId=%d \n",
-          cycleCounter,
-          io.phyResp.ready,
-          io.phyResp.valid,
-          reqAddrReg,
-          reqIDReg
-        )
-        printf(
-          "[Cycle %d]; rankIdx=%d bgI=%d bankIdx=%d respIdx=%d respBGI=%d respBI=%d addr=%d reqId=%d \n",
-          cycleCounter,
-          localConfiguration.rankIndex.U,
-          localConfiguration.bankGroupIndex.U,
-          localConfiguration.bankIndex.U,
-          respDec.io.rankIndex,
-          respDec.io.bankGroupIndex,
-          respDec.io.bankIndex,
-          io.phyResp.bits.addr,
-          io.phyResp.bits.request_id
-        )
-      }
       when(sentCmd && io.phyResp.fire) {
-        lastActivate          := cycleCounter
-        activateTimes(actPtr) := cycleCounter
-        actPtr                := actPtr + 1.U
-        sentCmd               := false.B
-        state                 := Mux(reqIsRead, sRead, sWrite)
-        printf(
-          p"[Cycle $cycleCounter] CMD FIRE: ACTIVATE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
-        )
+        openRow      := reqRow
+        lastActivate := cycleCounter
+        sentCmd      := false.B
+        state        := Mux(reqIsRead, sRead, sWrite)
+        printf(p"[Cycle $cycleCounter] CMD FIRE: ACTIVATE\n")
       }
     }
 
@@ -228,17 +178,13 @@ class MemoryControllerFSM(
       when(io.cmdOut.fire) {
         sentCmd       := true.B
         issuedAddrReg := reqAddrReg
-        counter       := params.CL.U
       }
       when(sentCmd && io.phyResp.fire && io.phyResp.bits.addr === issuedAddrReg) {
         responseDataReg := io.phyResp.bits.data
         lastReadEnd     := cycleCounter
         sentCmd         := false.B
-        state           := sPrecharge
-        printf(
-          p"[Cycle $cycleCounter] CMD FIRE: READ -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
-        )
-
+        state           := sDone // skip precharge for open-page
+        printf(p"[Cycle $cycleCounter] CMD FIRE: READ\n")
       }
     }
 
@@ -252,16 +198,14 @@ class MemoryControllerFSM(
       }
       when(sentCmd && io.phyResp.fire) {
         sentCmd         := false.B
-        state           := sPrecharge
         responseDataReg := io.phyResp.bits.data
-        printf(
-          p"[Cycle $cycleCounter] CMD FIRE: WRITE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
-        )
-
+        state           := sDone // skip precharge for open-page
+        printf(p"[Cycle $cycleCounter] CMD FIRE: WRITE\n")
       }
     }
 
     is(sPrecharge) {
+      // now unused in open-page policy
       when(!sentCmd) {
         cmdReg.cs := false.B; cmdReg.ras := false.B; cmdReg.cas := true.B; cmdReg.we := false.B
       }
@@ -272,32 +216,35 @@ class MemoryControllerFSM(
         lastPrecharge := cycleCounter
         sentCmd       := false.B
         state         := sDone
-        printf(
-          p"[Cycle $cycleCounter] CMD FIRE: PRECHARGE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
-        )
+        printf(p"[Cycle $cycleCounter] CMD FIRE: PRECHARGE\n")
       }
     }
 
-    is(sRefresh) {
+    is(sSrefEnter) {
       when(!sentCmd) {
-        cmdReg.cs         := false.B
-        cmdReg.ras        := false.B
-        cmdReg.cas        := false.B
-        cmdReg.we         := true.B
-        cmdReg.addr       := refreshAddr
-        cmdReg.request_id := refreshReqId
+        cmdReg.cs := false.B; cmdReg.ras := false.B; cmdReg.cas := false.B; cmdReg.we := false.B
       }
       when(io.cmdOut.fire) {
         sentCmd := true.B
       }
       when(sentCmd && io.phyResp.fire) {
-        lastRefresh := cycleCounter
-        sentCmd     := false.B
-        state       := sIdle
-        printf(
-          p"[Cycle $cycleCounter] CMD FIRE: REFRESH -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
-        )
+        state   := sSref
+        sentCmd := false.B
+      }
+    }
 
+    is(sSref) {
+      when(io.req.valid) { state := sSrefExit }
+    }
+
+    is(sSrefExit) {
+      when(!sentCmd) {
+        cmdReg.cs := false.B; cmdReg.ras := true.B; cmdReg.cas := true.B; cmdReg.we := true.B
+      }
+      when(io.cmdOut.fire) { sentCmd := true.B }
+      when(sentCmd && io.phyResp.fire) {
+        state   := sIdle
+        sentCmd := false.B
       }
     }
 
@@ -305,6 +252,20 @@ class MemoryControllerFSM(
       when(io.resp.fire) {
         requestActive := false.B
         state         := sIdle
+      }
+    }
+
+    is(sRefresh) {
+      when(!sentCmd) {
+        cmdReg.cs         := false.B; cmdReg.ras := false.B; cmdReg.cas := false.B; cmdReg.we := true.B
+        cmdReg.addr       := refreshAddr
+        cmdReg.request_id := refreshReqId
+      }
+      when(io.cmdOut.fire) { sentCmd := true.B }
+      when(sentCmd && io.phyResp.fire) {
+        lastRefresh := cycleCounter
+        sentCmd     := false.B
+        state       := sIdle
       }
     }
   }
@@ -329,7 +290,6 @@ class MemoryControllerFSM(
   when(state =/= sSref) {
     waitingForResp := issueStates.map(_ === state).reduce(_ || _) && sentCmd
   }
-
   io.phyResp.ready := waitingForResp &&
     (io.phyResp.bits.request_id === Mux(state === sSrefEnter || state === sSrefExit, refreshReqId, reqIDReg)) &&
     (respDec.io.rankIndex === localConfiguration.rankIndex.U) &&
