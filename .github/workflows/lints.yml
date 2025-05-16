@@ -1,4 +1,4 @@
-name: Nix powered Chisel CI
+name: Code Formatting Tests
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +27,5 @@ jobs:
           restore-keys: |
             nix-store-${{ runner.os }}-
 
-      - name: Run sbt tests 
-        run: nix develop --command sbt test
-
-      - name: Run integration sanity tests to verify system is receiving and sending the correct data
-        run: nix develop --command make verilog && make verilator-sanity-test
+      - name: Check code formatting with scalafmt
+        run: nix develop --command sbt scalafmtCheckAll

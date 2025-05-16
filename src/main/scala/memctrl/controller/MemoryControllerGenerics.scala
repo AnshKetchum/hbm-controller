@@ -7,7 +7,7 @@ import chisel3.util._
 // Top-level interface bundles (renamed)
 //----------------------------------------------------------------------
 
-/** Controller Request interface **/
+/** Controller Request interface * */
 class ControllerRequest extends Bundle {
   val rd_en = Bool()
   val wr_en = Bool()
@@ -16,7 +16,7 @@ class ControllerRequest extends Bundle {
   val request_id = UInt(32.W)
 }
 
-/** Controller Response interface **/
+/** Controller Response interface * */
 class ControllerResponse extends Bundle {
   val rd_en = Bool()
   val wr_en = Bool()

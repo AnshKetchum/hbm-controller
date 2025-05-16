@@ -4,10 +4,9 @@ import chisel3._
 import chisel3.util._
 
 case class SingleChannelMemoryConfigurationParams(
-  memConfiguration: MemoryConfigurationParameters = MemoryConfigurationParameters(),
+  memConfiguration:  MemoryConfigurationParameters = MemoryConfigurationParameters(),
   bankConfiguration: DRAMBankParameters = DRAMBankParameters(),
-  trackPerformance: Boolean = true
-)
+  trackPerformance:  Boolean = true)
 
 /** Updated top-level memory system I/O using the new names. */
 class MemorySystemIO(params: MemoryConfigurationParameters) extends Bundle {
@@ -43,7 +42,7 @@ class SingleChannelSystem(
 
 
   // Assume io.in and io.out are Decoupled interfaces.
-  val inputFire  = io.in.valid  && io.in.ready
+  val inputFire  = io.in.valid && io.in.ready
   val outputFire = io.out.valid && io.out.ready
 
   // Increment request ID on input fire
@@ -80,8 +79,8 @@ class SingleChannelSystem(
   io.rankState := memory_controller.io.rankState
 
   // Connect internal queue counts
-  io.reqQueueCount := memory_controller.io.reqQueueCount
-  io.respQueueCount := memory_controller.io.respQueueCount
+  io.reqQueueCount     := memory_controller.io.reqQueueCount
+  io.respQueueCount    := memory_controller.io.respQueueCount
   io.fsmReqQueueCounts := memory_controller.io.fsmReqQueueCounts
 
   // Calculate the number of active ranks
