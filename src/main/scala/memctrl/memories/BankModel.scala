@@ -177,6 +177,7 @@ class DRAMBank(
       }
       // Return to Idle once response fired
       when (resp.fire) {
+        printf("Response fired from bank end.\n")
         state := sIdle
       }
     }

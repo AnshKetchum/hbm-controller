@@ -53,7 +53,7 @@ class BankGroup(
     Module(new Queue(new BankMemoryResponse, entries = queueDepth))
   }
 
-  for ((bank, q) <- banks.zip(respQs)) {
+  for (((bank, q), idx) <- banks.zip(respQs).zipWithIndex) {
     q.io.enq.bits  := bank.io.phyResp.bits
     q.io.enq.valid := bank.io.phyResp.valid
     bank.io.phyResp.ready := q.io.enq.ready
@@ -61,6 +61,8 @@ class BankGroup(
     when(q.io.enq.fire) {
       lastColBankGroup := localConfig.bankGroupIndex.U
       lastColCycle     := clock.asUInt
+      printf("[BankGroup] Response enqueued from bank %d\n", idx.U)
+      printf("Response: request_id = %d, data = 0x%x\n", bank.io.phyResp.bits.request_id, bank.io.phyResp.bits.data)
     }
   }
 

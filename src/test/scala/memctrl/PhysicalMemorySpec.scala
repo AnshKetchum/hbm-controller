@@ -91,7 +91,16 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
             val resp =     Decoupled(new ControllerResponse)
           })
           val params = DRAMBankParameters()
-          val controller = Module(new MemoryControllerFSM(params))
+
+          val localConfig = LocalConfigurationParameters(
+            channelIndex = 0,
+            rankIndex = 0,
+            bankGroupIndex = 0, 
+            bankIndex = 0
+          )
+          val memParams = MemoryConfigurationParameters()
+
+          val controller = Module(new MemoryControllerFSM(params, localConfig, memParams))
           val phys = Module(instantiateMem)
           controller.io.req     <> io.req
           controller.io.resp    <> io.resp
@@ -133,9 +142,9 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
             dut.clock.step()
           }
 
-          // Test sequence with fixed literals
-          val addr0 = "h20".U
-          val addr1 = "h24".U
+          // Test sequence with valid addresses for rank 0, bg 0, bank 0
+          val addr0 = "h00".U
+          val addr1 = "h40".U
           val d0    = "hAAAA".U
           val d1    = "h5555".U
 

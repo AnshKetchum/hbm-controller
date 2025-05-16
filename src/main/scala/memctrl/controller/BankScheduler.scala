@@ -150,6 +150,7 @@ class MemoryControllerFSM(
       when(sentCmd && io.phyResp.fire) {
         state := sSref
         sentCmd := false.B
+        printf(p"[Cycle $cycleCounter] CMD FIRE: SREF_ENTER -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n")
       }
     }
 
@@ -169,6 +170,7 @@ class MemoryControllerFSM(
       when(sentCmd && io.phyResp.fire) {
         state := sIdle
         sentCmd := false.B
+        printf(p"[Cycle $cycleCounter] CMD FIRE: SREF_EXIT -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n")
       }
     }
 
@@ -178,6 +180,11 @@ class MemoryControllerFSM(
       }
       when(io.cmdOut.fire) {
         sentCmd := true.B
+        printf("Issued activate.\n")
+      }
+      when(sentCmd && !io.phyResp.fire) {
+        printf("[Cycle %d]; rdy=%d valid=%d  waiting for ACTIVATE response; addr=%d reqId=%d \n", cycleCounter, io.phyResp.ready, io.phyResp.valid, reqAddrReg, reqIDReg)
+        printf("[Cycle %d]; rankIdx=%d bgI=%d bankIdx=%d respIdx=%d respBGI=%d respBI=%d addr=%d reqId=%d \n", cycleCounter, localConfiguration.rankIndex.U, localConfiguration.bankGroupIndex.U, localConfiguration.bankIndex.U, respDec.io.rankIndex, respDec.io.bankGroupIndex, respDec.io.bankIndex, io.phyResp.bits.addr, io.phyResp.bits.request_id)
       }
       when(sentCmd && io.phyResp.fire) {
         lastActivate          := cycleCounter
@@ -185,6 +192,7 @@ class MemoryControllerFSM(
         actPtr                := actPtr + 1.U
         sentCmd               := false.B
         state                 := Mux(reqIsRead, sRead, sWrite)
+        printf(p"[Cycle $cycleCounter] CMD FIRE: ACTIVATE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n")
       }
     }
 
@@ -202,6 +210,8 @@ class MemoryControllerFSM(
         lastReadEnd     := cycleCounter
         sentCmd         := false.B
         state           := sPrecharge
+        printf(p"[Cycle $cycleCounter] CMD FIRE: READ -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n")
+
       }
     }
 
@@ -217,6 +227,8 @@ class MemoryControllerFSM(
         sentCmd          := false.B
         state            := sPrecharge
         responseDataReg := io.phyResp.bits.data
+        printf(p"[Cycle $cycleCounter] CMD FIRE: WRITE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n")
+
       }
     }
 
@@ -231,6 +243,7 @@ class MemoryControllerFSM(
         lastPrecharge := cycleCounter
         sentCmd       := false.B
         state         := sDone
+        printf(p"[Cycle $cycleCounter] CMD FIRE: PRECHARGE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n")
       }
     }
 
@@ -250,6 +263,8 @@ class MemoryControllerFSM(
         lastRefresh := cycleCounter
         sentCmd     := false.B
         state       := sIdle
+        printf(p"[Cycle $cycleCounter] CMD FIRE: REFRESH -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n")
+
       }
     }
 

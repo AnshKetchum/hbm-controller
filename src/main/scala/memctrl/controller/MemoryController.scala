@@ -79,10 +79,26 @@ class MultiRankMemoryController(
 
   for (i <- 0 until totalBankFSMs) {
     val isTgt = respFlat === i.U
+    val doFire = io.phyResp.valid && fsmVec(i).phyResp.ready && isTgt
+
     fsmVec(i).phyResp.valid := io.phyResp.valid && isTgt
     fsmVec(i).phyResp.bits  := io.phyResp.bits
-    fsmVec(i).phyResp.ready := true.B
+
+    when (doFire) {
+      printf("[Controller] Response routed to FSM %d (rank %d, group %d, bank %d) at cycle\n",
+        i.U,
+        (i / banksPerRank).U,                     // Rank index
+        ((i % banksPerRank) / params.numberOfBanks).U,  // Bank Group index
+        ((i % banksPerRank) % params.numberOfBanks).U,  // Bank index
+      )
+      printf("  -> request_id = %d, data = 0x%x, addr = 0x%x\n",
+        io.phyResp.bits.request_id,
+        io.phyResp.bits.data,
+        io.phyResp.bits.addr
+      )
+    }
   }
+
   io.phyResp.ready := fsmVec(respFlat).phyResp.ready
 
   // ------ Collect responses from FSMs ------

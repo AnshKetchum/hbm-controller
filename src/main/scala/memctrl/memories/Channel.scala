@@ -38,6 +38,14 @@ class Channel(
     respQueues(i).io.enq.bits  := rankM.io.phyResp.bits
     respQueues(i).io.enq.valid := rankM.io.phyResp.valid
     rankM.io.phyResp.ready     := respQueues(i).io.enq.ready
+    
+    when(respQueues(i).io.enq.fire) {
+      printf("[Channel] Response enqueued from Rank %d\n", i.U)
+      printf(" [Channel]  -> request_id = %d, data = 0x%x\n",
+        rankM.io.phyResp.bits.request_id,
+        rankM.io.phyResp.bits.data
+      )
+    }
   }
 
   // Round-robin across all ranks’ respQueues

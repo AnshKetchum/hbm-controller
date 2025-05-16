@@ -38,6 +38,15 @@ class Rank(
     respQueues(i).io.enq.bits  := bg.io.phyResp.bits
     respQueues(i).io.enq.valid := bg.io.phyResp.valid
     bg.io.phyResp.ready        := respQueues(i).io.enq.ready
+
+    when(respQueues(i).io.enq.fire) {
+      printf("[Rank] Response enqueued from BankGroup %d at cycle\n", i.U)
+      printf("  -> request_id = %d, data = 0x%x\n",
+        bg.io.phyResp.bits.request_id,
+        bg.io.phyResp.bits.data
+      )
+    }
+
   }
 
   // round-robin across bank groups

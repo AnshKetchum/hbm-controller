@@ -29,3 +29,6 @@ jobs:
 
       - name: Run sbt test in nix develop shell
         run: nix develop --command sbt test
+
+      - name: Run integration sanity tests to verify system is receiving and sending the correct data
+        run: nix develop --command make verilog && make verilator-sanity-test

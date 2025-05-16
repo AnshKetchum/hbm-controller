@@ -28,6 +28,10 @@ def run_simulation(sim_exe, trace_path, out_dir, csv_dir, cycles, exp_dirs):
     for csv_file in csv_dir.glob("*.csv"):
         shutil.copy(csv_file, meta_dir / csv_file.name)
 
+    # Move all CSV files into the exp directory for backward compatibility
+    for csv_file in csv_dir.glob("*.csv"):
+        shutil.copy(csv_file, exp_dir / csv_file.name)
+
     exp_dirs.append(str(exp_dir.resolve()))
 
 
