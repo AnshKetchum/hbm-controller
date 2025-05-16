@@ -192,10 +192,8 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
   println("[PhysicalMemorySpec] In here. ")
   dramFlowSpec("Channel", new Channel(memParams, bankParams))
   dramFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
-  dramFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
 
   // Controller integration tests
   controllerFlowSpec("Channel", new Channel(memParams, bankParams))
   controllerFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
-  controllerFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
 }

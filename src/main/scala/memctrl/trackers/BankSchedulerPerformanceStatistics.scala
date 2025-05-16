@@ -166,28 +166,24 @@ class BankSchedulerPerformanceStatistics(localConfiguration: LocalConfigurationP
   val perfIn           = Module(
     new BankSchedulerPerformanceStatisticsInput(
       localConfiguration.rankIndex,
-      localConfiguration.bankGroupIndex,
       localConfiguration.bankIndex
     )
   )
   val perfOut          = Module(
     new BankSchedulerPerformanceStatisticsOutput(
       localConfiguration.rankIndex,
-      localConfiguration.bankGroupIndex,
       localConfiguration.bankIndex
     )
   )
   val perfMemRequests  = Module(
     new BankSchedulerPhysicalMemoryRequestPerformanceStatistics(
       localConfiguration.rankIndex,
-      localConfiguration.bankGroupIndex,
       localConfiguration.bankIndex
     )
   )
   val perfMemResponses = Module(
     new BankSchedulerPhysicalMemoryResponsePerformanceStatistics(
       localConfiguration.rankIndex,
-      localConfiguration.bankGroupIndex,
       localConfiguration.bankIndex
     )
   )
