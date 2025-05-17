@@ -117,55 +117,83 @@ class DRAMBank(
         printf("[Bank %d, %d] Cycle %d: Received SREF_EXIT CMD\n", rankIndex, bankIndex, cycleCounter)
         state := sSrefExit
       }
-      // Standard refresh
-      .elsewhen(!refreshInProg && doRefresh) {
-        refreshInProg := true.B
-        refreshCntr   := params.tRFC.U
-        printf("[Bank %d, %d] Cycle %d: BEGIN REFRESH - %d cycles\n", rankIndex, bankIndex, cycleCounter, params.tRFC.U)
-      }
-      // Precharge
-      .elsewhen(doPrecharge && !refreshInProg &&
-               elapsed(lastActivate, params.tRAS.U) && elapsed(lastPrecharge, params.tRP.U)) {
-        rowActive     := false.B
-        lastPrecharge := cycleCounter
-        resp.valid    := true.B
-        printf("[Bank %d, %d] Cycle %d: PRECHARGE issued\n", rankIndex, bankIndex, cycleCounter)
-      }
-      // Activate
-      .elsewhen(doActivate && !refreshInProg) {
-        val oldest = activateTimes(actPtr)
-        when(elapsed(oldest, params.tFAW.U) && elapsed(lastActivate, params.tRRD_L.U)) {
-          rowActive             := true.B
-          activeRow             := reqRow
-          lastActivate          := cycleCounter
-          activateTimes(actPtr) := cycleCounter
-          actPtr                := actPtr + 1.U
-          resp.valid            := true.B
-          printf("[Bank %d, %d] Cycle %d: ACTIVATE row=%d\n", rankIndex, bankIndex, cycleCounter, reqRow)
+        // Standard refresh
+        .elsewhen(!refreshInProg && doRefresh) {
+          refreshInProg := true.B
+          refreshCntr   := params.tRFC.U
+          printf(
+            "[Bank %d, %d] Cycle %d: BEGIN REFRESH - %d cycles\n",
+            rankIndex,
+            bankIndex,
+            cycleCounter,
+            params.tRFC.U
+          )
         }
-      }
-      // Read
-      .elsewhen(doRead && rowActive && !refreshInProg &&
-               elapsed(lastActivate, params.tRCDRD.U) && elapsed(pending.lastColCycle, neededCCD) &&
-               elapsed(lastReadEnd, params.tCCD_L.U) && elapsed(lastWriteEnd, params.tWTR_L.U) &&
-               elapsed(lastPrecharge, params.tRP.U)) {
-        val data = mem.read(activeRow * params.numCols.U + reqCol)
-        resp.bits.data := data
-        resp.valid     := true.B
-        lastReadEnd    := cycleCounter + params.CL.U
-        printf("[Bank %d, %d] Cycle %d: READ row=%d col=%d data=0x%x\n", rankIndex, bankIndex, cycleCounter, activeRow, reqCol, data)
-      }
-      // Write scoped to specific column in current row
-      .elsewhen(doWrite && rowActive && !refreshInProg &&
-               elapsed(lastActivate, params.tRCDWR.U) && elapsed(pending.lastColCycle, neededCCD) &&
-               elapsed(lastWriteEnd, params.tCCD_L.U) && elapsed(lastPrecharge, params.tRP.U)) {
-        val writeIndex = activeRow * params.numCols.U + reqCol
-        mem.write(writeIndex, pending.data)
-        resp.bits.data := pending.data
-        resp.valid     := true.B
-        lastWriteEnd   := cycleCounter + params.CWL.U + params.tWR.U
-        printf("[Bank %d, %d] Cycle %d: WRITE row=%d col=%d data=0x%x\n", rankIndex, bankIndex, cycleCounter, activeRow, reqCol, pending.data)
-      }
+        // Precharge
+        .elsewhen(
+          doPrecharge && !refreshInProg &&
+            elapsed(lastActivate, params.tRAS.U) && elapsed(lastPrecharge, params.tRP.U)
+        ) {
+          rowActive     := false.B
+          lastPrecharge := cycleCounter
+          resp.valid    := true.B
+          printf("[Bank %d, %d] Cycle %d: PRECHARGE issued\n", rankIndex, bankIndex, cycleCounter)
+        }
+        // Activate
+        .elsewhen(doActivate && !refreshInProg) {
+          val oldest = activateTimes(actPtr)
+          when(elapsed(oldest, params.tFAW.U) && elapsed(lastActivate, params.tRRD_L.U)) {
+            rowActive             := true.B
+            activeRow             := reqRow
+            lastActivate          := cycleCounter
+            activateTimes(actPtr) := cycleCounter
+            actPtr                := actPtr + 1.U
+            resp.valid            := true.B
+            printf("[Bank %d, %d] Cycle %d: ACTIVATE row=%d\n", rankIndex, bankIndex, cycleCounter, reqRow)
+          }
+        }
+        // Read
+        .elsewhen(
+          doRead && rowActive && !refreshInProg &&
+            elapsed(lastActivate, params.tRCDRD.U) && elapsed(pending.lastColCycle, neededCCD) &&
+            elapsed(lastReadEnd, params.tCCD_L.U) && elapsed(lastWriteEnd, params.tWTR_L.U) &&
+            elapsed(lastPrecharge, params.tRP.U)
+        ) {
+          val data = mem.read(activeRow * params.numCols.U + reqCol)
+          resp.bits.data := data
+          resp.valid     := true.B
+          lastReadEnd    := cycleCounter + params.CL.U
+          printf(
+            "[Bank %d, %d] Cycle %d: READ row=%d col=%d data=0x%x\n",
+            rankIndex,
+            bankIndex,
+            cycleCounter,
+            activeRow,
+            reqCol,
+            data
+          )
+        }
+        // Write scoped to specific column in current row
+        .elsewhen(
+          doWrite && rowActive && !refreshInProg &&
+            elapsed(lastActivate, params.tRCDWR.U) && elapsed(pending.lastColCycle, neededCCD) &&
+            elapsed(lastWriteEnd, params.tCCD_L.U) && elapsed(lastPrecharge, params.tRP.U)
+        ) {
+          val writeIndex = activeRow * params.numCols.U + reqCol
+          mem.write(writeIndex, pending.data)
+          resp.bits.data := pending.data
+          resp.valid     := true.B
+          lastWriteEnd   := cycleCounter + params.CWL.U + params.tWR.U
+          printf(
+            "[Bank %d, %d] Cycle %d: WRITE row=%d col=%d data=0x%x\n",
+            rankIndex,
+            bankIndex,
+            cycleCounter,
+            activeRow,
+            reqCol,
+            pending.data
+          )
+        }
 
       // Complete any in-progress refresh
       when(refreshInProg) {
@@ -231,7 +259,7 @@ class DRAMBank(
     perfTracker.io.mem_request_bits  := io.memCmd.bits
     perfTracker.io.mem_response_fire := io.phyResp.fire
     perfTracker.io.mem_response_bits := io.phyResp.bits
-    perfTracker.io.active_row       := reqRow
-    perfTracker.io.active_col    := reqCol
+    perfTracker.io.active_row        := reqRow
+    perfTracker.io.active_col        := reqCol
   }
 }
