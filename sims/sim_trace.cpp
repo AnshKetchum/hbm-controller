@@ -159,9 +159,9 @@ bool dequeue_response(VSingleChannelSystem* top,
                 write_enqueue_log("enqueue_log.txt");
                 write_response_log("response_log.txt");
 
-                tick(top);
-                tick(top);
-                exit(1);
+                // tick(top);
+                // tick(top);
+                // exit(1);
             }
         } else {
             // Read response: check against last written data if exists
@@ -173,9 +173,9 @@ bool dequeue_response(VSingleChannelSystem* top,
                     write_enqueue_log("enqueue_log.txt");
                     write_response_log("response_log.txt");
                     
-                    tick(top);
-                    tick(top);
-                    exit(1);
+                    // tick(top);
+                    // tick(top);
+                    // exit(1);
                 }
             }
         }
