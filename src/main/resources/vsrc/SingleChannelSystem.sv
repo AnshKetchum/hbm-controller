@@ -9354,7 +9354,41 @@ module Channel(	// @[src/main/scala/memctrl/memories/Channel.scala:6:7]
   );	// @[src/main/scala/memctrl/memories/Channel.scala:53:23]
 endmodule
 
-module Queue1_ControllerRequest(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+// VCS coverage exclude_file
+module ram_256x98(	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  input  [7:0]  R0_addr,
+  input         R0_en,
+                R0_clk,
+  output [97:0] R0_data,
+  input  [7:0]  W0_addr,
+  input         W0_en,
+                W0_clk,
+  input  [97:0] W0_data
+);
+
+  reg [97:0] Memory[0:255];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  always @(posedge W0_clk) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    if (W0_en & 1'h1)	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      Memory[W0_addr] <= W0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  end // always @(posedge)
+  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    reg [127:0] _RANDOM_MEM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        for (logic [8:0] i = 9'h0; i < 9'h100; i += 9'h1) begin
+          for (logic [7:0] j = 8'h0; j < 8'h80; j += 8'h20) begin
+            _RANDOM_MEM[j +: 32] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+          end
+          Memory[i[7:0]] = _RANDOM_MEM[97:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        end
+      `endif // RANDOMIZE_MEM_INIT
+    end // initial
+  `endif // ENABLE_INITIAL_MEM_
+  assign R0_data = R0_en ? Memory[R0_addr] : 98'bx;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+endmodule
+
+module Queue256_ControllerRequest(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
   input         clock,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
                 reset,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
   output        io_enq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
@@ -9371,57 +9405,113 @@ module Queue1_ControllerRequest(	// @[src/main/scala/chisel3/util/Decoupled.scal
   output [31:0] io_deq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
                 io_deq_bits_wdata,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
                 io_deq_bits_request_id,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_count	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output [8:0]  io_count	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
 );
 
-  reg  [97:0] ram;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  reg         full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-  wire        do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :286:19]
+  wire [97:0] _ram_ext_R0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  reg  [7:0]  enq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg  [7:0]  deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg         maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
+  wire        ptr_match = enq_ptr_value == deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:260:33]
+  wire        empty = ptr_match & ~maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :261:{25,28}]
+  wire        full = ptr_match & maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :262:24]
+  wire        do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :262:24, :286:19]
+  wire        do_deq = io_deq_ready & ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :261:25, :285:19]
   always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    if (reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-    else if (~(do_enq == (io_deq_ready & full)))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
-      full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
-    if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-      ram <=
-        {io_enq_bits_rd_en,
-         io_enq_bits_wr_en,
-         io_enq_bits_addr,
-         io_enq_bits_wdata,
-         io_enq_bits_request_id};	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    if (reset) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      enq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      deq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      maybe_full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
+    end
+    else begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        enq_ptr_value <= enq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (do_deq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        deq_ptr_value <= deq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (~(do_enq == do_deq))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
+        maybe_full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
+    end
   end // always @(posedge)
   `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:3];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    logic [31:0] _RANDOM[0:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
         `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `endif // INIT_RANDOM_PROLOG_
       `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        for (logic [2:0] i = 3'h0; i < 3'h4; i += 3'h1) begin
-          _RANDOM[i[1:0]] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        end	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        full = _RANDOM[2'h0][0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-        ram = {_RANDOM[2'h0][31:1], _RANDOM[2'h1], _RANDOM[2'h2], _RANDOM[2'h3][2:0]};	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91, :259:27]
+        _RANDOM[/*Zero width*/ 1'b0] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        enq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][7:0];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        deq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][15:8];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        maybe_full = _RANDOM[/*Zero width*/ 1'b0][16];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
       `endif // RANDOMIZE_REG_INIT
     end // initial
     `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27, :286:19]
-  assign io_deq_valid = full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-  assign io_deq_bits_rd_en = ram[97];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_wr_en = ram[96];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_addr = ram[95:64];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_wdata = ram[63:32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_request_id = ram[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_count = full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
+  ram_256x98 ram_ext (	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    .R0_addr (deq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .R0_en   (1'h1),
+    .R0_clk  (clock),
+    .R0_data (_ram_ext_R0_data),
+    .W0_addr (enq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .W0_en   (do_enq),	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+    .W0_clk  (clock),
+    .W0_data
+      ({io_enq_bits_rd_en,
+        io_enq_bits_wr_en,
+        io_enq_bits_addr,
+        io_enq_bits_wdata,
+        io_enq_bits_request_id})	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  );	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :286:19]
+  assign io_deq_valid = ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :261:25, :285:19]
+  assign io_deq_bits_rd_en = _ram_ext_R0_data[97];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_wr_en = _ram_ext_R0_data[96];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_addr = _ram_ext_R0_data[95:64];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_wdata = _ram_ext_R0_data[63:32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_request_id = _ram_ext_R0_data[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_count = {full, enq_ptr_value - deq_ptr_value};	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :309:32, :312:62]
 endmodule
 
-module Queue1_ControllerResponse(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+// VCS coverage exclude_file
+module ram_256x130(	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  input  [7:0]   R0_addr,
+  input          R0_en,
+                 R0_clk,
+  output [129:0] R0_data,
+  input  [7:0]   W0_addr,
+  input          W0_en,
+                 W0_clk,
+  input  [129:0] W0_data
+);
+
+  reg [129:0] Memory[0:255];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  always @(posedge W0_clk) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    if (W0_en & 1'h1)	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      Memory[W0_addr] <= W0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  end // always @(posedge)
+  `ifdef ENABLE_INITIAL_MEM_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    reg [159:0] _RANDOM_MEM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+      `ifdef RANDOMIZE_MEM_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        for (logic [8:0] i = 9'h0; i < 9'h100; i += 9'h1) begin
+          for (logic [7:0] j = 8'h0; j < 8'hA0; j += 8'h20) begin
+            _RANDOM_MEM[j +: 32] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+          end
+          Memory[i[7:0]] = _RANDOM_MEM[129:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+        end
+      `endif // RANDOMIZE_MEM_INIT
+    end // initial
+  `endif // ENABLE_INITIAL_MEM_
+  assign R0_data = R0_en ? Memory[R0_addr] : 130'bx;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+endmodule
+
+module Queue256_ControllerResponse(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
   input         clock,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
                 reset,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
   output        io_enq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
@@ -9440,134 +9530,78 @@ module Queue1_ControllerResponse(	// @[src/main/scala/chisel3/util/Decoupled.sca
                 io_deq_bits_wdata,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
                 io_deq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
                 io_deq_bits_request_id,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_count	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
+  output [8:0]  io_count	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
 );
 
-  reg  [129:0] ram;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  reg          full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-  wire         do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :286:19]
+  wire [129:0] _ram_ext_R0_data;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  reg  [7:0]   enq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg  [7:0]   deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+  reg          maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
+  wire         ptr_match = enq_ptr_value == deq_ptr_value;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:260:33]
+  wire         empty = ptr_match & ~maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :261:{25,28}]
+  wire         full = ptr_match & maybe_full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27, :260:33, :262:24]
+  wire         do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :262:24, :286:19]
+  wire         do_deq = io_deq_ready & ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :261:25, :285:19]
   always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    if (reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-    else if (~(do_enq == (io_deq_ready & full)))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
-      full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
-    if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-      ram <=
-        {io_enq_bits_rd_en,
-         io_enq_bits_wr_en,
-         io_enq_bits_addr,
-         io_enq_bits_wdata,
-         io_enq_bits_data,
-         io_enq_bits_request_id};	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    if (reset) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      enq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      deq_ptr_value <= 8'h0;	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+      maybe_full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
+    end
+    else begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+      if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        enq_ptr_value <= enq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (do_deq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+        deq_ptr_value <= deq_ptr_value + 8'h1;	// @[src/main/scala/chisel3/util/Counter.scala:61:40, :77:24]
+      if (~(do_enq == do_deq))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
+        maybe_full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
+    end
   end // always @(posedge)
   `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:4];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+    logic [31:0] _RANDOM[0:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
         `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `endif // INIT_RANDOM_PROLOG_
       `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        for (logic [2:0] i = 3'h0; i < 3'h5; i += 3'h1) begin
-          _RANDOM[i] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        end	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        full = _RANDOM[3'h0][0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-        ram =
-          {_RANDOM[3'h0][31:1],
-           _RANDOM[3'h1],
-           _RANDOM[3'h2],
-           _RANDOM[3'h3],
-           _RANDOM[3'h4][2:0]};	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91, :259:27]
+        _RANDOM[/*Zero width*/ 1'b0] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        enq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][7:0];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        deq_ptr_value = _RANDOM[/*Zero width*/ 1'b0][15:8];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7]
+        maybe_full = _RANDOM[/*Zero width*/ 1'b0][16];	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
       `endif // RANDOMIZE_REG_INIT
     end // initial
     `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
       `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
-  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27, :286:19]
-  assign io_deq_valid = full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-  assign io_deq_bits_rd_en = ram[129];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_wr_en = ram[128];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_addr = ram[127:96];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_wdata = ram[95:64];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_data = ram[63:32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_request_id = ram[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_count = full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-endmodule
-
-module Queue1_PhysicalMemoryCommand(	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-  input         clock,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-                reset,	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-  output        io_enq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_enq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input  [31:0] io_enq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_enq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_enq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input  [31:0] io_enq_bits_request_id,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  input         io_deq_ready,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_deq_valid,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output [31:0] io_deq_bits_addr,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_data,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output        io_deq_bits_cs,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_ras,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_cas,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-                io_deq_bits_we,	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-  output [31:0] io_deq_bits_request_id	// @[src/main/scala/chisel3/util/Decoupled.scala:255:14]
-);
-
-  reg  [99:0] ram;	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  reg         full;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-  wire        do_enq = ~full & io_enq_valid;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :286:19]
-  always @(posedge clock) begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    if (reset)	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      full <= 1'h0;	// @[src/main/scala/chisel3/util/Decoupled.scala:259:27]
-    else if (~(do_enq == (io_deq_ready & full)))	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27, :276:{15,27}, :277:16]
-      full <= do_enq;	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35, :259:27]
-    if (do_enq)	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
-      ram <=
-        {io_enq_bits_addr,
-         io_enq_bits_data,
-         io_enq_bits_cs,
-         io_enq_bits_ras,
-         io_enq_bits_cas,
-         io_enq_bits_we,
-         io_enq_bits_request_id};	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
-  end // always @(posedge)
-  `ifdef ENABLE_INITIAL_REG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `ifdef FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `FIRRTL_BEFORE_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `endif // FIRRTL_BEFORE_INITIAL
-    logic [31:0] _RANDOM[0:3];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    initial begin	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `ifdef INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        `INIT_RANDOM_PROLOG_	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `endif // INIT_RANDOM_PROLOG_
-      `ifdef RANDOMIZE_REG_INIT	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        for (logic [2:0] i = 3'h0; i < 3'h4; i += 3'h1) begin
-          _RANDOM[i[1:0]] = `RANDOM;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        end	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-        full = _RANDOM[2'h0][0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-        ram = {_RANDOM[2'h0][31:1], _RANDOM[2'h1], _RANDOM[2'h2], _RANDOM[2'h3][4:0]};	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91, :259:27]
-      `endif // RANDOMIZE_REG_INIT
-    end // initial
-    `ifdef FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-      `FIRRTL_AFTER_INITIAL	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7]
-    `endif // FIRRTL_AFTER_INITIAL
-  `endif // ENABLE_INITIAL_REG_
-  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27, :286:19]
-  assign io_deq_valid = full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :259:27]
-  assign io_deq_bits_addr = ram[99:68];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_data = ram[67:36];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_cs = ram[35];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_ras = ram[34];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_cas = ram[33];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_we = ram[32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
-  assign io_deq_bits_request_id = ram[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  ram_256x130 ram_ext (	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+    .R0_addr (deq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .R0_en   (1'h1),
+    .R0_clk  (clock),
+    .R0_data (_ram_ext_R0_data),
+    .W0_addr (enq_ptr_value),	// @[src/main/scala/chisel3/util/Counter.scala:61:40]
+    .W0_en   (do_enq),	// @[src/main/scala/chisel3/util/Decoupled.scala:51:35]
+    .W0_clk  (clock),
+    .W0_data
+      ({io_enq_bits_rd_en,
+        io_enq_bits_wr_en,
+        io_enq_bits_addr,
+        io_enq_bits_wdata,
+        io_enq_bits_data,
+        io_enq_bits_request_id})	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  );	// @[src/main/scala/chisel3/util/Decoupled.scala:256:91]
+  assign io_enq_ready = ~full;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :286:19]
+  assign io_deq_valid = ~empty;	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :261:25, :285:19]
+  assign io_deq_bits_rd_en = _ram_ext_R0_data[129];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_wr_en = _ram_ext_R0_data[128];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_addr = _ram_ext_R0_data[127:96];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_wdata = _ram_ext_R0_data[95:64];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_data = _ram_ext_R0_data[63:32];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_deq_bits_request_id = _ram_ext_R0_data[31:0];	// @[src/main/scala/chisel3/util/Decoupled.scala:243:7, :256:91]
+  assign io_count = {full, enq_ptr_value - deq_ptr_value};	// @[src/main/scala/chisel3/util/Counter.scala:61:40, src/main/scala/chisel3/util/Decoupled.scala:243:7, :262:24, :309:32, :312:62]
 endmodule
 
 module BankSchedulerPerformanceStatistics(	// @[src/main/scala/memctrl/trackers/BankSchedulerPerformanceStatistics.scala:141:7]
@@ -17068,7 +17102,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
   output [31:0] io_deq_15_bits_addr,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
                 io_deq_15_bits_wdata,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
                 io_deq_15_bits_request_id,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
-  output        io_counts_0,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
+  output [8:0]  io_counts_0,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
                 io_counts_1,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
                 io_counts_2,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
                 io_counts_3,	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:13:14]
@@ -17127,7 +17161,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_bankIndex (_addrDec_io_bankIndex),
     .io_rankIndex (_addrDec_io_rankIndex)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:20:23]
-  Queue1_ControllerRequest queues_0 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_0 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_0_io_enq_ready),
@@ -17146,7 +17180,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_0_bits_request_id),
     .io_count               (io_counts_0)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_1 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_1 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_1_io_enq_ready),
@@ -17165,7 +17199,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_1_bits_request_id),
     .io_count               (io_counts_1)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_2 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_2 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_2_io_enq_ready),
@@ -17184,7 +17218,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_2_bits_request_id),
     .io_count               (io_counts_2)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_3 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_3 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_3_io_enq_ready),
@@ -17203,7 +17237,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_3_bits_request_id),
     .io_count               (io_counts_3)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_4 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_4 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_4_io_enq_ready),
@@ -17222,7 +17256,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_4_bits_request_id),
     .io_count               (io_counts_4)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_5 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_5 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_5_io_enq_ready),
@@ -17241,7 +17275,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_5_bits_request_id),
     .io_count               (io_counts_5)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_6 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_6 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_6_io_enq_ready),
@@ -17260,7 +17294,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_6_bits_request_id),
     .io_count               (io_counts_6)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_7 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_7 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_7_io_enq_ready),
@@ -17279,7 +17313,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_7_bits_request_id),
     .io_count               (io_counts_7)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_8 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_8 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_8_io_enq_ready),
@@ -17298,7 +17332,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_8_bits_request_id),
     .io_count               (io_counts_8)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_9 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_9 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_9_io_enq_ready),
@@ -17317,7 +17351,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_9_bits_request_id),
     .io_count               (io_counts_9)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_10 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_10 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_10_io_enq_ready),
@@ -17336,7 +17370,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_10_bits_request_id),
     .io_count               (io_counts_10)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_11 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_11 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_11_io_enq_ready),
@@ -17355,7 +17389,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_11_bits_request_id),
     .io_count               (io_counts_11)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_12 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_12 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_12_io_enq_ready),
@@ -17374,7 +17408,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_12_bits_request_id),
     .io_count               (io_counts_12)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_13 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_13 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_13_io_enq_ready),
@@ -17393,7 +17427,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_13_bits_request_id),
     .io_count               (io_counts_13)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_14 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_14 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_14_io_enq_ready),
@@ -17412,7 +17446,7 @@ module MultiDeqQueue(	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.s
     .io_deq_bits_request_id (io_deq_14_bits_request_id),
     .io_count               (io_counts_14)
   );	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
-  Queue1_ControllerRequest queues_15 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
+  Queue256_ControllerRequest queues_15 (	// @[src/main/scala/memctrl/controller/MultiDequeueQueue.scala:28:11]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_queues_15_io_enq_ready),
@@ -18768,9 +18802,9 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
                 io_phyResp_bits_request_id,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
   output [2:0]  io_rankState_0,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
                 io_rankState_1,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
-  output        io_reqQueueCount,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
+  output [8:0]  io_reqQueueCount,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
   output [3:0]  io_respQueueCount,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
-  output        io_fsmReqQueueCounts_0,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
+  output [8:0]  io_fsmReqQueueCounts_0,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
                 io_fsmReqQueueCounts_1,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
                 io_fsmReqQueueCounts_2,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
                 io_fsmReqQueueCounts_3,	// @[src/main/scala/memctrl/controller/MemoryController.scala:16:14]
@@ -19224,7 +19258,7 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
   wire [2:0]  _MemoryControllerFSM_io_stateOut;	// @[src/main/scala/memctrl/controller/MemoryController.scala:52:11]
   wire        _cmdQueue_io_enq_ready;	// @[src/main/scala/memctrl/controller/MemoryController.scala:40:24]
   wire        _respQueue_io_enq_ready;	// @[src/main/scala/memctrl/controller/MemoryController.scala:33:25]
-  wire        _respQueue_io_count;	// @[src/main/scala/memctrl/controller/MemoryController.scala:33:25]
+  wire [8:0]  _respQueue_io_count;	// @[src/main/scala/memctrl/controller/MemoryController.scala:33:25]
   wire        _reqQueue_io_deq_valid;	// @[src/main/scala/memctrl/controller/MemoryController.scala:32:25]
   wire        _reqQueue_io_deq_bits_rd_en;	// @[src/main/scala/memctrl/controller/MemoryController.scala:32:25]
   wire        _reqQueue_io_deq_bits_wr_en;	// @[src/main/scala/memctrl/controller/MemoryController.scala:32:25]
@@ -19383,7 +19417,7 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
   `endif // not def SYNTHESIS
   reg         casez_tmp;	// @[src/main/scala/memctrl/controller/MemoryController.scala:100:20]
   always_comb begin	// @[src/main/scala/memctrl/controller/MemoryController.scala:100:20]
-    casez (_respFlat_T_1[3:0])	// @[<stdin>:21718:32, src/main/scala/memctrl/controller/MemoryController.scala:75:60, :100:20]
+    casez (_respFlat_T_1[3:0])	// @[<stdin>:21737:32, src/main/scala/memctrl/controller/MemoryController.scala:75:60, :100:20]
       4'b0000:
         casez_tmp = _MemoryControllerFSM_io_phyResp_ready;	// @[src/main/scala/memctrl/controller/MemoryController.scala:52:11, :100:20]
       4'b0001:
@@ -19416,7 +19450,7 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
         casez_tmp = _MemoryControllerFSM_14_io_phyResp_ready;	// @[src/main/scala/memctrl/controller/MemoryController.scala:52:11, :100:20]
       default:
         casez_tmp = _MemoryControllerFSM_15_io_phyResp_ready;	// @[src/main/scala/memctrl/controller/MemoryController.scala:52:11, :100:20]
-    endcase	// @[<stdin>:21718:32, src/main/scala/memctrl/controller/MemoryController.scala:75:60, :100:20]
+    endcase	// @[<stdin>:21737:32, src/main/scala/memctrl/controller/MemoryController.scala:75:60, :100:20]
   end // always_comb
   wire [2:0]  _io_rankState_0_T_1 =
     _MemoryControllerFSM_io_stateOut < _MemoryControllerFSM_1_io_stateOut
@@ -19466,7 +19500,7 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
     _io_rankState_1_T_9 < _MemoryControllerFSM_14_io_stateOut
       ? _MemoryControllerFSM_14_io_stateOut
       : _io_rankState_1_T_9;	// @[src/main/scala/memctrl/controller/MemoryController.scala:52:11, :123:55]
-  Queue1_ControllerRequest reqQueue (	// @[src/main/scala/memctrl/controller/MemoryController.scala:32:25]
+  Queue256_ControllerRequest reqQueue (	// @[src/main/scala/memctrl/controller/MemoryController.scala:32:25]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (io_in_ready),
@@ -19485,7 +19519,7 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
     .io_deq_bits_request_id (_reqQueue_io_deq_bits_request_id),
     .io_count               (io_reqQueueCount)
   );	// @[src/main/scala/memctrl/controller/MemoryController.scala:32:25]
-  Queue1_ControllerResponse respQueue (	// @[src/main/scala/memctrl/controller/MemoryController.scala:33:25]
+  Queue256_ControllerResponse respQueue (	// @[src/main/scala/memctrl/controller/MemoryController.scala:33:25]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_respQueue_io_enq_ready),
@@ -19506,7 +19540,7 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
     .io_deq_bits_request_id (io_out_bits_request_id),
     .io_count               (_respQueue_io_count)
   );	// @[src/main/scala/memctrl/controller/MemoryController.scala:33:25]
-  Queue1_PhysicalMemoryCommand cmdQueue (	// @[src/main/scala/memctrl/controller/MemoryController.scala:40:24]
+  Queue256_PhysicalMemoryCommand cmdQueue (	// @[src/main/scala/memctrl/controller/MemoryController.scala:40:24]
     .clock                  (clock),
     .reset                  (reset),
     .io_enq_ready           (_cmdQueue_io_enq_ready),
@@ -20536,7 +20570,7 @@ module MultiRankMemoryController(	// @[src/main/scala/memctrl/controller/MemoryC
     _io_rankState_1_T_11 < _MemoryControllerFSM_15_io_stateOut
       ? _MemoryControllerFSM_15_io_stateOut
       : _io_rankState_1_T_11;	// @[src/main/scala/memctrl/controller/MemoryController.scala:9:7, :52:11, :123:55]
-  assign io_respQueueCount = {3'h0, _respQueue_io_count};	// @[src/main/scala/memctrl/controller/MemoryController.scala:9:7, :33:25, :37:21]
+  assign io_respQueueCount = _respQueue_io_count[3:0];	// @[src/main/scala/memctrl/controller/MemoryController.scala:9:7, :33:25, :37:21]
 endmodule
 
 module SystemQueuePerformanceStatistics(	// @[src/main/scala/memctrl/trackers/SystemQueuePerformanceStatistics.scala:59:7]
@@ -20660,23 +20694,23 @@ module SingleChannelSystem(	// @[src/main/scala/memctrl/System.scala:28:7]
   wire        _memory_controller_io_phyResp_ready;	// @[src/main/scala/memctrl/System.scala:42:33]
   wire [2:0]  _memory_controller_io_rankState_0;	// @[src/main/scala/memctrl/System.scala:42:33]
   wire [2:0]  _memory_controller_io_rankState_1;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_reqQueueCount;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_0;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_1;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_2;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_3;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_4;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_5;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_6;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_7;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_8;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_9;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_10;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_11;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_12;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_13;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_14;	// @[src/main/scala/memctrl/System.scala:42:33]
-  wire        _memory_controller_io_fsmReqQueueCounts_15;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_reqQueueCount;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_0;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_1;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_2;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_3;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_4;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_5;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_6;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_7;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_8;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_9;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_10;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_11;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_12;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_13;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_14;	// @[src/main/scala/memctrl/System.scala:42:33]
+  wire [8:0]  _memory_controller_io_fsmReqQueueCounts_15;	// @[src/main/scala/memctrl/System.scala:42:33]
   wire        _channel_io_memCmd_ready;	// @[src/main/scala/memctrl/System.scala:33:33]
   wire        _channel_io_phyResp_valid;	// @[src/main/scala/memctrl/System.scala:33:33]
   wire [31:0] _channel_io_phyResp_bits_addr;	// @[src/main/scala/memctrl/System.scala:33:33]
@@ -20801,23 +20835,23 @@ module SingleChannelSystem(	// @[src/main/scala/memctrl/System.scala:28:7]
   assign io_out_bits_request_id = _memory_controller_io_out_bits_request_id;	// @[src/main/scala/memctrl/System.scala:28:7, :42:33]
   assign io_rankState_0 = _memory_controller_io_rankState_0;	// @[src/main/scala/memctrl/System.scala:28:7, :42:33]
   assign io_rankState_1 = _memory_controller_io_rankState_1;	// @[src/main/scala/memctrl/System.scala:28:7, :42:33]
-  assign io_reqQueueCount = {3'h0, _memory_controller_io_reqQueueCount};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :99:24]
-  assign io_fsmReqQueueCounts_0 = {2'h0, _memory_controller_io_fsmReqQueueCounts_0};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_1 = {2'h0, _memory_controller_io_fsmReqQueueCounts_1};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_2 = {2'h0, _memory_controller_io_fsmReqQueueCounts_2};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_3 = {2'h0, _memory_controller_io_fsmReqQueueCounts_3};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_4 = {2'h0, _memory_controller_io_fsmReqQueueCounts_4};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_5 = {2'h0, _memory_controller_io_fsmReqQueueCounts_5};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_6 = {2'h0, _memory_controller_io_fsmReqQueueCounts_6};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_7 = {2'h0, _memory_controller_io_fsmReqQueueCounts_7};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_8 = {2'h0, _memory_controller_io_fsmReqQueueCounts_8};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_9 = {2'h0, _memory_controller_io_fsmReqQueueCounts_9};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_10 = {2'h0, _memory_controller_io_fsmReqQueueCounts_10};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_11 = {2'h0, _memory_controller_io_fsmReqQueueCounts_11};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_12 = {2'h0, _memory_controller_io_fsmReqQueueCounts_12};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_13 = {2'h0, _memory_controller_io_fsmReqQueueCounts_13};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_14 = {2'h0, _memory_controller_io_fsmReqQueueCounts_14};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
-  assign io_fsmReqQueueCounts_15 = {2'h0, _memory_controller_io_fsmReqQueueCounts_15};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_reqQueueCount = _memory_controller_io_reqQueueCount[3:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :99:24]
+  assign io_fsmReqQueueCounts_0 = _memory_controller_io_fsmReqQueueCounts_0[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_1 = _memory_controller_io_fsmReqQueueCounts_1[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_2 = _memory_controller_io_fsmReqQueueCounts_2[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_3 = _memory_controller_io_fsmReqQueueCounts_3[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_4 = _memory_controller_io_fsmReqQueueCounts_4[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_5 = _memory_controller_io_fsmReqQueueCounts_5[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_6 = _memory_controller_io_fsmReqQueueCounts_6[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_7 = _memory_controller_io_fsmReqQueueCounts_7[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_8 = _memory_controller_io_fsmReqQueueCounts_8[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_9 = _memory_controller_io_fsmReqQueueCounts_9[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_10 = _memory_controller_io_fsmReqQueueCounts_10[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_11 = _memory_controller_io_fsmReqQueueCounts_11[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_12 = _memory_controller_io_fsmReqQueueCounts_12[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_13 = _memory_controller_io_fsmReqQueueCounts_13[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_14 = _memory_controller_io_fsmReqQueueCounts_14[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
+  assign io_fsmReqQueueCounts_15 = _memory_controller_io_fsmReqQueueCounts_15[2:0];	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :101:24]
   assign io_activeRanks =
     {1'h0, |_memory_controller_io_rankState_0}
     + {1'h0, |_memory_controller_io_rankState_1};	// @[src/main/scala/memctrl/System.scala:28:7, :42:33, :104:{62,65}]
