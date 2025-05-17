@@ -107,17 +107,16 @@ case class DRAMBankParameters(
 }
 
 case class MemoryConfigurationParameters(
-  numberOfChannels:       Int = 1,
+  numberOfChannels:    Int = 1,
   numberOfRanks:       Int = 2,
   numberOfBanks:       Int = 8,
   controllerQueueSize: Int = 256,
   memoryQueueSize:     Int = 256)
 
 case class LocalConfigurationParameters(
-  channelIndex:   Int,
-  rankIndex:      Int,
-  bankIndex:      Int
-)
+  channelIndex: Int,
+  rankIndex:    Int,
+  bankIndex:    Int)
 
 /** Base class for any non-bank module exposing a PhysicalMemoryIO interface
   */

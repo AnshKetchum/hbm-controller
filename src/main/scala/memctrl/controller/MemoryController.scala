@@ -3,7 +3,9 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/** Memory controller with one FSM per physical bank (across ranks and banks), now using MultiDeqQueue to burst-demux requests. */
+/** Memory controller with one FSM per physical bank (across ranks and banks), now using MultiDeqQueue to burst-demux
+  * requests.
+  */
 class MultiRankMemoryController(
   params:           MemoryConfigurationParameters,
   bankParams:       DRAMBankParameters,
@@ -46,7 +48,7 @@ class MultiRankMemoryController(
   val fsmVec = VecInit(Seq.tabulate(totalBankFSMs) { i =>
     val r   = i / banksPerRank
     val b   = i % banksPerRank
-    val loc = LocalConfigurationParameters(channelIndex, r, 0, b)
+    val loc = LocalConfigurationParameters(channelIndex, r, b)
     Module(new MemoryControllerFSM(bankParams, loc, params, trackPerformance)).io
   })
 

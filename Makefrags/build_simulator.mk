@@ -49,7 +49,7 @@ verilator-sanity-test:
 all: verilog verilator-trace
 
 # Clean up generated files
-clean:
+build-clean:
 	@echo "Cleaning up simulation files..."
 	rm -rf obj_dir
 	rm -f V$(TOP_MODULE)

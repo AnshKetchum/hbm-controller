@@ -44,7 +44,7 @@ compare-experiments:
 	$(PYTHON) scripts/compare/diff_experiments.py --current-dir $(EXPERIMENT_DIR) --baseline-dir $(DRAMSIM_EXPERIMENT_DIR) --out-dir $(DIFF_EXPERIMENTS_DIR)
 
 # Post-run cleanup of metadata and intermediate outputs
-post-job-cleanup:
+post-job-cleanup: clean
 	mkdir -p $(DRAMSIM_EXPERIMENT_DIR)/metadata
 	mv dramsim3.json $(DRAMSIM_EXPERIMENT_DIR)/metadata || true
 	mv dramsim3.txt $(DRAMSIM_EXPERIMENT_DIR)/metadata || true
@@ -59,4 +59,8 @@ evaluate-all: clean evaluate-current visualize-current evaluate-dramsim3 visuali
 
 # Clean up all outputs
 clean:
-	rm -rf $(EXPERIMENT_DIR) $(DRAMSIM_EXPERIMENT_DIR) $(DIFF_EXPERIMENTS_DIR) $(TRACES_DIR) *.trace *.csv
+	rm -f src/main/resources/vsrc/SingleChannelSystem.sv
+	rm -rf $(EXPERIMENT_DIR) $(DRAMSIM_EXPERIMENT_DIR) $(DIFF_EXPERIMENTS_DIR) $(TRACES_DIR) 
+	rm -f *.trace 
+	rm -f *.csv
+	rm -f *.json

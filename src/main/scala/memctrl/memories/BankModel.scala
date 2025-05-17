@@ -15,8 +15,7 @@ class DRAMBank(
   val resp = io.phyResp // Decoupled[BankMemoryResponse]
 
   // This bank’s fixed indices
-  private val bankGroupId = localConfig.bankGroupIndex.U
-  private val bankIndex   = localConfig.bankIndex.U
+  private val bankIndex = localConfig.bankIndex.U
 
   // FSM states: Idle, Processing, SREF_ENTER, SREF, SREF_EXIT
   val sIdle :: sProc :: sSrefEnter :: sSref :: sSrefExit :: Nil = Enum(5)
@@ -84,11 +83,7 @@ class DRAMBank(
   val reqRow = pending.addr(31, 32 - log2Ceil(params.numRows))
   val reqCol = pending.addr(log2Ceil(params.numCols) - 1, 0)
 
-  val neededCCD = Mux(
-    pending.lastColBankGroup === bankGroupId,
-    params.tCCD_L.U,
-    params.tCCD_S.U
-  )
+  val neededCCD = params.tCCD_L.U
 
   // Main FSM including command-based SREF
   switch(state) {
@@ -97,8 +92,7 @@ class DRAMBank(
         pending := cmd.bits
         state   := sProc
         printf(
-          "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
-          bankGroupId,
+          "[Bank %d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastCyc=%d\n",
           bankIndex,
           cycleCounter,
           cmd.bits.cs,
@@ -107,7 +101,6 @@ class DRAMBank(
           cmd.bits.we,
           cmd.bits.addr,
           cmd.bits.data,
-          cmd.bits.lastColBankGroup,
           cmd.bits.lastColCycle
         )
       }
@@ -116,12 +109,12 @@ class DRAMBank(
     is(sProc) {
       // 1) Self-refresh entry request
       when(doSrefEnter && !refreshInProg) {
-        printf("[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", bankGroupId, bankIndex, cycleCounter)
+        printf("[Bank %d] Cycle %d: Received SREF_ENTER CMD\n", bankIndex, cycleCounter)
         state := sSrefEnter
       }
         // 2) Self-refresh exit request
         .elsewhen(doSrefExit && !refreshInProg) {
-          printf("[Bank %d,%d] Cycle %d: Received SREF_EXIT CMD\n", bankGroupId, bankIndex, cycleCounter)
+          printf("[Bank %d] Cycle %d: Received SREF_EXIT CMD\n", bankIndex, cycleCounter)
           state := sSrefExit
         }
         // 3) Standard refresh
@@ -129,8 +122,7 @@ class DRAMBank(
           refreshInProg := true.B
           refreshCntr   := params.tRFC.U
           printf(
-            "[Bank %d,%d] Cycle %d: BEGIN REFRESH - %d cycles\n",
-            bankGroupId,
+            "[Bank %d] Cycle %d: BEGIN REFRESH - %d cycles\n",
             bankIndex,
             cycleCounter,
             params.tRFC.U
@@ -143,7 +135,7 @@ class DRAMBank(
           rowActive     := false.B
           lastPrecharge := cycleCounter
           resp.valid    := true.B
-          printf("[Bank %d,%d] Cycle %d: PRECHARGE issued\n", bankGroupId, bankIndex, cycleCounter)
+          printf("[Bank %d] Cycle %d: PRECHARGE issued\n", bankIndex, cycleCounter)
         }
         // 5) Activate
         .elsewhen(doActivate && !refreshInProg) {
@@ -155,7 +147,7 @@ class DRAMBank(
             activateTimes(actPtr) := cycleCounter
             actPtr                := actPtr + 1.U
             resp.valid            := true.B
-            printf("[Bank %d,%d] Cycle %d: ACTIVATE row=%d\n", bankGroupId, bankIndex, cycleCounter, reqRow)
+            printf("[Bank %d] Cycle %d: ACTIVATE row=%d\n", bankIndex, cycleCounter, reqRow)
           }
         }
         // 6) Read
@@ -172,8 +164,7 @@ class DRAMBank(
           resp.valid     := true.B
           lastReadEnd    := cycleCounter + params.CL.U
           printf(
-            "[Bank %d,%d] Cycle %d: READ  row=%d col=%d data=0x%x\n",
-            bankGroupId,
+            "[Bank %d] Cycle %d: READ  row=%d col=%d data=0x%x\n",
             bankIndex,
             cycleCounter,
             activeRow,
@@ -192,8 +183,7 @@ class DRAMBank(
           resp.valid     := true.B
           lastWriteEnd   := cycleCounter + params.CWL.U + params.tWR.U
           printf(
-            "[Bank %d,%d] Cycle %d: WRITE row=%d col=%d data=0x%x\n",
-            bankGroupId,
+            "[Bank %d] Cycle %d: WRITE row=%d col=%d data=0x%x\n",
             bankIndex,
             cycleCounter,
             activeRow,
@@ -209,7 +199,7 @@ class DRAMBank(
           lastRefresh   := cycleCounter
           rowActive     := false.B
           resp.valid    := true.B
-          printf("[Bank %d,%d] Cycle %d: REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
+          printf("[Bank %d] Cycle %d: REFRESH complete\n", bankIndex, cycleCounter)
         }
       }
       // Return to Idle once response fired
@@ -227,7 +217,7 @@ class DRAMBank(
         refreshCntr   := params.tRFC.U
       }.elsewhen(refreshCntr === 0.U) {
         lastRefresh := cycleCounter
-        printf("[Bank %d,%d] Cycle %d: ENTER SELF-REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
+        printf("[Bank %d] Cycle %d: ENTER SELF-REFRESH complete\n", bankIndex, cycleCounter)
         state       := sSref
       }.otherwise {
         refreshCntr := refreshCntr - 1.U
@@ -244,7 +234,7 @@ class DRAMBank(
         when(refreshCntr === 0.U) {
           lastRefresh   := cycleCounter
           refreshInProg := false.B
-          printf("[Bank %d,%d] Cycle %d: AUTO REFRESH in SREF\n", bankGroupId, bankIndex, cycleCounter)
+          printf("[Bank %d] Cycle %d: AUTO REFRESH in SREF\n", bankIndex, cycleCounter)
         }.otherwise {
           refreshCntr := refreshCntr - 1.U
         }
@@ -256,7 +246,7 @@ class DRAMBank(
     is(sSrefExit) {
       // waiting for exit CMD in pending
       when(!doSrefExit) {
-        printf("[Bank %d,%d] Cycle %d: EXIT SELF-REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
+        printf("[Bank %d] Cycle %d: EXIT SELF-REFRESH complete\n", bankIndex, cycleCounter)
         state := sIdle
       }
     }

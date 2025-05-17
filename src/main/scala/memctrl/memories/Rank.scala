@@ -3,10 +3,8 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/**
- * Rank: routes PhysicalMemoryCommand to banks directly,
- * stamps metadata, and arbitrates responses across banks.
- */
+/** Rank: routes PhysicalMemoryCommand to banks directly, stamps metadata, and arbitrates responses across banks.
+  */
 class Rank(
   params:           MemoryConfigurationParameters,
   bankParams:       DRAMBankParameters,
@@ -16,15 +14,17 @@ class Rank(
     extends PhysicalMemoryModuleBase {
 
   // Metadata registers for last column access
-  val lastColBank       = RegInit(0.U(32.W))
-  val lastColCycle      = RegInit(0.U(32.W))
+  val lastColBank  = RegInit(0.U(32.W))
+  val lastColCycle = RegInit(0.U(32.W))
 
   // --- Command side: per-bank demux queue ---
-  val cmdDemux = Module(new MultiBankCmdQueue(
-    params,
-    numBanks = params.numberOfBanks,
-    depth    = queueDepth
-  ))
+  val cmdDemux = Module(
+    new MultiBankCmdQueue(
+      params,
+      numBanks = params.numberOfBanks,
+      depth = queueDepth
+    )
+  )
   cmdDemux.io.enq <> io.memCmd
 
   // Instantiate each Bank and wire commands

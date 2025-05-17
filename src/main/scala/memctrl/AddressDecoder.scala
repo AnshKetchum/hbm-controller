@@ -3,8 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/** AddressDecoder: Given a 32-bit address and configuration parameters, it decodes the rank and bank
-  * indices.
+/** AddressDecoder: Given a 32-bit address and configuration parameters, it decodes the rank and bank indices.
   *
   * Bit allocation (from LSB):
   *   - bankIndex: [bankBits-1:0]
