@@ -35,6 +35,5 @@ class SystemRequest extends Bundle {
 }
 
 case class MemoryControllerParameters(
-  queueSize:    Int = 256,
-  openPagePolicy: Boolean = true
-)
+  queueSize:      Int = 256,
+  openPagePolicy: Boolean = true)

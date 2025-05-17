@@ -17,7 +17,7 @@ object Elaborate extends App {
       throw new RuntimeException(s"Failed to parse config.json: $error")
   }
 
-  val queueSize = parsedConfig.queueSize
+  val queueSize           = parsedConfig.queueSize
   val bankSchedulerPolicy = parsedConfig.bankSchedulerPolicy
 
   printf("Found config value of queueSize = %d\n", queueSize)
@@ -27,9 +27,10 @@ object Elaborate extends App {
   val defaultMemoryConfig = MemoryConfigurationParameters()
   val updatedMemoryConfig = defaultMemoryConfig
 
-  // Instantiate 
+  // Instantiate
   val defaultControllerConfig = MemoryControllerParameters()
-  val updatedControllerConfig = defaultControllerConfig.copy(queueSize = queueSize, openPagePolicy = (bankSchedulerPolicy == "OPEN_PAGE"))
+  val updatedControllerConfig =
+    defaultControllerConfig.copy(queueSize = queueSize, openPagePolicy = (bankSchedulerPolicy == "OPEN_PAGE"))
 
   // FIRRTL -> SystemVerilog lowering options
   val firtoolOptions = Array(
@@ -42,7 +43,12 @@ object Elaborate extends App {
 
   // Emit SystemVerilog
   ChiselStage.emitSystemVerilogFile(
-    new SingleChannelSystem(SingleChannelMemoryConfigurationParams(memConfiguration = updatedMemoryConfig, controllerConfiguration = updatedControllerConfig)),
+    new SingleChannelSystem(
+      SingleChannelMemoryConfigurationParams(
+        memConfiguration = updatedMemoryConfig,
+        controllerConfiguration = updatedControllerConfig
+      )
+    ),
     args,
     firtoolOptions
   )

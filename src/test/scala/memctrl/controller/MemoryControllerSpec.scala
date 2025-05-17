@@ -26,7 +26,7 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
     simulate(
       new MultiRankMemoryController(
         MemoryConfigurationParameters(),
-        DRAMBankParameters(), 
+        DRAMBankParameters(),
         MemoryControllerParameters()
       )
     ) { dut =>

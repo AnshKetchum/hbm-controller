@@ -107,10 +107,10 @@ case class DRAMBankParameters(
 }
 
 case class MemoryConfigurationParameters(
-  numberOfChannels:    Int = 1,
-  numberOfRanks:       Int = 2,
-  numberOfBanks:       Int = 8,
-  memoryQueueSize:     Int = 256)
+  numberOfChannels: Int = 1,
+  numberOfRanks:    Int = 2,
+  numberOfBanks:    Int = 8,
+  memoryQueueSize:  Int = 256)
 
 case class LocalConfigurationParameters(
   channelIndex: Int,

@@ -68,9 +68,9 @@ class OpenPageBankScheduler(
 
   // --------------------------------------------------
   // Calculate bit widths for refresh ID
-  val rankBitsWidth      = log2Ceil(memoryConfig.numberOfRanks)
-  val bankBitsWidth      = log2Ceil(memoryConfig.numberOfBanks)
-  val columnBitsWidth    = 32 - (rankBitsWidth + bankBitsWidth)
+  val rankBitsWidth   = log2Ceil(memoryConfig.numberOfRanks)
+  val bankBitsWidth   = log2Ceil(memoryConfig.numberOfBanks)
+  val columnBitsWidth = 32 - (rankBitsWidth + bankBitsWidth)
 
   // unique refresh ID & address
   val refreshReqId = Cat(

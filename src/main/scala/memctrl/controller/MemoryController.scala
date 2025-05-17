@@ -7,11 +7,10 @@ import chisel3.util._
   * requests.
   */
 class MultiRankMemoryController(
-    params:           MemoryConfigurationParameters,
-    bankParams:       DRAMBankParameters,
-    controllerParams: MemoryControllerParameters,
-    trackPerformance: Boolean = false,
-  )
+  params:           MemoryConfigurationParameters,
+  bankParams:       DRAMBankParameters,
+  controllerParams: MemoryControllerParameters,
+  trackPerformance: Boolean = false)
     extends Module {
   val io = IO(new Bundle {
     val in      = Flipped(Decoupled(new ControllerRequest))
@@ -57,7 +56,6 @@ class MultiRankMemoryController(
     }
     VecInit(fsms)
   }
-
 
   // ------ Multi-dequeue demux into per-FSM queues ------
   val multiDeq = Module(new MultiDeqQueue(params, banksPerRank, totalBankFSMs, controllerParams.queueSize))
