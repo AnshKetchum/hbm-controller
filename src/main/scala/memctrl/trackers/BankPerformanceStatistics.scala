@@ -65,6 +65,8 @@ class BankPhysicalMemoryResponsePerformanceStatistics(
     val data        = Input(UInt(32.W))
     val globalCycle = Input(UInt(64.W))
     val request_id  = Input(UInt(32.W))
+    val active_row  = Input(UInt(32.W))
+    val active_col = Input(UInt(32.W))
   })
 
   addResource("/vsrc/BankPhysicalMemoryResponsePerformanceStatistics.sv")
@@ -82,6 +84,8 @@ class BankPerformanceStatistics(localConfiguration: LocalConfigurationParameters
     val mem_request_bits  = Input(new PhysicalMemoryCommand)
     val mem_response_fire = Input(Bool())
     val mem_response_bits = Input(new PhysicalMemoryResponse)
+    val active_row = Input(UInt(32.W))
+    val active_col = Input(UInt(32.W))
   })
 
   // Global cycle counter (64 bits)
@@ -124,4 +128,6 @@ class BankPerformanceStatistics(localConfiguration: LocalConfigurationParameters
   perfMemResponses.io.data        := io.mem_response_bits.data
   perfMemResponses.io.request_id  := io.mem_response_bits.request_id
   perfMemResponses.io.globalCycle := cycleCounter
+  perfMemResponses.io.active_row  := io.active_row
+  perfMemResponses.io.active_col  := io.active_col
 }

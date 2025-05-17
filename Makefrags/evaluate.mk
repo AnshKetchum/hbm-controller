@@ -1,6 +1,6 @@
 # Evaluation Parameters
 PYTHON := python
-EXAMPLES_DIR := examples
+EXAMPLES_DIR := benchmarks
 TRACES_DIR := traces
 
 EXPERIMENT_DIR := exps/current
