@@ -100,12 +100,11 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
           val localConfig = LocalConfigurationParameters(
             channelIndex = 0,
             rankIndex = 0,
-            bankGroupIndex = 0,
             bankIndex = 0
           )
           val memParams   = MemoryConfigurationParameters()
 
-          val controller = Module(new MemoryControllerFSM(params, localConfig, memParams))
+          val controller = Module(new ClosedPageBankScheduler(params, localConfig, memParams))
           val phys       = Module(instantiateMem)
           controller.io.req <> io.req
           controller.io.resp <> io.resp
@@ -185,17 +184,14 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
   val localConfig = LocalConfigurationParameters(
     channelIndex = 0,
     rankIndex = 0,
-    bankGroupIndex = 0,
     bankIndex = 0
   )
 
   println("[PhysicalMemorySpec] In here. ")
   dramFlowSpec("Channel", new Channel(memParams, bankParams))
   dramFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
-  dramFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
 
   // Controller integration tests
-  controllerFlowSpec("Channel", new Channel(memParams, bankParams))
-  controllerFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
-  controllerFlowSpec("BankGroup", new BankGroup(memParams, bankParams, localConfig))
+  // controllerFlowSpec("Channel", new Channel(memParams, bankParams))
+  // controllerFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
 }

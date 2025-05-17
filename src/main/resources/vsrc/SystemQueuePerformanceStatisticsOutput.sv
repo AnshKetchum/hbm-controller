@@ -5,13 +5,15 @@ module SystemQueuePerformanceStatisticsOutput(
     input wire rd_en,
     input wire wr_en,
     input wire [31:0] addr,
+    input wire [31:0] wdata,
+    input wire [31:0] data,
     input wire [63:0] globalCycle,
     input wire [31:0] request_id
 );
     integer file;
     initial begin
         file = $fopen("output_request_stats.csv", "w");
-        $fwrite(file, "RequestID,Address,Read,Write,Cycle\n");
+        $fwrite(file, "RequestID,Address,Read,Write,Cycle, Write Data,Response\n");
         $display("IN VERILOG OUTPUT");
     end
 
@@ -19,7 +21,7 @@ module SystemQueuePerformanceStatisticsOutput(
     always @(posedge clk) begin
         if (reset) begin
         end else if (resp_fire) begin
-            $fwrite(file, "%d,%d,%d,%d,%d\n", request_id, addr,rd_en, wr_en, globalCycle);
+            $fwrite(file, "%d,%d,%d,%d,%d,%d,%d\n", request_id, addr,rd_en, wr_en, globalCycle, wdata, data);
         end
     end
 endmodule

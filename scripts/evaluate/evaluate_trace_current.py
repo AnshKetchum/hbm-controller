@@ -29,8 +29,10 @@ def run_simulation(sim_exe, trace_path, out_dir, csv_dir, cycles, exp_dirs):
         shutil.copy(csv_file, meta_dir / csv_file.name)
 
     # Move all CSV files into the exp directory for backward compatibility
+    whitelist = ['input_request_stats.csv', 'memory_request_queue_stats.csv', 'memory_response_queue_stats.csv', 'output_request_stats.csv']
     for csv_file in csv_dir.glob("*.csv"):
-        shutil.copy(csv_file, exp_dir / csv_file.name)
+        if any([w in str(csv_file) for w in whitelist]):
+            shutil.copy(csv_file, exp_dir / csv_file.name)
 
     exp_dirs.append(str(exp_dir.resolve()))
 

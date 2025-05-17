@@ -12,3 +12,7 @@ Current Codebase Guarentees from Verification
 
 
 Default HBM model Parameters are currently set to - https://github.com/umd-memsys/DRAMsim3/blob/master/configs/HBM2_4Gb_x128.ini
+
+
+Known Limitations
+- DRAM Mem Conflicts; impacts correctness of simulation, not timing
