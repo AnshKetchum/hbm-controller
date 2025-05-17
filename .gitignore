@@ -364,3 +364,7 @@ out.txt
 # pixi environments
 .pixi
 *.egg-info
+*.txt
+*experiments*
+*exp*
+  

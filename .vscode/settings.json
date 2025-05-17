@@ -49,5 +49,6 @@
     },
     "files.watcherExclude": {
         "**/target": true
-    }
+    },
+    "git.enableCommitSigning": true
 }

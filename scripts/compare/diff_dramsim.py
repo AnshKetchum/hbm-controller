@@ -23,9 +23,12 @@ def load_latencies(dirpath, prefix='dramsim'):
 
     # merge
     merged = pd.merge(df_in,
-                      df_out,
-                      on='RequestID',
-                      suffixes=('_in', '_out'))
+                df_out,
+                on='RequestID',
+                suffixes=('_in', '_out'))
+
+    # Filter out mismatches between input and output addresses
+    merged = merged[merged['Address_in'] == merged['Address_out']]
 
     # compute latency and save for inspection
     merged['latency'] = merged['Cycle_out'] - merged['Cycle_in']

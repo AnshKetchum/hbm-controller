@@ -104,7 +104,7 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
           )
           val memParams   = MemoryConfigurationParameters()
 
-          val controller = Module(new MemoryControllerFSM(params, localConfig, memParams))
+          val controller = Module(new ClosedPageBankScheduler(params, localConfig, memParams))
           val phys       = Module(instantiateMem)
           controller.io.req <> io.req
           controller.io.resp <> io.resp
