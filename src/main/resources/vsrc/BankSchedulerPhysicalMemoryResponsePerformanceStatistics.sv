@@ -1,7 +1,6 @@
 module BankSchedulerPhysicalMemoryResponsePerformanceStatistics #(
-    parameter int RANK = 0,
-    parameter int BANKGROUP = 0,
-    parameter int BANK = 0
+    parameter int RANK,
+    parameter int BANK
 )(
     input wire clk,
     input wire reset,
@@ -15,14 +14,14 @@ module BankSchedulerPhysicalMemoryResponsePerformanceStatistics #(
     reg [1023:0] filename;
 
     initial begin
-        $sformat(filename, "memory_response_queue_stats_scheduler_rank%d_bg%d_bank%d.csv", RANK, BANKGROUP, BANK);
+        $sformat(filename, "memory_response_queue_stats_scheduler_rank%0d_bank%0d.csv", RANK, BANK);
         file = $fopen(filename, "w");
-        $fwrite(file, "RequestID,Address,Type,Cycle\n");
+        $fwrite(file, "RequestID,Address,Cycle,Data\n");
     end
 
     always @(posedge clk) begin
         if (!reset && resp_fire) begin
-            $fwrite(file, "%d,%d,%d,%d\n", request_id, addr, data, globalCycle);
+            $fwrite(file, "%d,%d,%d,%d\n", request_id, addr, globalCycle, data);
         end
     end
 endmodule

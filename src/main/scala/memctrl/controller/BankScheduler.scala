@@ -63,16 +63,14 @@ class MemoryControllerFSM(
 
   // --------------------------------------------------
   // Calculate bit widths for refresh ID composition
-  val rankBitsWidth      = log2Ceil(memoryConfig.numberOfRanks)
-  val bankGroupBitsWidth = log2Ceil(memoryConfig.numberOfBankGroups)
-  val bankBitsWidth      = log2Ceil(memoryConfig.numberOfBanks)
-  val columnBitsWidth    = 32 - (rankBitsWidth + bankGroupBitsWidth + bankBitsWidth)
+  val rankBitsWidth   = log2Ceil(memoryConfig.numberOfRanks)
+  val bankBitsWidth   = log2Ceil(memoryConfig.numberOfBanks)
+  val columnBitsWidth = 32 - (rankBitsWidth + bankBitsWidth)
 
   // unique refresh ID & address fields
   val refreshReqId = Cat(
     0.U(columnBitsWidth.W),
     localConfiguration.rankIndex.U(rankBitsWidth.W),
-    localConfiguration.bankGroupIndex.U(bankGroupBitsWidth.W),
     localConfiguration.bankIndex.U(bankBitsWidth.W)
   ).asUInt
   val refreshAddr  = refreshReqId
@@ -152,7 +150,7 @@ class MemoryControllerFSM(
         state   := sSref
         sentCmd := false.B
         printf(
-          p"[Cycle $cycleCounter] CMD FIRE: SREF_ENTER -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
+          p"[Cycle $cycleCounter] CMD FIRE: SREF_ENTER -> Rank ${localConfiguration.rankIndex}, Bank ${localConfiguration.bankIndex}\n"
         )
       }
     }
@@ -174,7 +172,7 @@ class MemoryControllerFSM(
         state   := sIdle
         sentCmd := false.B
         printf(
-          p"[Cycle $cycleCounter] CMD FIRE: SREF_EXIT -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
+          p"[Cycle $cycleCounter] CMD FIRE: SREF_EXIT -> Rank ${localConfiguration.rankIndex}, Bank ${localConfiguration.bankIndex}\n"
         )
       }
     }
@@ -197,13 +195,11 @@ class MemoryControllerFSM(
           reqIDReg
         )
         printf(
-          "[Cycle %d]; rankIdx=%d bgI=%d bankIdx=%d respIdx=%d respBGI=%d respBI=%d addr=%d reqId=%d \n",
+          "[Cycle %d]; rankIdx=%d bankIdx=%d respIdx=%d respBI=%d addr=%d reqId=%d \n",
           cycleCounter,
           localConfiguration.rankIndex.U,
-          localConfiguration.bankGroupIndex.U,
           localConfiguration.bankIndex.U,
           respDec.io.rankIndex,
-          respDec.io.bankGroupIndex,
           respDec.io.bankIndex,
           io.phyResp.bits.addr,
           io.phyResp.bits.request_id
@@ -216,7 +212,7 @@ class MemoryControllerFSM(
         sentCmd               := false.B
         state                 := Mux(reqIsRead, sRead, sWrite)
         printf(
-          p"[Cycle $cycleCounter] CMD FIRE: ACTIVATE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
+          p"[Cycle $cycleCounter] CMD FIRE: ACTIVATE -> Rank ${localConfiguration.rankIndex}, Bank ${localConfiguration.bankIndex}\n"
         )
       }
     }
@@ -236,7 +232,7 @@ class MemoryControllerFSM(
         sentCmd         := false.B
         state           := sPrecharge
         printf(
-          p"[Cycle $cycleCounter] CMD FIRE: READ -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
+          p"[Cycle $cycleCounter] CMD FIRE: READ -> Rank ${localConfiguration.rankIndex}, Bank ${localConfiguration.bankIndex}\n"
         )
 
       }
@@ -255,7 +251,7 @@ class MemoryControllerFSM(
         state           := sPrecharge
         responseDataReg := io.phyResp.bits.data
         printf(
-          p"[Cycle $cycleCounter] CMD FIRE: WRITE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
+          p"[Cycle $cycleCounter] CMD FIRE: WRITE -> Rank ${localConfiguration.rankIndex}, Bank ${localConfiguration.bankIndex}\n"
         )
 
       }
@@ -273,7 +269,7 @@ class MemoryControllerFSM(
         sentCmd       := false.B
         state         := sDone
         printf(
-          p"[Cycle $cycleCounter] CMD FIRE: PRECHARGE -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
+          p"[Cycle $cycleCounter] CMD FIRE: PRECHARGE -> Rank ${localConfiguration.rankIndex}, Bank ${localConfiguration.bankIndex}\n"
         )
       }
     }
@@ -295,7 +291,7 @@ class MemoryControllerFSM(
         sentCmd     := false.B
         state       := sIdle
         printf(
-          p"[Cycle $cycleCounter] CMD FIRE: REFRESH -> BankGroup ${localConfiguration.bankGroupIndex}, Bank ${localConfiguration.bankIndex}\n"
+          p"[Cycle $cycleCounter] CMD FIRE: REFRESH -> Rank ${localConfiguration.rankIndex}, Bank ${localConfiguration.bankIndex}\n"
         )
 
       }
@@ -333,6 +329,5 @@ class MemoryControllerFSM(
   io.phyResp.ready := waitingForResp &&
     (io.phyResp.bits.request_id === Mux(state === sSrefEnter || state === sSrefExit, refreshReqId, reqIDReg)) &&
     (respDec.io.rankIndex === localConfiguration.rankIndex.U) &&
-    (respDec.io.bankGroupIndex === localConfiguration.bankGroupIndex.U) &&
     (respDec.io.bankIndex === localConfiguration.bankIndex.U)
 }

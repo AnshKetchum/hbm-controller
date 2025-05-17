@@ -12,14 +12,12 @@ import chisel3.util._
   *   - globalCycle: a cycle count for timestamping.
   */
 class BankPhysicalMemoryRequestPerformanceStatistics(
-  val rank:      Int,
-  val bankgroup: Int,
-  val bank:      Int)
+  val rank: Int,
+  val bank: Int)
     extends BlackBox(
       Map(
-        "RANK"      -> rank,
-        "BANKGROUP" -> bankgroup,
-        "BANK"      -> bank
+        "RANK" -> rank,
+        "BANK" -> bank
       )
     )
     with HasBlackBoxResource {
@@ -49,14 +47,12 @@ class BankPhysicalMemoryRequestPerformanceStatistics(
   *   - globalCycle: a cycle count for timestamping.
   */
 class BankPhysicalMemoryResponsePerformanceStatistics(
-  val rank:      Int,
-  val bankgroup: Int,
-  val bank:      Int)
+  val rank: Int,
+  val bank: Int)
     extends BlackBox(
       Map(
-        "RANK"      -> rank,
-        "BANKGROUP" -> bankgroup,
-        "BANK"      -> bank
+        "RANK" -> rank,
+        "BANK" -> bank
       )
     )
     with HasBlackBoxResource {
@@ -69,6 +65,8 @@ class BankPhysicalMemoryResponsePerformanceStatistics(
     val data        = Input(UInt(32.W))
     val globalCycle = Input(UInt(64.W))
     val request_id  = Input(UInt(32.W))
+    val active_row  = Input(UInt(32.W))
+    val active_col  = Input(UInt(32.W))
   })
 
   addResource("/vsrc/BankPhysicalMemoryResponsePerformanceStatistics.sv")
@@ -86,6 +84,8 @@ class BankPerformanceStatistics(localConfiguration: LocalConfigurationParameters
     val mem_request_bits  = Input(new PhysicalMemoryCommand)
     val mem_response_fire = Input(Bool())
     val mem_response_bits = Input(new PhysicalMemoryResponse)
+    val active_row        = Input(UInt(32.W))
+    val active_col        = Input(UInt(32.W))
   })
 
   // Global cycle counter (64 bits)
@@ -96,14 +96,12 @@ class BankPerformanceStatistics(localConfiguration: LocalConfigurationParameters
   val perfMemRequests  = Module(
     new BankPhysicalMemoryRequestPerformanceStatistics(
       localConfiguration.rankIndex,
-      localConfiguration.bankGroupIndex,
       localConfiguration.bankIndex
     )
   )
   val perfMemResponses = Module(
     new BankPhysicalMemoryResponsePerformanceStatistics(
       localConfiguration.rankIndex,
-      localConfiguration.bankGroupIndex,
       localConfiguration.bankIndex
     )
   )
@@ -130,4 +128,6 @@ class BankPerformanceStatistics(localConfiguration: LocalConfigurationParameters
   perfMemResponses.io.data        := io.mem_response_bits.data
   perfMemResponses.io.request_id  := io.mem_response_bits.request_id
   perfMemResponses.io.globalCycle := cycleCounter
+  perfMemResponses.io.active_row  := io.active_row
+  perfMemResponses.io.active_col  := io.active_col
 }

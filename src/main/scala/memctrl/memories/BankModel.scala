@@ -14,15 +14,15 @@ class DRAMBank(
   val cmd  = io.memCmd  // Decoupled[BankMemoryCommand]
   val resp = io.phyResp // Decoupled[BankMemoryResponse]
 
-  // This bank’s fixed indices
-  private val bankGroupId = localConfig.bankGroupIndex.U
-  private val bankIndex   = localConfig.bankIndex.U
+  // This bank's fixed indices within the channel
+  private val rankIndex = localConfig.rankIndex.U
+  private val bankIndex = localConfig.bankIndex.U
 
   // FSM states: Idle, Processing, SREF_ENTER, SREF, SREF_EXIT
   val sIdle :: sProc :: sSrefEnter :: sSref :: sSrefExit :: Nil = Enum(5)
   val state                                                     = RegInit(sIdle)
 
-  // Latch the incoming command
+  // Latched command
   val pending = Reg(new BankMemoryCommand)
 
   // 64-bit cycle counter
@@ -44,61 +44,57 @@ class DRAMBank(
   val refreshInProg = RegInit(false.B)
   val refreshCntr   = RegInit(0.U(32.W))
 
-  // Row-buffer state
+  // Row-buffer state (for timing only)
   val rowActive = RegInit(false.B)
   val activeRow = RegInit(0.U(log2Ceil(params.numRows).W))
 
-  // Underlying memory array
+  // Underlying memory array sized by full address space
   val mem = Mem(params.addressSpaceSize, UInt(32.W))
 
   // Helper: has `delay` cycles elapsed since `start`?
   private def elapsed(start: UInt, delay: UInt): Bool =
     (cycleCounter - start) >= delay
 
-  // Default ready/valid
+  // Default ready/valid signals
   cmd.ready            := (state === sIdle) && !refreshInProg && (state =/= sSref)
   resp.valid           := false.B
   resp.bits.request_id := pending.request_id
   resp.bits.addr       := pending.addr
   resp.bits.data       := pending.data
 
-  // Decode command type from pending bits
+  // Decode command bits
   val cs_p  = !pending.cs
   val ras_p = !pending.ras
   val cas_p = !pending.cas
   val we_p  = !pending.we
 
-  // New self-refresh entry/exit decode (from incoming pending)
-  // SREF_ENTER CMD: CS=0, RAS=0, CAS=0, WE=0
+  // Self-refresh commands
   val doSrefEnter = cs_p && ras_p && cas_p && we_p
-  // SREF_EXIT CMD: CS=0, RAS=1, CAS=1, WE=1
   val doSrefExit  = cs_p && !ras_p && !cas_p && !we_p
 
-  // Standard DRAM operation decodes
+  // Standard DRAM operations
   val doRefresh   = cs_p && ras_p && cas_p && !we_p
   val doActivate  = cs_p && ras_p && !cas_p && !we_p
   val doRead      = cs_p && !ras_p && cas_p && !we_p
   val doWrite     = cs_p && !ras_p && cas_p && we_p
   val doPrecharge = cs_p && ras_p && !cas_p && we_p
 
+  // Extract row and column for timing checks only
   val reqRow = pending.addr(31, 32 - log2Ceil(params.numRows))
   val reqCol = pending.addr(log2Ceil(params.numCols) - 1, 0)
 
-  val neededCCD = Mux(
-    pending.lastColBankGroup === bankGroupId,
-    params.tCCD_L.U,
-    params.tCCD_S.U
-  )
+  // Without bank groups, always use short CCD
+  val neededCCD = params.tCCD_S.U
 
-  // Main FSM including command-based SREF
+  // Main FSM
   switch(state) {
     is(sIdle) {
       when(cmd.fire) {
         pending := cmd.bits
         state   := sProc
         printf(
-          "[Bank %d,%d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastGrp=%d lastCyc=%d\n",
-          bankGroupId,
+          "[Bank %d, %d] Cycle %d: Accepted CMD cs=%d ras=%d cas=%d we=%d addr=0x%x data=0x%x lastColCycle=%d\n",
+          rankIndex,
           bankIndex,
           cycleCounter,
           cmd.bits.cs,
@@ -107,45 +103,43 @@ class DRAMBank(
           cmd.bits.we,
           cmd.bits.addr,
           cmd.bits.data,
-          cmd.bits.lastColBankGroup,
           cmd.bits.lastColCycle
         )
       }
     }
 
     is(sProc) {
-      // 1) Self-refresh entry request
+      // Self-refresh entry/exit
       when(doSrefEnter && !refreshInProg) {
-        printf("[Bank %d,%d] Cycle %d: Received SREF_ENTER CMD\n", bankGroupId, bankIndex, cycleCounter)
+        printf("[Bank %d, %d] Cycle %d: Received SREF_ENTER CMD\n", rankIndex, bankIndex, cycleCounter)
         state := sSrefEnter
+      }.elsewhen(doSrefExit && !refreshInProg) {
+        printf("[Bank %d, %d] Cycle %d: Received SREF_EXIT CMD\n", rankIndex, bankIndex, cycleCounter)
+        state := sSrefExit
       }
-        // 2) Self-refresh exit request
-        .elsewhen(doSrefExit && !refreshInProg) {
-          printf("[Bank %d,%d] Cycle %d: Received SREF_EXIT CMD\n", bankGroupId, bankIndex, cycleCounter)
-          state := sSrefExit
-        }
-        // 3) Standard refresh
+        // Standard refresh
         .elsewhen(!refreshInProg && doRefresh) {
           refreshInProg := true.B
           refreshCntr   := params.tRFC.U
           printf(
-            "[Bank %d,%d] Cycle %d: BEGIN REFRESH - %d cycles\n",
-            bankGroupId,
+            "[Bank %d, %d] Cycle %d: BEGIN REFRESH - %d cycles\n",
+            rankIndex,
             bankIndex,
             cycleCounter,
             params.tRFC.U
           )
         }
-        // 4) Precharge
+        // Precharge
         .elsewhen(
-          doPrecharge && !refreshInProg && elapsed(lastActivate, params.tRAS.U) && elapsed(lastPrecharge, params.tRP.U)
+          doPrecharge && !refreshInProg &&
+            elapsed(lastActivate, params.tRAS.U) && elapsed(lastPrecharge, params.tRP.U)
         ) {
           rowActive     := false.B
           lastPrecharge := cycleCounter
           resp.valid    := true.B
-          printf("[Bank %d,%d] Cycle %d: PRECHARGE issued\n", bankGroupId, bankIndex, cycleCounter)
+          printf("[Bank %d, %d] Cycle %d: PRECHARGE issued\n", rankIndex, bankIndex, cycleCounter)
         }
-        // 5) Activate
+        // Activate
         .elsewhen(doActivate && !refreshInProg) {
           val oldest = activateTimes(actPtr)
           when(elapsed(oldest, params.tFAW.U) && elapsed(lastActivate, params.tRRD_L.U)) {
@@ -155,25 +149,23 @@ class DRAMBank(
             activateTimes(actPtr) := cycleCounter
             actPtr                := actPtr + 1.U
             resp.valid            := true.B
-            printf("[Bank %d,%d] Cycle %d: ACTIVATE row=%d\n", bankGroupId, bankIndex, cycleCounter, reqRow)
+            printf("[Bank %d, %d] Cycle %d: ACTIVATE row=%d\n", rankIndex, bankIndex, cycleCounter, reqRow)
           }
         }
-        // 6) Read
+        // Read
         .elsewhen(
           doRead && rowActive && !refreshInProg &&
             elapsed(lastActivate, params.tRCDRD.U) && elapsed(pending.lastColCycle, neededCCD) &&
-            elapsed(lastReadEnd, params.tCCD_L.U) && elapsed(lastWriteEnd, params.tWTR_L.U) && elapsed(
-              lastPrecharge,
-              params.tRP.U
-            )
+            elapsed(lastReadEnd, params.tCCD_L.U) && elapsed(lastWriteEnd, params.tWTR_L.U) &&
+            elapsed(lastPrecharge, params.tRP.U)
         ) {
           val data = mem.read(activeRow * params.numCols.U + reqCol)
           resp.bits.data := data
           resp.valid     := true.B
           lastReadEnd    := cycleCounter + params.CL.U
           printf(
-            "[Bank %d,%d] Cycle %d: READ  row=%d col=%d data=0x%x\n",
-            bankGroupId,
+            "[Bank %d, %d] Cycle %d: READ row=%d col=%d data=0x%x\n",
+            rankIndex,
             bankIndex,
             cycleCounter,
             activeRow,
@@ -181,19 +173,20 @@ class DRAMBank(
             data
           )
         }
-        // 7) Write
+        // Write scoped to specific column in current row
         .elsewhen(
           doWrite && rowActive && !refreshInProg &&
             elapsed(lastActivate, params.tRCDWR.U) && elapsed(pending.lastColCycle, neededCCD) &&
             elapsed(lastWriteEnd, params.tCCD_L.U) && elapsed(lastPrecharge, params.tRP.U)
         ) {
-          mem.write(activeRow * params.numCols.U + reqCol, pending.data)
+          val writeIndex = activeRow * params.numCols.U + reqCol
+          mem.write(writeIndex, pending.data)
           resp.bits.data := pending.data
           resp.valid     := true.B
           lastWriteEnd   := cycleCounter + params.CWL.U + params.tWR.U
           printf(
-            "[Bank %d,%d] Cycle %d: WRITE row=%d col=%d data=0x%x\n",
-            bankGroupId,
+            "[Bank %d, %d] Cycle %d: WRITE row=%d col=%d data=0x%x\n",
+            rankIndex,
             bankIndex,
             cycleCounter,
             activeRow,
@@ -201,7 +194,8 @@ class DRAMBank(
             pending.data
           )
         }
-      // Complete standard refresh
+
+      // Complete any in-progress refresh
       when(refreshInProg) {
         refreshCntr := refreshCntr - 1.U
         when(refreshCntr === 1.U) {
@@ -209,34 +203,31 @@ class DRAMBank(
           lastRefresh   := cycleCounter
           rowActive     := false.B
           resp.valid    := true.B
-          printf("[Bank %d,%d] Cycle %d: REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
+          printf("[Bank %d, %d] Cycle %d: REFRESH complete\n", rankIndex, bankIndex, cycleCounter)
         }
       }
-      // Return to Idle once response fired
+
+      // Return to Idle
       when(resp.fire) {
-        printf("Response fired from bank end.\n")
+        printf("[Bank %d, %d] Cycle %d: Response fired\n", rankIndex, bankIndex, cycleCounter)
         state := sIdle
       }
     }
 
-    // Issue self-refresh entry internal sequence
     is(sSrefEnter) {
-      // issue internal refresh cycles
       when(!refreshInProg) {
         refreshInProg := true.B
         refreshCntr   := params.tRFC.U
       }.elsewhen(refreshCntr === 0.U) {
         lastRefresh := cycleCounter
-        printf("[Bank %d,%d] Cycle %d: ENTER SELF-REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
+        printf("[Bank %d, %d] Cycle %d: ENTER SELF-REFRESH complete\n", rankIndex, bankIndex, cycleCounter)
         state       := sSref
       }.otherwise {
         refreshCntr := refreshCntr - 1.U
       }
     }
 
-    // Self-refresh maintenance
     is(sSref) {
-      // loop auto-refresh
       when(!refreshInProg) {
         refreshInProg := true.B
         refreshCntr   := params.tRFC.U
@@ -244,19 +235,16 @@ class DRAMBank(
         when(refreshCntr === 0.U) {
           lastRefresh   := cycleCounter
           refreshInProg := false.B
-          printf("[Bank %d,%d] Cycle %d: AUTO REFRESH in SREF\n", bankGroupId, bankIndex, cycleCounter)
+          printf("[Bank %d, %d] Cycle %d: AUTO REFRESH in SREF\n", rankIndex, bankIndex, cycleCounter)
         }.otherwise {
           refreshCntr := refreshCntr - 1.U
         }
       }
-      // do not accept new commands until exit CMD
     }
 
-    // Exit self-refresh on command
     is(sSrefExit) {
-      // waiting for exit CMD in pending
       when(!doSrefExit) {
-        printf("[Bank %d,%d] Cycle %d: EXIT SELF-REFRESH complete\n", bankGroupId, bankIndex, cycleCounter)
+        printf("[Bank %d, %d] Cycle %d: EXIT SELF-REFRESH complete\n", rankIndex, bankIndex, cycleCounter)
         state := sIdle
       }
     }
@@ -264,11 +252,14 @@ class DRAMBank(
 
   io.activeSubMemories := Mux(state === sProc, 1.U, 0.U)
 
+  // Optional performance tracking
   if (trackPerformance) {
     val perfTracker = Module(new BankPerformanceStatistics(localConfig))
     perfTracker.io.mem_request_fire  := io.memCmd.fire
     perfTracker.io.mem_request_bits  := io.memCmd.bits
     perfTracker.io.mem_response_fire := io.phyResp.fire
     perfTracker.io.mem_response_bits := io.phyResp.bits
+    perfTracker.io.active_row        := reqRow
+    perfTracker.io.active_col        := reqCol
   }
 }

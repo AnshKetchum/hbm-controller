@@ -18,7 +18,7 @@ class MemorySystemIO(params: MemoryConfigurationParameters) extends Bundle {
   val reqQueueCount     = Output(UInt(4.W))
   val respQueueCount    = Output(UInt(4.W))
   val fsmReqQueueCounts = Output(
-    Vec(params.numberOfRanks * params.numberOfBankGroups * params.numberOfBanks, UInt(3.W))
+    Vec(params.numberOfRanks * params.numberOfBanks, UInt(3.W))
   )
 
   // New signal to expose active ranks count

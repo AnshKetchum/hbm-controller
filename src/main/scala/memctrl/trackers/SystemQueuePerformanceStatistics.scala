@@ -19,6 +19,7 @@ class SystemQueuePerformanceStatisticsInput extends BlackBox with HasBlackBoxRes
     val rd_en       = Input(Bool())
     val wr_en       = Input(Bool())
     val addr        = Input(UInt(32.W))
+    val wdata       = Input(UInt(32.W))
     val globalCycle = Input(UInt(64.W))
     val request_id  = Input(UInt(32.W))
   })
@@ -42,6 +43,8 @@ class SystemQueuePerformanceStatisticsOutput extends BlackBox with HasBlackBoxRe
     val rd_en       = Input(Bool())
     val wr_en       = Input(Bool())
     val addr        = Input(UInt(32.W))
+    val wdata       = Input(UInt(32.W))
+    val data        = Input(UInt(32.W))
     val globalCycle = Input(UInt(64.W))
     val request_id  = Input(UInt(32.W))
   })
@@ -83,6 +86,7 @@ class SystemQueuePerformanceStatistics extends Module {
   perfIn.io.rd_en       := io.in_bits.rd_en
   perfIn.io.wr_en       := io.in_bits.wr_en
   perfIn.io.addr        := io.in_bits.addr
+  perfIn.io.wdata       := io.in_bits.wdata
   perfIn.io.request_id  := io.in_bits.request_id
   perfIn.io.globalCycle := cycleCounter
 
@@ -91,6 +95,8 @@ class SystemQueuePerformanceStatistics extends Module {
   perfOut.io.rd_en       := io.out_bits.rd_en
   perfOut.io.wr_en       := io.out_bits.wr_en
   perfOut.io.addr        := io.out_bits.addr
+  perfOut.io.wdata       := io.out_bits.wdata
+  perfOut.io.data        := io.out_bits.data
   perfOut.io.request_id  := io.out_bits.request_id
   perfOut.io.globalCycle := cycleCounter
 }

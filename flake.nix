@@ -23,6 +23,7 @@
       sbt
       coursier
       circt-full
+      valgrind
     ];
   in {
     devShells = {

@@ -23,8 +23,7 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       dut.io.in.bits.wr_en.poke(true.B)
 
       val bBits     = math.ceil(math.log(customParams.memConfiguration.numberOfBanks) / math.log(2)).toInt
-      val bgBits    = math.ceil(math.log(customParams.memConfiguration.numberOfBankGroups) / math.log(2)).toInt
-      val rankShift = bBits + bgBits
+      val rankShift = bBits
 
       val expected = scala.collection.mutable.ArrayBuffer[(BigInt, BigInt)]() // (addr, data)
 
@@ -60,7 +59,7 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       var cycles      = 0
       var reachedZero = false
 
-      while (cycles < 1500 && !reachedZero) {
+      while (cycles < 500 && !reachedZero) {
         dut.clock.step()
         cycles += 1
 

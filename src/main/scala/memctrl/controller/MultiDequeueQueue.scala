@@ -3,8 +3,7 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/** A multi-dequeue FIFO that uses AddressDecoder to steer each request into the correct per-bank subqueue.
-  */
+/** A multi-dequeue FIFO that uses AddressDecoder to steer each request into the correct per-bank subqueue. */
 class MultiDeqQueue(
   params:        MemoryConfigurationParameters,
   banksPerRank:  Int,
@@ -21,10 +20,8 @@ class MultiDeqQueue(
   val addrDec = Module(new AddressDecoder(params))
   addrDec.io.addr := io.enq.bits.addr
 
-  // Compute flat index: rank * banksPerRank + group * banks + bank
-  val flatIdx = addrDec.io.rankIndex * banksPerRank.U +
-    addrDec.io.bankGroupIndex * params.numberOfBanks.U +
-    addrDec.io.bankIndex
+  // Compute flat index: rank * banksPerRank + bank
+  val flatIdx = addrDec.io.rankIndex * banksPerRank.U + addrDec.io.bankIndex
 
   // Instantiate one Queue per FSM
   val queues = Seq.fill(totalBankFSMs) {
