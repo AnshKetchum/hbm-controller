@@ -7,12 +7,11 @@ import chisel3.util._
   * requests.
   */
 class MultiRankMemoryController(
-  params:           MemoryConfigurationParameters,
-  bankParams:       DRAMBankParameters,
-  trackPerformance: Boolean = false,
-  channelIndex:     Int = 0,
-  queueSize:        Int = 256,
-  openPagePolicy:   Boolean = true)
+    params:           MemoryConfigurationParameters,
+    bankParams:       DRAMBankParameters,
+    controllerParams: MemoryControllerParameters,
+    trackPerformance: Boolean = false,
+  )
     extends Module {
   val io = IO(new Bundle {
     val in      = Flipped(Decoupled(new ControllerRequest))
@@ -22,23 +21,23 @@ class MultiRankMemoryController(
 
     // Monitoring
     val rankState         = Output(Vec(params.numberOfRanks, UInt(3.W)))
-    val reqQueueCount     = Output(UInt(log2Ceil(queueSize + 1).W))
+    val reqQueueCount     = Output(UInt(log2Ceil(controllerParams.queueSize + 1).W))
     val respQueueCount    = Output(UInt(4.W))
     val fsmReqQueueCounts = Output(
-      Vec(params.numberOfRanks * params.numberOfBanks, UInt(log2Ceil(queueSize + 1).W))
+      Vec(params.numberOfRanks * params.numberOfBanks, UInt(log2Ceil(controllerParams.queueSize + 1).W))
     )
   })
 
   // ------ Global request & response FIFOs ------
-  val reqQueue  = Module(new Queue(new ControllerRequest, entries = queueSize))
-  val respQueue = Module(new Queue(new ControllerResponse, entries = queueSize))
+  val reqQueue  = Module(new Queue(new ControllerRequest, entries = controllerParams.queueSize))
+  val respQueue = Module(new Queue(new ControllerResponse, entries = controllerParams.queueSize))
   reqQueue.io.enq <> io.in
   io.out <> respQueue.io.deq
   io.reqQueueCount  := reqQueue.io.count
   io.respQueueCount := respQueue.io.count
 
   // ------ Physical command queue ------
-  val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = queueSize))
+  val cmdQueue = Module(new Queue(new PhysicalMemoryCommand, entries = controllerParams.queueSize))
   io.memCmd <> cmdQueue.io.deq
 
   // ------ Bank/FSM setup ------
@@ -50,8 +49,8 @@ class MultiRankMemoryController(
     val fsms = Seq.tabulate(totalBankFSMs) { i =>
       val r   = i / banksPerRank
       val b   = i % banksPerRank
-      val loc = LocalConfigurationParameters(channelIndex, r, b)
-      if (openPagePolicy)
+      val loc = LocalConfigurationParameters(0, r, b)
+      if (controllerParams.openPagePolicy)
         Module(new OpenPageBankScheduler(bankParams, loc, params, trackPerformance)).io
       else
         Module(new ClosedPageBankScheduler(bankParams, loc, params, trackPerformance)).io
@@ -61,7 +60,7 @@ class MultiRankMemoryController(
 
 
   // ------ Multi-dequeue demux into per-FSM queues ------
-  val multiDeq = Module(new MultiDeqQueue(params, banksPerRank, totalBankFSMs, queueSize))
+  val multiDeq = Module(new MultiDeqQueue(params, banksPerRank, totalBankFSMs, controllerParams.queueSize))
   multiDeq.io.enq <> reqQueue.io.deq
 
   // hook up demux outputs directly into FSM request ports

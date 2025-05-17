@@ -33,3 +33,8 @@ class SystemRequest extends Bundle {
   val addr  = UInt(32.W)
   val wdata = UInt(32.W)
 }
+
+case class MemoryControllerParameters(
+  queueSize:    Int = 256,
+  openPagePolicy: Boolean = true
+)

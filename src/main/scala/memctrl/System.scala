@@ -6,6 +6,7 @@ import chisel3.util._
 case class SingleChannelMemoryConfigurationParams(
   memConfiguration:  MemoryConfigurationParameters = MemoryConfigurationParameters(),
   bankConfiguration: DRAMBankParameters = DRAMBankParameters(),
+  controllerConfiguration:  MemoryControllerParameters = MemoryControllerParameters(),
   trackPerformance:  Boolean = true)
 
 /** Updated top-level memory system I/O using the new names. */
@@ -43,9 +44,8 @@ class SingleChannelSystem(
     new MultiRankMemoryController(
       params.memConfiguration,
       params.bankConfiguration,
+      params.controllerConfiguration,
       params.trackPerformance,
-      0,
-      params.memConfiguration.controllerQueueSize
     )
   )
 

@@ -110,7 +110,6 @@ case class MemoryConfigurationParameters(
   numberOfChannels:    Int = 1,
   numberOfRanks:       Int = 2,
   numberOfBanks:       Int = 8,
-  controllerQueueSize: Int = 256,
   memoryQueueSize:     Int = 256)
 
 case class LocalConfigurationParameters(

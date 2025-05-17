@@ -34,9 +34,16 @@ def run_simulation(sim_exe, trace_path, out_dir, csv_dir, cycles):
 
     print(f"✅ Finished simulation for queueSize={queue_size}")
 
-def write_config(queue_size, config_path):
-    config = {"queueSize": queue_size}
-    with open(config_path, "w") as f:
+def write_config(queue_size, config_dir):
+
+    # Fork the default config 
+    config = {}
+    with open(os.path.join(config_dir, "default.json"), "w") as f:
+        config = json.load(f)
+
+    assert config != {}, "Unable to load config, it is empty"
+    config["queueSize"] = queue_size
+    with open(os.path.join(config_dir, "config.json"), "w") as f:
         json.dump(config, f, indent=2)
 
 def main():
@@ -48,7 +55,7 @@ def main():
     parser.add_argument("--cycles", required=True, type=int, help="Number of simulation cycles.")
     parser.add_argument("--start", required=True, type=int, help="Starting queue size.")
     parser.add_argument("--end", required=True, type=int, help="Ending queue size (inclusive).")
-    parser.add_argument("--config_path", default="src/main/config/config.json", help="Path to config.json file.")
+    parser.add_argument("--config_dir", default="src/main/config", help="Path to config.json and default.json file.")
 
     args = parser.parse_args()
 
@@ -56,7 +63,7 @@ def main():
     trace_path = Path(args.trace).resolve()
     out_dir = Path(args.outdir).resolve()
     csv_dir = Path(args.csv_dir).resolve()
-    config_path = Path(args.config_path).resolve()
+    config_dir = Path(args.config_dir).resolve()
 
     if not sim_exe.exists():
         print(f"❌ Simulator not found at {sim_exe}")
@@ -67,6 +74,9 @@ def main():
     if not csv_dir.is_dir():
         print(f"❌ CSV output directory not found at {csv_dir}")
         return
+    if not config_dir.is_dir():
+        print(f"❌ Config default directory not found at {config_dir}")
+        return
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,7 +84,7 @@ def main():
     queue_size = args.start
     while queue_size <= args.end:
         # Update config.json with new queue size
-        write_config(queue_size, config_path)
+        write_config(queue_size, config_dir)
 
         # Run simulation
         print("Running simulations ", queue_size)

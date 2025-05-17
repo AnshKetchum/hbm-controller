@@ -5,7 +5,7 @@ import io.circe._, io.circe.generic.auto._, io.circe.parser._
 
 import java.nio.file.{Files, Paths}
 
-case class Config(queueSize: Int)
+case class Config(queueSize: Int, bankSchedulerPolicy: String)
 
 object Elaborate extends App {
   // Load queueSize from a JSON file (e.g., "config.json")
@@ -18,13 +18,18 @@ object Elaborate extends App {
   }
 
   val queueSize = parsedConfig.queueSize
+  val bankSchedulerPolicy = parsedConfig.bankSchedulerPolicy
+
   printf("Found config value of queueSize = %d\n", queueSize)
+  printf("Found bank scheduler policy value of policy = %s\n", bankSchedulerPolicy)
 
-  // Instantiate with default values
-  val defaultConfig = MemoryConfigurationParameters()
+  // Instantiate memory configuration parameters with default values, then update
+  val defaultMemoryConfig = MemoryConfigurationParameters()
+  val updatedMemoryConfig = defaultMemoryConfig
 
-  // Create a modified copy with the new controllerQueueSize
-  val updatedConfig = defaultConfig.copy(controllerQueueSize = queueSize)
+  // Instantiate 
+  val defaultControllerConfig = MemoryControllerParameters()
+  val updatedControllerConfig = defaultControllerConfig.copy(queueSize = queueSize, openPagePolicy = (bankSchedulerPolicy == "OPEN_PAGE"))
 
   // FIRRTL -> SystemVerilog lowering options
   val firtoolOptions = Array(
@@ -37,7 +42,7 @@ object Elaborate extends App {
 
   // Emit SystemVerilog
   ChiselStage.emitSystemVerilogFile(
-    new SingleChannelSystem(SingleChannelMemoryConfigurationParams(memConfiguration = updatedConfig)),
+    new SingleChannelSystem(SingleChannelMemoryConfigurationParams(memConfiguration = updatedMemoryConfig, controllerConfiguration = updatedControllerConfig)),
     args,
     firtoolOptions
   )

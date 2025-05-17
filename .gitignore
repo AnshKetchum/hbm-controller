@@ -366,3 +366,5 @@ out.txt
 *.egg-info
 *.txt
 *experiments*
+*exp*
+  
