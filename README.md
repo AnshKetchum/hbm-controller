@@ -15,4 +15,4 @@ Default HBM model Parameters are currently set to - https://github.com/umd-memsy
 
 
 Known Limitations
-- DRAM Mem Conflicts; impacts correctness of simulation, not timing
+- DRAM Mem Conflicts; impacts correctness of simulation, not timing 
