@@ -5,7 +5,7 @@ import io.circe._, io.circe.generic.auto._, io.circe.parser._
 
 import java.nio.file.{Files, Paths}
 
-case class Config(queueSize: Int, bankSchedulerPolicy: String)
+case class Config(queueSize: Int, bankSchedulerPolicy: String, numChannels: Int, numRanks: Int, numBanks: Int)
 
 object Elaborate extends App {
   // Load queueSize from a JSON file (e.g., "config.json")
@@ -19,12 +19,15 @@ object Elaborate extends App {
 
   val queueSize           = parsedConfig.queueSize
   val bankSchedulerPolicy = parsedConfig.bankSchedulerPolicy
+  val numChannels = parsedConfig.numChannels
+  val numRanks = parsedConfig.numRanks
+  val numBanks = parsedConfig.numBanks
 
   printf("Found config value of queueSize = %d\n", queueSize)
   printf("Found bank scheduler policy value of policy = %s\n", bankSchedulerPolicy)
 
   // Instantiate memory configuration parameters with default values, then update
-  val defaultMemoryConfig = MemoryConfigurationParameters()
+  val defaultMemoryConfig = MemoryConfigurationParameters(numberOfChannels = numChannels, numberOfRanks = numRanks, numberOfBanks = numBanks)
   val updatedMemoryConfig = defaultMemoryConfig
 
   // Instantiate
