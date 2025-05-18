@@ -27,7 +27,8 @@ class MemorySystemIO(params: MemoryConfigurationParameters) extends Bundle {
 }
 
 class SingleChannelSystem(
-  params: SingleChannelMemoryConfigurationParams, localConfig: LocalConfigurationParameters)
+  params:      SingleChannelMemoryConfigurationParams,
+  localConfig: LocalConfigurationParameters)
     extends Module {
   val io = IO(new MemorySystemIO(params.memConfiguration))
 

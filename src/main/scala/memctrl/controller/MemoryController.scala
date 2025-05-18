@@ -10,7 +10,7 @@ class MultiRankMemoryController(
   params:           MemoryConfigurationParameters,
   bankParams:       DRAMBankParameters,
   controllerParams: MemoryControllerParameters,
-  localConfig: LocalConfigurationParameters,
+  localConfig:      LocalConfigurationParameters,
   trackPerformance: Boolean = false)
     extends Module {
   val io = IO(new Bundle {
@@ -59,7 +59,7 @@ class MultiRankMemoryController(
   }
 
   // ------ Multi-dequeue demux into per-FSM queues ------
-  val multiDeq = Module(new MultiDeqQueue(params, banksPerRank, totalBankFSMs, controllerParams.queueSize))
+  val multiDeq = Module(new MultiDeqQueue(params, bankParams, banksPerRank, totalBankFSMs, controllerParams.queueSize))
   multiDeq.io.enq <> reqQueue.io.deq
 
   // hook up demux outputs directly into FSM request ports
@@ -76,7 +76,7 @@ class MultiRankMemoryController(
   cmdQueue.io.enq <> cmdArb.io.out
 
   // ------ Response routing back to FSMs ------
-  val respDecoder = Module(new AddressDecoder(params))
+  val respDecoder = Module(new AddressDecoder(params, bankParams))
   respDecoder.io.addr := io.phyResp.bits.addr
   val respFlat = respDecoder.io.rankIndex * banksPerRank.U + respDecoder.io.bankIndex
 

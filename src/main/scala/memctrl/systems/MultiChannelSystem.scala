@@ -3,19 +3,17 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/**
- * Multi-channel memory system: same top-level IO as SingleChannelSystem,
- * but instantiates multiple channel+controller pairs and routes
- * requests based on decoded channel index.
- */
+/** Multi-channel memory system: same top-level IO as SingleChannelSystem, but instantiates multiple channel+controller
+  * pairs and routes requests based on decoded channel index.
+  */
 class MultiChannelSystem(
-  params: SingleChannelMemoryConfigurationParams,
-  localConfig: LocalConfigurationParameters
-) extends Module {
+  params:      SingleChannelMemoryConfigurationParams,
+  localConfig: LocalConfigurationParameters)
+    extends Module {
   val io = IO(new MemorySystemIO(params.memConfiguration))
 
   // Address decoder to extract channel index from request address
-  val decoder = Module(new AddressDecoder(params.memConfiguration))
+  val decoder = Module(new AddressDecoder(params.memConfiguration, params.bankConfiguration))
   decoder.io.addr := io.in.bits.addr
 
   // Shared request ID counter
@@ -24,24 +22,28 @@ class MultiChannelSystem(
   when(inputFire) { requestId := requestId + 1.U }
 
   // Instantiate per-channel channel and controller
-  val channels = Seq.tabulate(params.memConfiguration.numberOfChannels) { i =>
-    val ch = Module(new Channel(
-      params.memConfiguration,
-      params.bankConfiguration,
-      localConfig.copy(channelIndex = i),
-      params.trackPerformance,
-      params.memConfiguration.memoryQueueSize
-    ))
+  val channels    = Seq.tabulate(params.memConfiguration.numberOfChannels) { i =>
+    val ch = Module(
+      new Channel(
+        params.memConfiguration,
+        params.bankConfiguration,
+        localConfig.copy(channelIndex = i),
+        params.trackPerformance,
+        params.memConfiguration.memoryQueueSize
+      )
+    )
     ch
   }
   val controllers = Seq.tabulate(params.memConfiguration.numberOfChannels) { i =>
-    val mc = Module(new MultiRankMemoryController(
-      params.memConfiguration,
-      params.bankConfiguration,
-      params.controllerConfiguration,
-      localConfig.copy(channelIndex = i),
-      params.trackPerformance
-    ))
+    val mc = Module(
+      new MultiRankMemoryController(
+        params.memConfiguration,
+        params.bankConfiguration,
+        params.controllerConfiguration,
+        localConfig.copy(channelIndex = i),
+        params.trackPerformance
+      )
+    )
     mc
   }
 
@@ -55,7 +57,7 @@ class MultiChannelSystem(
   val ctrlReqVec = Seq.tabulate(params.memConfiguration.numberOfChannels) { i =>
     val w = Wire(Decoupled(new ControllerRequest))
     // valid only for the decoded channel
-    w.valid := io.in.valid && (decoder.io.channelIndex === i.U)
+    w.valid           := io.in.valid && (decoder.io.channelIndex === i.U)
     // map SystemRequest fields
     w.bits.rd_en      := io.in.bits.rd_en
     w.bits.wr_en      := io.in.bits.wr_en
@@ -86,8 +88,8 @@ class MultiChannelSystem(
   if (params.trackPerformance) {
     for (i <- 0 until params.memConfiguration.numberOfChannels) {
       val perfStats = Module(new SystemQueuePerformanceStatistics)
-      val inFireCh = io.in.valid && io.in.ready && (decoder.io.channelIndex === i.U)
-      val outFire  = io.out.valid && io.out.ready
+      val inFireCh  = io.in.valid && io.in.ready && (decoder.io.channelIndex === i.U)
+      val outFire   = io.out.valid && io.out.ready
       perfStats.io.in_fire  := inFireCh
       perfStats.io.in_bits  := ctrlReqVec(i).bits
       perfStats.io.out_fire := outFire

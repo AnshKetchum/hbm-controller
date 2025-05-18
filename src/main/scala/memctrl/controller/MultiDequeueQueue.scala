@@ -6,6 +6,7 @@ import chisel3.util._
 /** A multi-dequeue FIFO that uses AddressDecoder to steer each request into the correct per-bank subqueue. */
 class MultiDeqQueue(
   params:        MemoryConfigurationParameters,
+  bankParams:    DRAMBankParameters,
   banksPerRank:  Int,
   totalBankFSMs: Int,
   depth:         Int)
@@ -17,7 +18,7 @@ class MultiDeqQueue(
   })
 
   // Address decoder for the incoming enqueue bits
-  val addrDec = Module(new AddressDecoder(params))
+  val addrDec = Module(new AddressDecoder(params, bankParams))
   addrDec.io.addr := io.enq.bits.addr
 
   // Compute flat index: rank * banksPerRank + bank

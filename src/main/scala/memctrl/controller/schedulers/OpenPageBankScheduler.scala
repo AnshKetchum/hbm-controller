@@ -20,7 +20,7 @@ class OpenPageBankScheduler(
 
   // --------------------------------------------------
   // Address decoder for response filtering
-  val respDec = Module(new AddressDecoder(memoryConfig))
+  val respDec = Module(new AddressDecoder(memoryConfig, params))
   respDec.io.addr := io.phyResp.bits.addr
 
   // --------------------------------------------------
@@ -72,13 +72,12 @@ class OpenPageBankScheduler(
   val bankBitsWidth   = log2Ceil(memoryConfig.numberOfBanks)
   val columnBitsWidth = 32 - (rankBitsWidth + bankBitsWidth)
 
-  // unique refresh ID & address
-  val refreshReqId = Cat(
-    0.U(columnBitsWidth.W),
-    localConfiguration.rankIndex.U(rankBitsWidth.W),
-    localConfiguration.bankIndex.U(bankBitsWidth.W)
-  )
-  val refreshAddr  = refreshReqId
+  // instantiate the generator for refresh ID and address
+  private val reqIDGen = Module(new RefreshAddressGenerator(memoryConfig, params, localConfiguration))
+
+  // wire up refresh request ID and address from the generator
+  val refreshReqId = reqIDGen.io.refreshReqId
+  val refreshAddr  = reqIDGen.io.refreshAddr
 
   // --------------------------------------------------
   // Extract row from an address

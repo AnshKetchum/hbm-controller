@@ -5,9 +5,10 @@ import chisel3.util._
 
 // Demultiplexes a PhysicalMemoryCommand into per‐rank subqueues
 class MultiRankCmdQueue(
-  params:   MemoryConfigurationParameters,
-  numRanks: Int,
-  depth:    Int)
+  params:     MemoryConfigurationParameters,
+  dramParams: DRAMBankParameters,
+  numRanks:   Int,
+  depth:      Int)
     extends Module {
   val io = IO(new Bundle {
     val enq    = Flipped(Decoupled(new PhysicalMemoryCommand))
@@ -16,7 +17,7 @@ class MultiRankCmdQueue(
   })
 
   // 1) Decode rank
-  val addrDec = Module(new AddressDecoder(params))
+  val addrDec = Module(new AddressDecoder(params, dramParams))
   addrDec.io.addr := io.enq.bits.addr
   val rankIdx = addrDec.io.rankIndex
 

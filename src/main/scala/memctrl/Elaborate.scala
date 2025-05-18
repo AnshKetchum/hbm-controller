@@ -19,15 +19,16 @@ object Elaborate extends App {
 
   val queueSize           = parsedConfig.queueSize
   val bankSchedulerPolicy = parsedConfig.bankSchedulerPolicy
-  val numChannels = parsedConfig.numChannels
-  val numRanks = parsedConfig.numRanks
-  val numBanks = parsedConfig.numBanks
+  val numChannels         = parsedConfig.numChannels
+  val numRanks            = parsedConfig.numRanks
+  val numBanks            = parsedConfig.numBanks
 
   printf("Found config value of queueSize = %d\n", queueSize)
   printf("Found bank scheduler policy value of policy = %s\n", bankSchedulerPolicy)
 
   // Instantiate memory configuration parameters with default values, then update
-  val defaultMemoryConfig = MemoryConfigurationParameters(numberOfChannels = numChannels, numberOfRanks = numRanks, numberOfBanks = numBanks)
+  val defaultMemoryConfig =
+    MemoryConfigurationParameters(numberOfChannels = numChannels, numberOfRanks = numRanks, numberOfBanks = numBanks)
   val updatedMemoryConfig = defaultMemoryConfig
 
   // Instantiate
@@ -51,7 +52,7 @@ object Elaborate extends App {
     new MultiChannelSystem(
       SingleChannelMemoryConfigurationParams(
         memConfiguration = updatedMemoryConfig,
-        controllerConfiguration = updatedControllerConfig,
+        controllerConfiguration = updatedControllerConfig
       ),
       localConfig = defaultLocalConfig
     ),
