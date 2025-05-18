@@ -3,22 +3,36 @@ package memctrl
 import chisel3._
 import chisel3.util._
 
-/** AddressDecoder: Given a 32-bit address and configuration parameters, it decodes the rank and bank indices.
-  *
-  * Bit allocation (from LSB):
-  *   - bankIndex: [bankBits-1:0]
-  *   - rankIndex: [bankBits + rankBits - 1 : bankBits]
-  */
 class AddressDecoder(params: MemoryConfigurationParameters) extends Module {
   val io = IO(new Bundle {
-    val addr      = Input(UInt(32.W))
-    val bankIndex = Output(UInt(log2Ceil(params.numberOfBanks).W))
-    val rankIndex = Output(UInt(log2Ceil(params.numberOfRanks).W))
+    val addr         = Input(UInt(32.W))
+    val channelIndex = Output(UInt(log2Ceil(params.numberOfChannels).max(1).W))
+    val bankIndex    = Output(UInt(log2Ceil(params.numberOfBanks).max(1).W))
+    val rankIndex    = Output(UInt(log2Ceil(params.numberOfRanks).max(1).W))
   })
 
-  val bankBits = log2Ceil(params.numberOfBanks)
-  val rankBits = log2Ceil(params.numberOfRanks)
+  val channelBits = log2Ceil(params.numberOfChannels)
+  val bankBits    = log2Ceil(params.numberOfBanks)
+  val rankBits    = log2Ceil(params.numberOfRanks)
 
-  io.bankIndex := io.addr(bankBits - 1, 0)
-  io.rankIndex := io.addr(bankBits + rankBits - 1, bankBits)
+  // channelIndex
+  if (channelBits > 0) {
+    io.channelIndex := io.addr(channelBits - 1, 0)
+  } else {
+    io.channelIndex := 0.U
+  }
+
+  // bankIndex
+  if (bankBits > 0) {
+    io.bankIndex := io.addr(channelBits + bankBits - 1, channelBits)
+  } else {
+    io.bankIndex := 0.U
+  }
+
+  // rankIndex
+  if (rankBits > 0) {
+    io.rankIndex := io.addr(channelBits + bankBits + rankBits - 1, channelBits + bankBits)
+  } else {
+    io.rankIndex := 0.U
+  }
 }

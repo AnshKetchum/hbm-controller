@@ -3,7 +3,7 @@
 SRC_DIR      := src
 VERILOG_DIR  := $(SRC_DIR)/main/resources/vsrc
 SIM_MAIN     := sim_main.cpp
-TOP_MODULE   := SingleChannelSystem
+TOP_MODULE   := MultiChannelSystem
 
 # SBT command to run the Chisel elaboration using the legacy driver
 SBT_CMD      := sbt "runMain memctrl.Elaborate --target-dir $(VERILOG_DIR)"
@@ -23,27 +23,28 @@ verilog:
 	@echo "Generating Verilog from Chisel..."
 	$(SBT_CMD)
 
-	sed -i '/SystemQueuePerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
-	sed -i '/SystemQueuePerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/SystemQueuePerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
+	sed -i '/SystemQueuePerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
 
-	sed -i '/CommandQueuePerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
-	sed -i '/CommandQueuePerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/CommandQueuePerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
+	sed -i '/CommandQueuePerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
 
-	sed -i '/BankSchedulerPerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
-	sed -i '/BankSchedulerPerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
-	sed -i '/BankSchedulerPhysicalMemoryRequestPerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
-	sed -i '/BankSchedulerPhysicalMemoryResponsePerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/BankSchedulerPerformanceStatisticsInput.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
+	sed -i '/BankSchedulerPerformanceStatisticsOutput.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
+	sed -i '/BankSchedulerPhysicalMemoryRequestPerformanceStatistics.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
+	sed -i '/BankSchedulerPhysicalMemoryResponsePerformanceStatistics.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
 
-	sed -i '/BankPhysicalMemoryRequestPerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
-	sed -i '/BankPhysicalMemoryResponsePerformanceStatistics.sv/d' $(VERILOG_DIR)/SingleChannelSystem.sv
+	sed -i '/BankPhysicalMemoryRequestPerformanceStatistics.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
+	sed -i '/BankPhysicalMemoryResponsePerformanceStatistics.sv/d' $(VERILOG_DIR)/MultiChannelSystem.sv
+
 	
 
 
 verilator-trace: 
-	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/SingleChannelSystem.sv ./sims/sim_trace.cpp
+	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/MultiChannelSystem.sv ./sims/sim_trace.cpp
 
 verilator-sanity-test:
-	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/SingleChannelSystem.sv ./sims/sim_random.cpp
+	verilator --cc --exe --build -Mdir obj_dir -o V$(TOP_MODULE) src/main/resources/vsrc/MultiChannelSystem.sv ./sims/sim_random.cpp
 	./$(TARGET)
 
 all: verilog verilator-trace

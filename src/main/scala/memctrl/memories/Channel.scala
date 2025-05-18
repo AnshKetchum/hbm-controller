@@ -6,7 +6,7 @@ import chisel3.util._
 class Channel(
   params:           MemoryConfigurationParameters,
   bankParams:       DRAMBankParameters,
-  channelIndex:     Int = 0,
+  localConfig: LocalConfigurationParameters,
   trackPerformance: Boolean = false,
   queueDepth:       Int = 256)
     extends PhysicalMemoryModuleBase {
@@ -18,7 +18,7 @@ class Channel(
 
   // Instantiate each Rank and hook up its memCmd port
   val ranks = Seq.tabulate(params.numberOfRanks) { i =>
-    val loc   = LocalConfigurationParameters(channelIndex, i, 0)
+    val loc   = LocalConfigurationParameters(localConfig.channelIndex, i, 0)
     val rankM = Module(new Rank(params, bankParams, loc, trackPerformance, queueDepth))
     rankM.io.memCmd <> cmdDemux.io.deq(i)
     rankM

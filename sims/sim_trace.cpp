@@ -1,4 +1,4 @@
-#include "VSingleChannelSystem.h"
+#include "VMultiChannelSystem.h"
 #include "verilated.h"
 #include <cstdlib>
 #include <ctime>
@@ -68,7 +68,7 @@ void write_response_log(const string &filename) {
     }
 }
 
-void tick(VSingleChannelSystem* top) {
+void tick(VMultiChannelSystem* top) {
     top->clock = 0; top->eval();
     top->clock = 1; top->eval();
     sim_cycle++;
@@ -99,7 +99,7 @@ vector<TraceEntry> load_trace(const string &filename) {
     return trace;
 }
 
-bool enqueue_request(VSingleChannelSystem* top, const TraceEntry &e,
+bool enqueue_request(VMultiChannelSystem* top, const TraceEntry &e,
                      unordered_map<unsigned, TraceEntry>& pending) {
     top->io_in_valid      = 1;
     top->io_in_bits_addr  = e.addr;
@@ -130,7 +130,7 @@ bool enqueue_request(VSingleChannelSystem* top, const TraceEntry &e,
     return true;
 }
 
-bool dequeue_response(VSingleChannelSystem* top,
+bool dequeue_response(VMultiChannelSystem* top,
                       unordered_map<unsigned, TraceEntry>& pending) {
     if (!top->io_out_valid) return false;
 
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    VSingleChannelSystem *top = new VSingleChannelSystem;
+    VMultiChannelSystem *top = new VMultiChannelSystem;
     srand(time(nullptr));
 
     // Reset

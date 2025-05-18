@@ -41,13 +41,16 @@ object Elaborate extends App {
     ).mkString(",")
   )
 
+  val defaultLocalConfig = LocalConfigurationParameters(0, -1, -1)
+
   // Emit SystemVerilog
   ChiselStage.emitSystemVerilogFile(
-    new SingleChannelSystem(
+    new MultiChannelSystem(
       SingleChannelMemoryConfigurationParams(
         memConfiguration = updatedMemoryConfig,
-        controllerConfiguration = updatedControllerConfig
-      )
+        controllerConfiguration = updatedControllerConfig,
+      ),
+      localConfig = defaultLocalConfig
     ),
     args,
     firtoolOptions

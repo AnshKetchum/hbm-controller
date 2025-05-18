@@ -27,7 +27,7 @@ class MemorySystemIO(params: MemoryConfigurationParameters) extends Bundle {
 }
 
 class SingleChannelSystem(
-  params: SingleChannelMemoryConfigurationParams)
+  params: SingleChannelMemoryConfigurationParams, localConfig: LocalConfigurationParameters)
     extends Module {
   val io = IO(new MemorySystemIO(params.memConfiguration))
 
@@ -35,7 +35,7 @@ class SingleChannelSystem(
     new Channel(
       params.memConfiguration,
       params.bankConfiguration,
-      0,
+      localConfig,
       params.trackPerformance,
       params.memConfiguration.memoryQueueSize
     )
@@ -45,6 +45,7 @@ class SingleChannelSystem(
       params.memConfiguration,
       params.bankConfiguration,
       params.controllerConfiguration,
+      localConfig,
       params.trackPerformance
     )
   )

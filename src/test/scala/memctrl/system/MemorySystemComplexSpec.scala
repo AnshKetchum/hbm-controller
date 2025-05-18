@@ -14,7 +14,7 @@ class MemorySystemComplexSpec extends AnyFreeSpec with Matchers {
       bankConfiguration = DRAMBankParameters()
     )
 
-    simulate(new SingleChannelSystem(customParams)) { dut =>
+    simulate(new SingleChannelSystem(customParams, LocalConfigurationParameters())) { dut =>
       dut.reset.poke(true.B); dut.clock.step()
       dut.reset.poke(false.B); dut.clock.step()
 

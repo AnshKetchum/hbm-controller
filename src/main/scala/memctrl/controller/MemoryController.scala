@@ -10,6 +10,7 @@ class MultiRankMemoryController(
   params:           MemoryConfigurationParameters,
   bankParams:       DRAMBankParameters,
   controllerParams: MemoryControllerParameters,
+  localConfig: LocalConfigurationParameters,
   trackPerformance: Boolean = false)
     extends Module {
   val io = IO(new Bundle {
@@ -48,7 +49,7 @@ class MultiRankMemoryController(
     val fsms = Seq.tabulate(totalBankFSMs) { i =>
       val r   = i / banksPerRank
       val b   = i % banksPerRank
-      val loc = LocalConfigurationParameters(0, r, b)
+      val loc = LocalConfigurationParameters(localConfig.channelIndex, r, b)
       if (controllerParams.openPagePolicy)
         Module(new OpenPageBankScheduler(bankParams, loc, params, trackPerformance)).io
       else

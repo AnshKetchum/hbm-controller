@@ -96,6 +96,6 @@ class MemoryControllerIntegrationSpec extends AnyFreeSpec with Matchers {
     bankIndex = 0
   )
 
-  controllerFlowSpec("Channel", new Channel(memParams, bankParams))
+  controllerFlowSpec("Channel", new Channel(memParams, bankParams, localConfig))
   controllerFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
 }
