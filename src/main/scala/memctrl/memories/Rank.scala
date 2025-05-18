@@ -12,12 +12,10 @@ class Rank(
   trackPerformance: Boolean = false,
   queueDepth:       Int = 256)
     extends PhysicalMemoryModuleBase {
-
-  // Metadata registers for last column access
+    
   val lastColBank  = RegInit(0.U(32.W))
   val lastColCycle = RegInit(0.U(32.W))
 
-  // --- Command side: per-bank demux queue ---
   val cmdDemux = Module(
     new MultiBankCmdQueue(
       params,
@@ -27,58 +25,85 @@ class Rank(
   )
   cmdDemux.io.enq <> io.memCmd
 
-  // Instantiate each Bank and wire commands
-  val banks = Seq.tabulate(params.numberOfBanks) { idx =>
-    val cfg  = localConfig.copy(bankIndex = idx)
-    val bank = Module(new DRAMBank(bankParams, cfg, trackPerformance))
-
-    // Transform PhysicalMemoryCommand -> BankMemoryCommand, stamping metadata
-    val in  = cmdDemux.io.deq(idx)
-    val out = Wire(Decoupled(new BankMemoryCommand))
-    out.valid                 := in.valid
-    in.ready                  := out.ready
-    out.bits.addr             := in.bits.addr
-    out.bits.data             := in.bits.data
-    out.bits.cs               := in.bits.cs
-    out.bits.ras              := in.bits.ras
-    out.bits.cas              := in.bits.cas
-    out.bits.we               := in.bits.we
-    out.bits.request_id       := in.bits.request_id
-    out.bits.lastColBankGroup := lastColBank
-    out.bits.lastColCycle     := lastColCycle
-
-    bank.io.memCmd <> out
-    bank
+  when(io.memCmd.fire) {
+    printf("Rank received request")
   }
 
-  // Channel ready when any bank queue can accept
-  io.memCmd.ready := cmdDemux.io.enq.ready
+  val banksWithTiming = Seq.tabulate(params.numberOfBanks) { idx =>
+    val cfg     = localConfig.copy(bankIndex = idx)
+    val bank    = Module(new DRAMBankWithWait(bankParams, cfg, trackPerformance))
+    val timer   = Module(new TimingEngine(bankParams))
+    val deqPort = cmdDemux.io.deq(idx)
 
-  // --- Response side: per-bank queues + arbiter ---
-  val respQs = Seq.fill(params.numberOfBanks) {
-    Module(new Queue(new BankMemoryResponse, entries = queueDepth))
-  }
+    // Create BankMemoryCommand with metadata
+    val stamped = Wire(Decoupled(new BankMemoryCommand))
 
-  for (((bank, q), idx) <- banks.zip(respQs).zipWithIndex) {
-    q.io.enq.bits         := bank.io.phyResp.bits
-    q.io.enq.valid        := bank.io.phyResp.valid
-    bank.io.phyResp.ready := q.io.enq.ready
+    // Manually drive ready/valid
+    stamped.valid := deqPort.valid
+    deqPort.ready := stamped.ready
 
-    when(q.io.enq.fire) {
+    // Fill in the command fields
+    stamped.bits.addr             := deqPort.bits.addr
+    stamped.bits.data             := deqPort.bits.data
+    stamped.bits.cs               := deqPort.bits.cs
+    stamped.bits.ras              := deqPort.bits.ras
+    stamped.bits.cas              := deqPort.bits.cas
+    stamped.bits.we               := deqPort.bits.we
+    stamped.bits.request_id       := deqPort.bits.request_id
+    stamped.bits.lastColBankGroup := lastColBank
+    stamped.bits.lastColCycle     := lastColCycle
+
+    // Debug print for handshake signals (only for bank 0)
+
+    // Debug print
+    when(stamped.fire) {
+      printf("[Rank] Request enqueued to bank %d with addr 0x%x at cycle %d\n",
+        idx.U, stamped.bits.addr, clock.asUInt)
+    }
+
+    // Split the command manually
+    val stampedForTimer = Wire(Decoupled(new BankMemoryCommand))
+    val stampedForBank  = Wire(Decoupled(new BankMemoryCommand))
+
+    // Connect from the shared stamped signal
+    stampedForTimer.valid := stamped.valid
+    stampedForTimer.bits  := stamped.bits
+
+    stampedForBank.valid := stamped.valid
+    stampedForBank.bits  := stamped.bits
+
+    // Producer sees both are ready
+    stamped.ready := stampedForTimer.ready && stampedForBank.ready
+
+    // if (idx == 0) {
+    //   printf("valid=%d rdy=%d \n", stamped.valid, stamped.ready)
+    // }
+
+    // Send the same command to both timing and FSM
+    timer.io.cmd    <> stampedForTimer
+    bank.io.memCmd  <> stampedForBank
+    bank.waitCycles := timer.io.waitCycles
+
+    // Response queue (unchanged)
+    val respQ = Module(new Queue(new BankMemoryResponse, queueDepth))
+    respQ.io.enq.bits     := bank.io.phyResp.bits
+    respQ.io.enq.valid    := bank.io.phyResp.valid
+    bank.io.phyResp.ready := respQ.io.enq.ready
+
+    when(respQ.io.enq.fire) {
       lastColBank  := idx.U
       lastColCycle := clock.asUInt
       printf("[Rank] Response enqueued from bank %d at cycle %d\n", idx.U, lastColCycle)
-      printf("  -> request_id = %d, data = 0x%x\n", bank.io.phyResp.bits.request_id, bank.io.phyResp.bits.data)
     }
+
+    (bank, respQ)
   }
 
-  // Round-robin arbitrator across banks
+
   val arb = Module(new RRArbiter(new BankMemoryResponse, params.numberOfBanks))
-  for ((q, i) <- respQs.zipWithIndex) arb.io.in(i) <> q.io.deq
+  banksWithTiming.zipWithIndex.foreach { case ((_, q), i) => arb.io.in(i) <> q.io.deq }
 
-  // drive Rank’s phyResp from arbiter
-  io.phyResp <> arb.io.out
-
-  // Active banks sum
-  io.activeSubMemories := banks.map(_.io.activeSubMemories).reduce(_ +& _)
+  io.phyResp           <> arb.io.out
+  io.memCmd.ready      := cmdDemux.io.enq.ready
+  io.activeSubMemories := banksWithTiming.map(_._1.io.activeSubMemories).reduce(_ +& _)
 }
