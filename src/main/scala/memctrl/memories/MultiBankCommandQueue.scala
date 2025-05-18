@@ -6,9 +6,10 @@ import chisel3.util._
 /** Demultiplexes a PhysicalMemoryCommand into per-bank subqueues based on AddressDecoder.io.bankIndex.
   */
 class MultiBankCmdQueue(
-  params:   MemoryConfigurationParameters,
-  numBanks: Int,
-  depth:    Int)
+  params:     MemoryConfigurationParameters,
+  dramParams: DRAMBankParameters,
+  numBanks:   Int,
+  depth:      Int)
     extends Module {
   val io = IO(new Bundle {
     val enq    = Flipped(Decoupled(new PhysicalMemoryCommand))
@@ -17,7 +18,7 @@ class MultiBankCmdQueue(
   })
 
   // Decode bank index
-  val addrDec = Module(new AddressDecoder(params))
+  val addrDec = Module(new AddressDecoder(params, dramParams))
   addrDec.io.addr := io.enq.bits.addr
   val bankIdx = addrDec.io.bankIndex
 

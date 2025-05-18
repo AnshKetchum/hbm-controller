@@ -93,6 +93,6 @@ class PhysicalMemoryModuleSpec extends AnyFreeSpec with Matchers {
   )
 
   println("[PhysicalMemorySpec] In here. ")
-  dramFlowSpec("Channel", new Channel(memParams, bankParams))
+  dramFlowSpec("Channel", new Channel(memParams, bankParams, localConfig))
   dramFlowSpec("Rank", new Rank(memParams, bankParams, localConfig))
 }

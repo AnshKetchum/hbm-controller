@@ -19,6 +19,7 @@ class Rank(
   val cmdDemux = Module(
     new MultiBankCmdQueue(
       params,
+      bankParams,
       numBanks = params.numberOfBanks,
       depth = queueDepth
     )
@@ -31,7 +32,7 @@ class Rank(
 
   val banksWithTiming = Seq.tabulate(params.numberOfBanks) { idx =>
     val cfg     = localConfig.copy(bankIndex = idx)
-    val bank    = Module(new DRAMBankWithWait(bankParams, cfg, trackPerformance))
+    val bank    = Module(new DRAMBankWithWait(bankParams, params, cfg, trackPerformance))
     val timer   = Module(new TimingEngine(bankParams))
     val deqPort = cmdDemux.io.deq(idx)
 

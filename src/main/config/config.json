@@ -1,4 +1,7 @@
 {
   "queueSize": 2,
-  "bankSchedulerPolicy" : "OPEN_PAGE"
+  "bankSchedulerPolicy" : "OPEN_PAGE",
+  "numChannels" : 1,
+  "numRanks" : 2,
+  "numBanks" : 8
 }

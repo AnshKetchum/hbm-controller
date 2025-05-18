@@ -1,4 +1,4 @@
-#include "VSingleChannelSystem.h"
+#include "VMultiChannelSystem.h"
 #include "verilated.h"
 #include <cstdlib>
 #include <ctime>
@@ -16,7 +16,7 @@ static const unsigned long long TIMEOUT = 10000ULL;
 unsigned long long sim_cycle = 0;
 
 // Advance one clock cycle
-void tick(VSingleChannelSystem* top) {
+void tick(VMultiChannelSystem* top) {
     top->clock = 0;
     top->eval();
     top->clock = 1;
@@ -25,7 +25,7 @@ void tick(VSingleChannelSystem* top) {
 }
 
 // Issue a request (read or write) using Decoupled handshake
-void issue_request(VSingleChannelSystem* top, bool wr, unsigned int addr, unsigned int wdata) {
+void issue_request(VMultiChannelSystem* top, bool wr, unsigned int addr, unsigned int wdata) {
     // Drive valid and bits
     top->io_in_valid      = 1;
     top->io_in_bits_wr_en = wr;
@@ -52,7 +52,7 @@ void issue_request(VSingleChannelSystem* top, bool wr, unsigned int addr, unsign
 }
 
 // Wait for and consume a response
-unsigned int get_response(VSingleChannelSystem* top, bool expect_wr, unsigned int expected_addr) {
+unsigned int get_response(VMultiChannelSystem* top, bool expect_wr, unsigned int expected_addr) {
     unsigned long long wait = 0;
     while (!top->io_out_valid && wait < TIMEOUT) {
         tick(top);
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     
     // Instantiate DUT
-    VSingleChannelSystem* top = new VSingleChannelSystem;
+    VMultiChannelSystem* top = new VMultiChannelSystem;
     
     // Reset sequence
     top->reset = 1;

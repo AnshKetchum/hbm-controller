@@ -9,6 +9,7 @@ import chisel3.util.log2Ceil
   */
 class DRAMBankWithWait(
   params:           DRAMBankParameters,
+  memConfig:        MemoryConfigurationParameters,
   localConfig:      LocalConfigurationParameters,
   trackPerformance: Boolean = false)
     extends PhysicalBankModuleBase {
@@ -53,9 +54,13 @@ class DRAMBankWithWait(
   val doSrefEnter = cs_p && ras_p && cas_p && we_p
   val doSrefExit  = cs_p && !ras_p && !cas_p && !we_p
 
-  // address fields
-  val reqRow = pending.addr(31, 32 - log2Ceil(params.numRows))
-  val reqCol = pending.addr(log2Ceil(params.numCols) - 1, 0)
+  // instantiate AddressDecoder for row/column
+  private val addrDecoder = Module(new AddressDecoder(memConfig, params))
+  addrDecoder.io.addr := pending.addr
+
+  // now pull row & column from the decoder
+  val reqRow = addrDecoder.io.rowIndex
+  val reqCol = addrDecoder.io.columnIndex
 
   // defaults
   cmd.ready            := (state === sIdle)

@@ -6,19 +6,19 @@ import chisel3.util._
 class Channel(
   params:           MemoryConfigurationParameters,
   bankParams:       DRAMBankParameters,
-  channelIndex:     Int = 0,
+  localConfig:      LocalConfigurationParameters,
   trackPerformance: Boolean = false,
   queueDepth:       Int = 256)
     extends PhysicalMemoryModuleBase {
 
   // ---- Command side: multi‐rank demux ----
   // Steer incoming commands into per‐rank FIFOs
-  val cmdDemux = Module(new MultiRankCmdQueue(params, params.numberOfRanks, queueDepth))
+  val cmdDemux = Module(new MultiRankCmdQueue(params, bankParams, params.numberOfRanks, queueDepth))
   cmdDemux.io.enq <> io.memCmd // global enqueue
 
   // Instantiate each Rank and hook up its memCmd port
   val ranks = Seq.tabulate(params.numberOfRanks) { i =>
-    val loc   = LocalConfigurationParameters(channelIndex, i, 0)
+    val loc   = LocalConfigurationParameters(localConfig.channelIndex, i, 0)
     val rankM = Module(new Rank(params, bankParams, loc, trackPerformance, queueDepth))
     rankM.io.memCmd <> cmdDemux.io.deq(i)
     rankM

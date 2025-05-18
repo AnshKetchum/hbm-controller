@@ -27,7 +27,8 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
       new MultiRankMemoryController(
         MemoryConfigurationParameters(),
         DRAMBankParameters(),
-        MemoryControllerParameters()
+        MemoryControllerParameters(),
+        LocalConfigurationParameters()
       )
     ) { dut =>
       // Apply reset
@@ -73,7 +74,8 @@ class MultiRankMemoryControllerSpec extends AnyFreeSpec with Matchers {
       new MultiRankMemoryController(
         MemoryConfigurationParameters(),
         DRAMBankParameters(),
-        MemoryControllerParameters()
+        MemoryControllerParameters(),
+        LocalConfigurationParameters()
       )
     ) { dut =>
       // Apply reset

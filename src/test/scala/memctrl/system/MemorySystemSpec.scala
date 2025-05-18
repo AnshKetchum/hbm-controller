@@ -13,7 +13,7 @@ import org.scalatest.matchers.must.Matchers
 class SingleChannelMemorySystemSpec extends AnyFreeSpec with Matchers {
 
   "SingleChannelSystem should correctly handle a write followed by a read transaction" in {
-    simulate(new SingleChannelSystem(SingleChannelMemoryConfigurationParams())) { dut =>
+    simulate(new SingleChannelSystem(SingleChannelMemoryConfigurationParams(), LocalConfigurationParameters())) { dut =>
       // Apply reset
       dut.reset.poke(true.B)
       dut.clock.step()

@@ -121,9 +121,9 @@ case class MemoryConfigurationParameters(
   memoryQueueSize:  Int = 256)
 
 case class LocalConfigurationParameters(
-  channelIndex: Int,
-  rankIndex:    Int,
-  bankIndex:    Int)
+  channelIndex: Int = 0,
+  rankIndex:    Int = 0,
+  bankIndex:    Int = 0)
 
 /** Base class for any non-bank module exposing a PhysicalMemoryIO interface
   */
