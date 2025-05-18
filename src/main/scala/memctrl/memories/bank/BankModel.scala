@@ -4,10 +4,9 @@ import chisel3._
 import chisel3.util._
 import chisel3.util.log2Ceil
 
-/**
- * DRAM bank FSM that defers timing to an external TimingEngine.
- * Accepts a `waitCycles` input per command and enforces it.
- */
+/** DRAM bank FSM that defers timing to an external TimingEngine. Accepts a `waitCycles` input per command and enforces
+  * it.
+  */
 class DRAMBankWithWait(
   params:           DRAMBankParameters,
   localConfig:      LocalConfigurationParameters,
@@ -15,8 +14,8 @@ class DRAMBankWithWait(
     extends PhysicalBankModuleBase {
 
   // I/O
-  val cmd        = io.memCmd    // Decoupled[BankMemoryCommand]
-  val resp       = io.phyResp   // Decoupled[BankMemoryResponse]
+  val cmd        = io.memCmd  // Decoupled[BankMemoryCommand]
+  val resp       = io.phyResp // Decoupled[BankMemoryResponse]
   val waitCycles = io.waitCycles
 
   // fixed indices
@@ -25,7 +24,7 @@ class DRAMBankWithWait(
 
   // FSM states: Idle -> Wait -> Execute -> Resp
   val sIdle :: sWait :: sExec :: sResp :: Nil = Enum(4)
-  val state = RegInit(sIdle)
+  val state                                   = RegInit(sIdle)
 
   // latch incoming command
   val pending = Reg(new BankMemoryCommand)
@@ -69,9 +68,9 @@ class DRAMBankWithWait(
     is(sIdle) {
       when(cmd.fire) {
         printf("[Bank Model] Received command. time = %d \n", waitCycles)
-        pending   := cmd.bits
-        timer     := waitCycles
-        state     := sWait
+        pending := cmd.bits
+        timer   := waitCycles
+        state   := sWait
       }
     }
 
@@ -88,8 +87,8 @@ class DRAMBankWithWait(
     is(sExec) {
       // perform the operation
       when(doActivate) {
-        rowActive := true.B
-        activeRow := reqRow
+        rowActive  := true.B
+        activeRow  := reqRow
         resp.valid := true.B
       }.elsewhen(doRead) {
         val data = mem.read(activeRow * params.numCols.U + reqCol)
@@ -101,10 +100,10 @@ class DRAMBankWithWait(
         resp.bits.data := pending.data
         resp.valid     := true.B
       }.elsewhen(doPrecharge) {
-        rowActive := false.B
+        rowActive  := false.B
         resp.valid := true.B
       }.elsewhen(doRefresh) {
-        rowActive := false.B
+        rowActive  := false.B
         resp.valid := true.B
       }.elsewhen(doSrefEnter || doSrefExit) {
         resp.valid := true.B

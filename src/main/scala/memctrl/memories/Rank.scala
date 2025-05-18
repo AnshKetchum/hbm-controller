@@ -12,7 +12,7 @@ class Rank(
   trackPerformance: Boolean = false,
   queueDepth:       Int = 256)
     extends PhysicalMemoryModuleBase {
-    
+
   val lastColBank  = RegInit(0.U(32.W))
   val lastColCycle = RegInit(0.U(32.W))
 
@@ -57,8 +57,7 @@ class Rank(
 
     // Debug print
     when(stamped.fire) {
-      printf("[Rank] Request enqueued to bank %d with addr 0x%x at cycle %d\n",
-        idx.U, stamped.bits.addr, clock.asUInt)
+      printf("[Rank] Request enqueued to bank %d with addr 0x%x at cycle %d\n", idx.U, stamped.bits.addr, clock.asUInt)
     }
 
     // Split the command manually
@@ -80,8 +79,8 @@ class Rank(
     // }
 
     // Send the same command to both timing and FSM
-    timer.io.cmd    <> stampedForTimer
-    bank.io.memCmd  <> stampedForBank
+    timer.io.cmd <> stampedForTimer
+    bank.io.memCmd <> stampedForBank
     bank.waitCycles := timer.io.waitCycles
 
     // Response queue (unchanged)
@@ -99,11 +98,10 @@ class Rank(
     (bank, respQ)
   }
 
-
   val arb = Module(new RRArbiter(new BankMemoryResponse, params.numberOfBanks))
   banksWithTiming.zipWithIndex.foreach { case ((_, q), i) => arb.io.in(i) <> q.io.deq }
 
-  io.phyResp           <> arb.io.out
+  io.phyResp <> arb.io.out
   io.memCmd.ready      := cmdDemux.io.enq.ready
   io.activeSubMemories := banksWithTiming.map(_._1.io.activeSubMemories).reduce(_ +& _)
 }
