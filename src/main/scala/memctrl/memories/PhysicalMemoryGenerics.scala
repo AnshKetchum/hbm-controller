@@ -64,6 +64,8 @@ class PhysicalBankIO extends Bundle {
   /** Output response back to controller * */
   val phyResp = Decoupled(new BankMemoryResponse)
 
+  val waitCycles = Input(UInt(32.W)) // cycles to wait before processing
+
   /** Output active sub-memories count * */
   val activeSubMemories = Output(UInt(32.W)) // Track number of active sub-memories
 }
@@ -74,8 +76,14 @@ case class DRAMBankParameters(
   numCols:     Int = 2048,
   deviceWidth: Int = 128,
   tCK:         Int = 1,
+  burst_cycle: Int = 0,
+  RL:          Int = 0,
+  WL:          Int = 0,
+  AL:          Int = 0,
+  tRTP:        Int = 0,
   CL:          Int = 14,
   CWL:         Int = 4,
+  tRTRS:       Int = 0,
   tRCDRD:      Int = 14,
   tRCDWR:      Int = 14,
   tRP:         Int = 14,
