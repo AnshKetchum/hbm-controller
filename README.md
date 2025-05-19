@@ -90,7 +90,7 @@ If you use MemorySim in your research, please cite:
 @inproceedings{chaurasia2025mem,
   title={MemorySim: An RTL-level, timing accurate simulator model for the Chisel ecosystem},
   author={Chaurasia, Ansh},
-  booktitle={Proceedings of the ACM/IEEE High Performance Computing Conference},
+  booktitle={},
   year={2025},
   pages={1--8}
 }
